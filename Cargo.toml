@@ -1,0 +1,14 @@
+[package]
+name = "eas-weather-rs"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "eas-weather-rs"
+path = "src/bin/server/main.rs"
+
+[lib]
+name = "eas_weather_rs"
+path = "src/lib/lib.rs"
+
+[dependencies]

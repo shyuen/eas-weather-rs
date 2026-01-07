@@ -1,0 +1,25 @@
+# Configuration file that shows default settings
+# By default, a `config.toml` file in the same directory will be merged with this file and override the default settings.
+# You can override this location by either using the `--config-file` parameter
+# or setting the `EAS_WEATHER__CONFIG_FILE` environment variable.
+
+[logging]
+format = "text"               # Log formatting ["text", "json"]
+trace_level = "info"          # Log level ["error", "warn", "info", "debug", "trace"]
+
+[server]
+hostname = "localhost"      # Server host
+base_path = "/"             # Base path for API
+port = 8080                 # Server port
+
+shutdown_timeout_secs = 5   # Graceful shutdown timeout in seconds
+
+[database]
+host = "localhost"          # Database host
+port = 3306                 # Database port
+name = "eas_weather"        # Database
+username = "root"           # Database user
+#password_file = "./db_password.txt"  # File path to database password
+
+conn_max_retries = 5             # Maximum number of connection retries
+conn_retry_init_delay_secs = 1   # Initial delay between connection retries in seconds, exponential backoff
