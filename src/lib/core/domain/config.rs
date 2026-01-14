@@ -34,12 +34,7 @@ pub(crate) struct Server {
 /// The global configuration for the databse and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct Database {
-    pub(crate) host: Option<String>,
-    pub(crate) port: Option<u16>,
-    pub(crate) name: Option<String>,
-
-    pub(crate) username: Option<String>,
-    pub(crate) password_file: Option<String>,
+    pub(crate) conn_url_file: Option<String>,
 
     pub(crate) conn_max_retries: Option<u8>,
     pub(crate) conn_retry_init_delay_secs: Option<u64>,
