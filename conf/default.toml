@@ -15,11 +15,10 @@ port = 8080                 # Server port
 shutdown_timeout_secs = 5   # Graceful shutdown timeout in seconds
 
 [database]
-host = "localhost"          # Database host
-port = 3306                 # Database port
-name = "eas_weather"        # Database
-username = "root"           # Database user
-#password_file = "./db_password.txt"  # File path to database password
+# If the conn_url_file is not found, then the program will use the following value for
+# the connection string.
+# mysql://root:password@localhost/db
+conn_url_file = "./conf/mysql_conn_url"     # Database connection URL file path
 
-conn_max_retries = 5             # Maximum number of connection retries
-conn_retry_init_delay_secs = 1   # Initial delay between connection retries in seconds, exponential backoff
+conn_max_retries = 5                        # Maximum number of connection retries
+conn_retry_init_delay_secs = 1              # Initial delay between connection retries in seconds, exponential backoff
