@@ -2,8 +2,8 @@
 
 A web microservice service that provides emergency alert system (EAS) information.
 
-## NixOS Environment
-*You may skip this section if you are not using NixOS.*
+## Nix Environment
+*You may skip this section if you are not using Nix.*
 
 This project includes a `flake.nix` file for setting up the development environment on a NixOS machine.
 You can enter the development environment by running the following at the location of the `flake.nix` file.:

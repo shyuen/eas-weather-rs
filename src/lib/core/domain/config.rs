@@ -1,46 +1,46 @@
 use serde_derive::{Deserialize, Serialize};
 
-/// The global configuration for the driver and its components.
+/// The raw configuration for the driver and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Config {
-    pub(crate) logging: Logging,
-    pub(crate) server: Server,
-    pub(crate) database: Database,
-    pub(crate) config_file: Option<String>,
+pub struct Config {
+    pub logging: ConfigLogging,
+    pub server: ConfigServer,
+    pub database: ConfigDatabase,
+    pub config_file: Option<String>,
 }
 
-/// The global configuration for logging.
+/// The raw configuration for logging.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Logging {
-    pub(crate) log_format: Option<String>,
-    pub(crate) log_trace_level: Option<String>,
+pub struct ConfigLogging {
+    pub log_format: Option<String>,
+    pub log_trace_level: Option<String>,
 }
 
-/// The global configuration for the server and its components.
+/// The raw configuration for the server and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Server {
-    pub(crate) hostname: Option<String>,
-    pub(crate) port: Option<u16>,
-    pub(crate) base_path: Option<String>,
+pub struct ConfigServer {
+    pub hostname: Option<String>,
+    pub port: Option<u16>,
+    pub base_path: Option<String>,
 
-    pub(crate) shutdown_timeout_secs: Option<u64>,
+    pub shutdown_timeout_secs: Option<u64>,
 
-    pub(crate) api_key_file: Option<String>,
+    pub api_key_file: Option<String>,
 
-    pub(crate) jwt_key_file: Option<String>,
-    pub(crate) jwt_access_token_expiry_secs: Option<u64>,
+    pub jwt_key_file: Option<String>,
+    pub jwt_access_token_expiry_secs: Option<u64>,
 }
 
-/// The global configuration for the databse and its components.
+/// The raw configuration for the databse and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Database {
-    pub(crate) conn_: Option<String>,
-    pub(crate) port: Option<u16>,
-    pub(crate) name: Option<String>,
+pub struct ConfigDatabase {
+    pub conn_: Option<String>,
+    pub port: Option<u16>,
+    pub name: Option<String>,
 
-    pub(crate) username: Option<String>,
-    pub(crate) password_file: Option<String>,
+    pub username: Option<String>,
+    pub password_file: Option<String>,
 
-    pub(crate) conn_max_retries: Option<u8>,
-    pub(crate) conn_retry_init_delay_secs: Option<u64>,
+    pub conn_max_retries: Option<u8>,
+    pub conn_retry_init_delay_secs: Option<u64>,
 }

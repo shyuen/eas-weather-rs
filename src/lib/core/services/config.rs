@@ -1,3 +1,4 @@
+use crate::core::domain::config::Config;
 use crate::core::ports::inbound::config::ConfigRepo;
 
 #[derive(Debug, Clone)]
@@ -5,7 +6,7 @@ pub struct ConfigService<C>
 where
     C: ConfigRepo,
 {
-    pub config: C,
+    pub repo: C,
 }
 
 impl<C> ConfigService<C>
@@ -14,12 +15,16 @@ where
 {
     /// Creates a new instance of ConfigService.
     pub fn new() -> Self {
-        let config = C::new();
-        Self { config }
+        let repo = C::new();
+        Self { repo }
     }
 
     /// Logs debug information about the configuration inputs.
     pub fn log_debug_inputs(&self) {
-        self.config.log_config_validation();
+        self.repo.log_config_validation();
+    }
+
+    pub fn get_config(&self) -> &Config {
+        self.repo.get_config()
     }
 }
