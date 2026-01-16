@@ -21,6 +21,9 @@ dotenv = "0.15.0"
 clap = { version = "4.5.41", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 figment_file_env_provider = "0.2.0"
+thiserror = "2.0"
+strum = "0.27"
+strum_macros = "0.27"
 
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }

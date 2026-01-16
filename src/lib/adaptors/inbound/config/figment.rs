@@ -139,4 +139,8 @@ impl ConfigRepo for FigmentConfig {
         );
         info!("final configuration output {:?}", &self.config);
     }
+
+    fn get_config(&self) -> &Config {
+        &self.config
+    }
 }
