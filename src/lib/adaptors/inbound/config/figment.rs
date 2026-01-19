@@ -8,64 +8,19 @@ use std::env;
 use tracing::debug;
 use tracing::info;
 
-use crate::core::domain::config::Config;
-
-use crate::core::ports::inbound::config::ConfigRepo;
-
 use crate::adaptors::inbound::config::clap::Cli;
+use crate::core::domain::config::logging::Logging;
+use crate::core::domain::config::raw::Config;
+use crate::core::ports::inbound::config::ConfigRepo;
+use crate::core::ports::outbound::logging::LoggingRepo;
 
 #[derive(Debug)]
 pub struct FigmentConfig {
-    config: Config,
+    conf_raw: Config,
+    conf_logging: Logging,
 }
 
 impl FigmentConfig {
-    pub fn new() -> Self {
-        // This line loads the environment variables from the ".env" file.
-        dotenv().ok();
-
-        // Use Figment to load preliminary configuration
-        // We need this to handle the certain configuration options such as using a
-        // different configuration file to load when dictated by the CLI or ENV.
-        let conf: Config = match Figment::new()
-            .join(Serialized::defaults(Cli::parse()))
-            .join(Env::prefixed("APP__").split("__"))
-            .extract()
-        {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("error extracting configuration: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        // Check which selected config file to load from CLI or ENV
-        let config_file = match conf.config_file {
-            Some(x) => x.to_string(),
-            None => "config/config.toml".to_string(),
-        };
-
-        // Use Figment to load configuration from multiple sources the following priority
-        // CLI > ENV > FILE > DEFAULT FILE > CODE
-        let conf: Config = match Figment::new()
-            .join(Serialized::defaults(Cli::parse()))
-            .join(Env::prefixed("APP__").split("__"))
-            .join(Env::prefixed("SERVER__").split("__"))
-            .join(Env::prefixed("DATABASE__").split("__"))
-            .join(Toml::file(config_file))
-            .join(Toml::file("./config/default.toml"))
-            .extract()
-        {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("error extracting configuration: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        Self { config: conf }
-    }
-
     pub fn log_config_validation(&self) {
         // Log debug information regarding config inputs
         debug!("configuration from {:?}", Cli::parse());
@@ -76,58 +31,66 @@ impl FigmentConfig {
                 .map(|(k, v)| (k.replace("__", "."), v))
                 .collect::<Vec<_>>()
         );
-        info!("final configuration output {:?}", &self.config);
+        info!("final configuration output {:?}", &self.conf_raw);
     }
+}
+
+fn collect_raw_input() -> Config {
+    // This line loads the environment variables from the ".env" file.
+    dotenv().ok();
+
+    // Use Figment to load preliminary configuration
+    // We need this to handle the certain configuration options such as using a
+    // different configuration file to load when dictated by the CLI or ENV.
+    let conf: Config = match Figment::new()
+        .join(Serialized::defaults(Cli::parse()))
+        .join(Env::prefixed("APP__").split("__"))
+        .extract()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error extracting configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Check which selected config file to load from CLI or ENV
+    let config_file = match conf.config_file {
+        Some(x) => x.to_string(),
+        None => "config/config.toml".to_string(),
+    };
+
+    // Use Figment to load configuration from multiple sources the following priority
+    // CLI > ENV > FILE > DEFAULT FILE > CODE
+    let conf: Config = match Figment::new()
+        .join(Serialized::defaults(Cli::parse()))
+        .join(Env::prefixed("APP__").split("__"))
+        .join(Env::prefixed("SERVER__").split("__"))
+        .join(Env::prefixed("DATABASE__").split("__"))
+        .join(Toml::file(config_file))
+        .join(Toml::file("./config/default.toml"))
+        .extract()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("error extracting configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    conf
 }
 
 impl ConfigRepo for FigmentConfig {
     fn new() -> Self {
-        // This line loads the environment variables from the ".env" file.
-        dotenv().ok();
-
-        // Use Figment to load preliminary configuration
-        // We need this to handle the certain configuration options such as using a
-        // different configuration file to load when dictated by the CLI or ENV.
-        let conf: Config = match Figment::new()
-            .join(Serialized::defaults(Cli::parse()))
-            .join(Env::prefixed("APP__").split("__"))
-            .extract()
-        {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("error extracting configuration: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        // Check which selected config file to load from CLI or ENV
-        let config_file = match conf.config_file {
-            Some(x) => x.to_string(),
-            None => "config/config.toml".to_string(),
-        };
-
-        // Use Figment to load configuration from multiple sources the following priority
-        // CLI > ENV > FILE > DEFAULT FILE > CODE
-        let conf: Config = match Figment::new()
-            .join(Serialized::defaults(Cli::parse()))
-            .join(Env::prefixed("APP__").split("__"))
-            .join(Env::prefixed("SERVER__").split("__"))
-            .join(Env::prefixed("DATABASE__").split("__"))
-            .join(Toml::file(config_file))
-            .join(Toml::file("./config/default.toml"))
-            .extract()
-        {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("error extracting configuration: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        Self { config: conf }
+        let conf = collect_raw_input();
+        Self {
+            conf_raw: conf.clone(),
+            conf_logging: Logging::new(&conf.logging),
+        }
     }
 
-    fn log_config_validation(&self) {
+    fn log_raw_config_input(&self) {
         // Log debug information regarding config inputs
         debug!("configuration from {:?}", Cli::parse());
         debug!(
@@ -137,10 +100,19 @@ impl ConfigRepo for FigmentConfig {
                 .map(|(k, v)| (k.replace("__", "."), v))
                 .collect::<Vec<_>>()
         );
-        info!("final configuration output {:?}", &self.config);
+        info!("final configuration output {:?}", &self.conf_raw);
     }
 
-    fn get_config(&self) -> &Config {
-        &self.config
+    fn get_raw_config(&self) -> &Config {
+        &self.conf_raw
+    }
+
+    fn get_logging_config(&self) -> &Logging {
+        &self.conf_logging
+    }
+
+    fn validate_logging_config(&self, log_serv: &impl LoggingRepo) {
+        self.conf_logging
+            .validate(log_serv, self.conf_raw.logging.clone());
     }
 }

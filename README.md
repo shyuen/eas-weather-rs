@@ -40,6 +40,6 @@ cargo test
 The configuration is loaded in the following order, with later values overriding earlier ones:
 1. Default toml Configuration file (e.g., `default.toml`)
 1. Configuration file specified by the `APP_CONFIG_FILE` environment variable (e.g. `config.toml`)
-1. Environment variables (e.g., `APP__LOG_FORMAT`)
 1. Environment variable file (e.g., `.env`)
+1. Environment variables (e.g., `APP__LOG_FORMAT`)
 1. Command line arguments (e.g., `--log-format`)

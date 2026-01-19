@@ -1,9 +1,22 @@
+use std::fmt;
 use strum_macros::EnumString;
 use thiserror::Error;
 
 /// A validated and formatted logging trace level.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LoggingTraceLevel(LoggingTraceLevelType);
+
+impl fmt::Display for LoggingTraceLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            LoggingTraceLevelType::Error => write!(f, "error"),
+            LoggingTraceLevelType::Warn => write!(f, "warn"),
+            LoggingTraceLevelType::Info => write!(f, "info"),
+            LoggingTraceLevelType::Debug => write!(f, "debug"),
+            LoggingTraceLevelType::Trace => write!(f, "trace"),
+        }
+    }
+}
 
 /// Available logging trace level types for application
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -25,9 +38,9 @@ pub enum LoggingTraceLevelError {
 }
 
 impl LoggingTraceLevel {
-    pub fn new(raw_Logging_trace_level: &str) -> Result<Self, LoggingTraceLevelError> {
+    pub fn new(raw_logging_trace_level: &str) -> Result<Self, LoggingTraceLevelError> {
         // Add validation logic here if needed
-        let trimmed = raw_Logging_trace_level.trim();
+        let trimmed = raw_logging_trace_level.trim();
 
         if trimmed.trim().is_empty() {
             return Err(LoggingTraceLevelError::EmptyTraceLevel(trimmed.to_string()));
@@ -46,5 +59,8 @@ impl LoggingTraceLevel {
     }
     pub fn default() -> Self {
         LoggingTraceLevel(LoggingTraceLevelType::Info)
+    }
+    pub fn trace_level_type(&self) -> &LoggingTraceLevelType {
+        &self.0
     }
 }
