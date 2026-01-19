@@ -15,7 +15,7 @@ pub trait ConfigRepo {
     /// Log any validation messages regarding the configuration
     /// This is needed to be triggered after the logging subsystem is initialized
     /// so that configutation log messages can be captured correctly.
-    fn log_raw_config_input(&self);
+    fn log_raw_config_input(&self, log_serv: &impl LoggingRepo);
 
     /// Get the logging configurations
     fn get_logging_config(&self) -> &Logging;
