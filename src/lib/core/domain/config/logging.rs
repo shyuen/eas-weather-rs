@@ -13,7 +13,7 @@ pub struct Logging {
 impl Logging {
     /// Creates a new instance of Logging configuration.
     pub fn new(conf: &ConfigLogging) -> Self {
-        let format = match &conf.log_format {
+        let format = match &conf.format {
             // Set value based on raw input or to its default errors
             // We don't handle logging here as the logger is not yet initialized
             Some(raw_log_format) => {
@@ -27,7 +27,7 @@ impl Logging {
             None => LoggingFormat::default(),
         };
 
-        let trace_level = match &conf.log_trace_level {
+        let trace_level = match &conf.trace_level {
             // Set value based on raw input or to its default errors
             // We don't handle logging here as the logger is not yet initialized
             Some(raw_trace_level) => {
@@ -50,7 +50,7 @@ impl Logging {
         log_serv: &impl LoggingRepo,
         raw_log_conf: &ConfigLogging,
     ) {
-        match &raw_log_conf.log_format {
+        match &raw_log_conf.format {
             Some(raw_log_format) => {
                 if let Err(err) = LoggingFormat::new(&raw_log_format) {
                     match &err {
@@ -87,7 +87,7 @@ impl Logging {
             }
         }
 
-        match &raw_log_conf.log_trace_level {
+        match &raw_log_conf.trace_level {
             Some(raw_trace_level) => {
                 if let Err(err) = LoggingTraceLevel::new(&raw_trace_level) {
                     match &err {
