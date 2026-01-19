@@ -1,3 +1,4 @@
+use std::fmt;
 use strum_macros::EnumString;
 use thiserror::Error;
 
@@ -5,8 +6,17 @@ use thiserror::Error;
 #[derive(Debug)]
 pub struct LoggingFormat(LoggingFormatType);
 
+impl fmt::Display for LoggingFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            LoggingFormatType::Text => write!(f, "text"),
+            LoggingFormatType::Json => write!(f, "json"),
+        }
+    }
+}
+
 /// Available logging output format types for application
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(EnumString, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LoggingFormatType {
     Text,
     Json,
@@ -39,5 +49,8 @@ impl LoggingFormat {
     }
     pub fn default() -> Self {
         LoggingFormat(LoggingFormatType::Text)
+    }
+    pub fn format_type(&self) -> &LoggingFormatType {
+        &self.0
     }
 }
