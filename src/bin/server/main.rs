@@ -6,16 +6,13 @@ use eas_weather_rs::core::services::logging::LoggingService;
 fn main() {
     // Configuration
     let conf_service: ConfigService<FigmentConfig> = ConfigService::new();
-
-    //dbg!(&conf_service.get_logging_config());
-
     let logging_service: LoggingService<TracingLogging> =
         LoggingService::new(conf_service.get_logging_config());
 
-    logging_service.info("EAS Weather Server started.");
+    logging_service.info(module_path!(), "EAS Weather Server started");
 
     conf_service.validate_logging_config(logging_service.get_repo());
     logging_service.log_conf_validatation(conf_service.get_logging_config());
 
-    logging_service.info("EAS Weather Server ended.");
+    logging_service.info(module_path!(), "EAS Weather Server ended");
 }

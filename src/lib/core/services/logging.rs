@@ -24,28 +24,28 @@ where
     }
 
     /// Log an info level message
-    pub fn info(&self, message: &str) {
-        self.repo.info(message);
+    pub fn info(&self, mod_path: &str, message: &str) {
+        self.repo.info(mod_path, message);
     }
 
     /// Log an error level message
-    pub fn error(&self, message: &str) {
-        self.repo.error(message);
+    pub fn error(&self, mod_path: &str, message: &str) {
+        self.repo.error(mod_path, message);
     }
 
     /// Log a debug level message
-    pub fn debug(&self, message: &str) {
-        self.repo.debug(message);
+    pub fn debug(&self, mod_path: &str, message: &str) {
+        self.repo.debug(mod_path, message);
     }
 
     /// Log a warn level message
-    pub fn warn(&self, message: &str) {
-        self.repo.warn(message);
+    pub fn warn(&self, mod_path: &str, message: &str) {
+        self.repo.warn(mod_path, message);
     }
 
     /// Log a trace level message
-    pub fn trace(&self, message: &str) {
-        self.repo.trace(message);
+    pub fn trace(&self, mod_path: &str, message: &str) {
+        self.repo.trace(mod_path, message);
     }
 
     pub fn log_conf_validatation(&self, conf_log: &Logging) {

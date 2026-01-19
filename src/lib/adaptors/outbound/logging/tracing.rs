@@ -6,6 +6,7 @@ use crate::core::domain::config::logging_format::LoggingFormatType;
 use crate::core::domain::config::logging_trace_level::LoggingTraceLevelType;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
+#[derive(Debug, Clone)]
 pub struct TracingLogging {}
 
 impl TracingLogging {
@@ -36,6 +37,7 @@ impl LoggingRepo for TracingLogging {
             }
             LoggingFormatType::Text => {
                 tracing_subscriber::fmt()
+                    .with_ansi(true)
                     .with_max_level(trace_level)
                     .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
                     .with_target(false)
@@ -47,39 +49,45 @@ impl LoggingRepo for TracingLogging {
     }
 
     /// Log an info level message
-    fn info(&self, message: &str) {
-        info!("{}", message);
+    fn info(&self, mod_path: &str, message: &str) {
+        info!(mod_path, "{}", message);
     }
 
     /// Log an error level message
-    fn error(&self, message: &str) {
-        error!("{}", message);
+    fn error(&self, mod_path: &str, message: &str) {
+        error!(mod_path, "{}", message);
     }
 
     /// Log a debug level message
-    fn debug(&self, message: &str) {
-        tracing::debug!("{}", message);
+    fn debug(&self, mod_path: &str, message: &str) {
+        tracing::debug!(mod_path, "{}", message);
     }
 
     /// Log a warn level message
-    fn warn(&self, message: &str) {
-        warn!("{}", message);
+    fn warn(&self, mod_path: &str, message: &str) {
+        warn!(mod_path, "{}", message);
     }
 
     /// Log a trace level message
-    fn trace(&self, message: &str) {
-        tracing::trace!("{}", message);
+    fn trace(&self, mod_path: &str, message: &str) {
+        tracing::trace!(mod_path, "{}", message);
     }
 
     /// Log configuration validation messages
     fn log_conf_validation(&self, conf_log: &Logging) {
-        self.info(&format!(
-            "tracing: logging format set to `{:?}`",
-            conf_log.format.format_type()
-        ));
-        self.info(&format!(
-            "tracing: log trace level set to `{:?}`",
-            conf_log.trace_level.trace_level_type()
-        ));
+        self.info(
+            module_path!(),
+            &format!(
+                "logging format set to `{:?}`",
+                conf_log.format.format_type()
+            ),
+        );
+        self.info(
+            module_path!(),
+            &format!(
+                "log trace level set to `{:?}`",
+                conf_log.trace_level.trace_level_type()
+            ),
+        );
     }
 }

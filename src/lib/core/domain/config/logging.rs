@@ -45,32 +45,41 @@ impl Logging {
         }
     }
 
-    pub fn validate(&self, log_serv: &impl LoggingRepo, raw_log_conf: ConfigLogging) {
+    pub fn validate(&self, log_serv: &impl LoggingRepo, raw_log_conf: &ConfigLogging) {
         match &raw_log_conf.log_format {
             Some(raw_log_format) => {
                 if let Err(err) = LoggingFormat::new(&raw_log_format) {
                     match &err {
                         LoggingFormatError::EmptyType(_) => {
-                            log_serv.warn(&format!(
-                                "logging format type is empty, setting to `{}`",
-                                LoggingFormat::default()
-                            ));
+                            log_serv.warn(
+                                module_path!(),
+                                &format!(
+                                    "logging format type is empty, setting to `{}`",
+                                    LoggingFormat::default()
+                                ),
+                            );
                         }
                         LoggingFormatError::UnknownFormat(_) => {
-                            log_serv.warn(&format!(
-                                "unknown logging format `{}`, setting value to `{}`",
-                                raw_log_format,
-                                LoggingFormat::default(),
-                            ));
+                            log_serv.warn(
+                                module_path!(),
+                                &format!(
+                                    "unknown logging format `{}`, setting value to `{}`",
+                                    raw_log_format,
+                                    LoggingFormat::default(),
+                                ),
+                            );
                         }
                     }
                 }
             }
             None => {
-                log_serv.warn(&format!(
-                    "logging format was not specified, setting value to `{}`",
-                    LoggingFormat::default()
-                ));
+                log_serv.warn(
+                    module_path!(),
+                    &format!(
+                        "logging format was not specified, setting value to `{}`",
+                        LoggingFormat::default()
+                    ),
+                );
             }
         }
 
@@ -79,26 +88,35 @@ impl Logging {
                 if let Err(err) = LoggingTraceLevel::new(&raw_trace_level) {
                     match &err {
                         LoggingTraceLevelError::EmptyTraceLevel(_) => {
-                            log_serv.warn(&format!(
-                                "logging trace level is empty, setting to `{}`",
-                                LoggingTraceLevel::default()
-                            ));
+                            log_serv.warn(
+                                module_path!(),
+                                &format!(
+                                    "logging trace level is empty, setting to `{}`",
+                                    LoggingTraceLevel::default()
+                                ),
+                            );
                         }
                         LoggingTraceLevelError::UnknownTraceLevel(_) => {
-                            log_serv.warn(&format!(
-                                "unknown logging trace level `{}`, setting value to `{}`",
-                                raw_trace_level,
-                                LoggingTraceLevel::default(),
-                            ));
+                            log_serv.warn(
+                                module_path!(),
+                                &format!(
+                                    "unknown logging trace level `{}`, setting value to `{}`",
+                                    raw_trace_level,
+                                    LoggingTraceLevel::default(),
+                                ),
+                            );
                         }
                     }
                 }
             }
             None => {
-                log_serv.warn(&format!(
-                    "logging trace level was not specified, setting value to `{}`",
-                    LoggingTraceLevel::default()
-                ));
+                log_serv.warn(
+                    module_path!(),
+                    &format!(
+                        "logging trace level was not specified, setting value to `{}`",
+                        LoggingTraceLevel::default()
+                    ),
+                );
             }
         }
     }

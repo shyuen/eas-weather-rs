@@ -112,7 +112,6 @@ impl ConfigRepo for FigmentConfig {
     }
 
     fn validate_logging_config(&self, log_serv: &impl LoggingRepo) {
-        self.conf_logging
-            .validate(log_serv, self.conf_raw.logging.clone());
+        self.conf_logging.validate(log_serv, &self.conf_raw.logging);
     }
 }
