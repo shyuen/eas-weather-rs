@@ -33,7 +33,7 @@ fn collect_raw_input() -> Config {
         Ok(c) => c,
         Err(e) => {
             eprintln!("error extracting configuration: {}", e);
-            std::process::exit(1);
+            std::process::exit(1); // We use exit for planned exits instead of panics
         }
     };
 
@@ -47,7 +47,7 @@ fn collect_raw_input() -> Config {
     // CLI > ENV > FILE > DEFAULT FILE > CODE
     let conf: Config = match Figment::new()
         .join(Serialized::defaults(Cli::parse()))
-        .join(Env::prefixed("APP__").split("__"))
+        .join(Env::prefixed("LOGGING__").split("__"))
         .join(Env::prefixed("SERVER__").split("__"))
         .join(Env::prefixed("DATABASE__").split("__"))
         .join(Toml::file(config_file))
@@ -85,24 +85,52 @@ impl ConfigRepo for FigmentConfig {
 
     // Log debug information regarding config inputs
     fn log_raw_config_input(&self, log_serv: &impl LoggingRepo) {
+        // Log config from CLI
         log_serv.debug(
             module_path!(),
             &format!("configuration from {:?}", Cli::parse()),
         );
 
+        // Log config from ENV
         log_serv.debug(
             module_path!(),
             &format!(
                 "configuration from Env {:?}",
                 env::vars()
-                    .filter(|(k, _)| k.starts_with("APP__") || k.starts_with("SERVER__"))
+                    .filter(|(k, _)| k.starts_with("LOGGING__")
+                        || k.starts_with("SERVER__")
+                        || k.starts_with("DATABASE__"))
                     .map(|(k, v)| (k.replace("__", "."), v))
                     .collect::<Vec<_>>()
             ),
         );
+
+        let conf_files: Config = match Figment::new()
+            .join(Toml::file(
+                &self
+                    .conf_raw
+                    .config_file
+                    .clone()
+                    .unwrap_or("config/config.toml".to_string()),
+            ))
+            .join(Toml::file("./config/default.toml"))
+            .extract()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("error extracting configuration: {}", e);
+                std::process::exit(1);
+            }
+        };
         log_serv.debug(
             module_path!(),
-            &format!("final configuration output {:?}", &self.conf_raw),
+            &format!("configuration from Files {:?}", conf_files),
+        );
+
+        // Log final raw config
+        log_serv.debug(
+            module_path!(),
+            &format!("final Raw Config {:?}", &self.conf_raw),
         );
     }
 
