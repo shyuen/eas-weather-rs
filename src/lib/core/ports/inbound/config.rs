@@ -20,5 +20,6 @@ pub trait ConfigRepo {
 
     fn get_logging_config(&self) -> &Logging;
 
-    fn validate_logging_config(&self, log_serv: &impl LoggingRepo);
+    /// Validate the raw logging configuration
+    fn validate_raw_logging_config(&self, log_serv: &impl LoggingRepo);
 }

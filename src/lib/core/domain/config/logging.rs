@@ -45,7 +45,11 @@ impl Logging {
         }
     }
 
-    pub fn validate(&self, log_serv: &impl LoggingRepo, raw_log_conf: &ConfigLogging) {
+    pub fn validate_raw_logging_config(
+        &self,
+        log_serv: &impl LoggingRepo,
+        raw_log_conf: &ConfigLogging,
+    ) {
         match &raw_log_conf.log_format {
             Some(raw_log_format) => {
                 if let Err(err) = LoggingFormat::new(&raw_log_format) {

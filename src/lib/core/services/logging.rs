@@ -19,8 +19,14 @@ where
         Self { repo }
     }
 
+    /// Get the logging repository
     pub fn get_repo(&self) -> &L {
         &self.repo
+    }
+
+    /// Log configuration that's currently set
+    pub fn log_set_config(&self, conf_log: &Logging) {
+        self.repo.log_set_config(conf_log);
     }
 
     /// Log an info level message
@@ -46,9 +52,5 @@ where
     /// Log a trace level message
     pub fn trace(&self, mod_path: &str, message: &str) {
         self.repo.trace(mod_path, message);
-    }
-
-    pub fn log_conf_validatation(&self, conf_log: &Logging) {
-        self.repo.log_conf_validation(conf_log);
     }
 }

@@ -18,5 +18,5 @@ pub trait LoggingRepo {
     /// Log a trace level message
     fn trace(&self, target: &str, message: &str);
 
-    fn log_conf_validation(&self, conf: &Logging);
+    fn log_set_config(&self, conf: &Logging);
 }

@@ -11,8 +11,11 @@ fn main() {
 
     logging_service.info(module_path!(), "EAS Weather Server started");
 
-    conf_service.validate_logging_config(logging_service.get_repo());
-    logging_service.log_conf_validatation(conf_service.get_logging_config());
+    // Validate raw configurations
+    conf_service.validate_raw_logging_config(logging_service.get_repo()); // Needs to be done after logger is initialized
+
+    // Log the current configuration
+    logging_service.log_set_config(conf_service.get_logging_config());
 
     logging_service.info(module_path!(), "EAS Weather Server ended");
 }
