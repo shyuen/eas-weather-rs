@@ -48,6 +48,24 @@ impl LoggingRepo for TracingLogging {
         TracingLogging {}
     }
 
+    /// Log configuration that's currently set
+    fn log_set_config(&self, conf_log: &Logging) {
+        self.info(
+            module_path!(),
+            &format!(
+                "logging format set to `{:?}`",
+                conf_log.format.format_type()
+            ),
+        );
+        self.info(
+            module_path!(),
+            &format!(
+                "log trace level set to `{:?}`",
+                conf_log.trace_level.trace_level_type()
+            ),
+        );
+    }
+
     /// Log an info level message
     fn info(&self, mod_path: &str, message: &str) {
         info!(mod_path, "{}", message);
@@ -71,23 +89,5 @@ impl LoggingRepo for TracingLogging {
     /// Log a trace level message
     fn trace(&self, mod_path: &str, message: &str) {
         tracing::trace!(mod_path, "{}", message);
-    }
-
-    /// Log configuration validation messages
-    fn log_conf_validation(&self, conf_log: &Logging) {
-        self.info(
-            module_path!(),
-            &format!(
-                "logging format set to `{:?}`",
-                conf_log.format.format_type()
-            ),
-        );
-        self.info(
-            module_path!(),
-            &format!(
-                "log trace level set to `{:?}`",
-                conf_log.trace_level.trace_level_type()
-            ),
-        );
     }
 }

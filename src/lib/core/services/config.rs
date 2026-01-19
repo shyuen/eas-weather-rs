@@ -32,12 +32,13 @@ where
         self.repo.get_raw_config()
     }
 
+    /// Validate the raw logging configuration.
+    pub fn validate_raw_logging_config(&self, log_serv: &impl LoggingRepo) {
+        self.repo.validate_raw_logging_config(log_serv);
+    }
+
     /// Returns the logging configuration.
     pub fn get_logging_config(&self) -> &Logging {
         self.repo.get_logging_config()
-    }
-
-    pub fn validate_logging_config(&self, log_serv: &impl LoggingRepo) {
-        self.repo.validate_logging_config(log_serv);
     }
 }
