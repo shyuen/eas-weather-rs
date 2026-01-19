@@ -6,7 +6,6 @@ use figment::{
 };
 use std::env;
 use tracing::debug;
-use tracing::info;
 
 use crate::adaptors::inbound::config::clap::Cli;
 use crate::core::domain::config::logging::Logging;
@@ -18,21 +17,6 @@ use crate::core::ports::outbound::logging::LoggingRepo;
 pub struct FigmentConfig {
     conf_raw: Config,
     conf_logging: Logging,
-}
-
-impl FigmentConfig {
-    pub fn log_config_validation(&self) {
-        // Log debug information regarding config inputs
-        debug!("configuration from {:?}", Cli::parse());
-        debug!(
-            "configuration from Env {:?}",
-            env::vars()
-                .filter(|(k, _)| k.starts_with("APP__") || k.starts_with("SERVER__"))
-                .map(|(k, v)| (k.replace("__", "."), v))
-                .collect::<Vec<_>>()
-        );
-        info!("final configuration output {:?}", &self.conf_raw);
-    }
 }
 
 fn collect_raw_input() -> Config {
@@ -90,8 +74,8 @@ impl ConfigRepo for FigmentConfig {
         }
     }
 
+    // Log debug information regarding config inputs
     fn log_raw_config_input(&self) {
-        // Log debug information regarding config inputs
         debug!("configuration from {:?}", Cli::parse());
         debug!(
             "configuration from Env {:?}",
@@ -100,17 +84,20 @@ impl ConfigRepo for FigmentConfig {
                 .map(|(k, v)| (k.replace("__", "."), v))
                 .collect::<Vec<_>>()
         );
-        info!("final configuration output {:?}", &self.conf_raw);
+        debug!("final configuration output {:?}", &self.conf_raw);
     }
 
+    /// Get the raw configuration
     fn get_raw_config(&self) -> &Config {
         &self.conf_raw
     }
 
+    /// Get the logging configuration
     fn get_logging_config(&self) -> &Logging {
         &self.conf_logging
     }
 
+    /// Validate raw logging configuration
     fn validate_raw_logging_config(&self, log_serv: &impl LoggingRepo) {
         self.conf_logging
             .validate_raw_logging_config(log_serv, &self.conf_raw.logging);

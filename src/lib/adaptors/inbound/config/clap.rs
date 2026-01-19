@@ -23,12 +23,12 @@ struct Logging {
     /// Log format to be used by the server
     #[arg(short = 'l', long, env = "APP__LOG_FORMAT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub(crate) log_format: Option<String>,
+    pub(crate) format: Option<String>,
 
     /// Log trace level to be used by the server
     #[arg(short = 't', long, env = "APP__LOG_TRACE_LEVEL")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub(crate) log_trace_level: Option<String>,
+    pub(crate) trace_level: Option<String>,
 }
 
 #[derive(Debug, Parser, Serialize)]

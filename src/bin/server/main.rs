@@ -4,12 +4,18 @@ use eas_weather_rs::core::services::config::ConfigService;
 use eas_weather_rs::core::services::logging::LoggingService;
 
 fn main() {
-    // Configuration
+    // Initialize services we depend on
     let conf_service: ConfigService<FigmentConfig> = ConfigService::new();
+
+    dbg!(conf_service.get_raw_config());
+
     let logging_service: LoggingService<TracingLogging> =
         LoggingService::new(conf_service.get_logging_config());
 
-    logging_service.info(module_path!(), "EAS Weather Server started");
+    //logging_service.info(module_path!(), "EAS Weather Server started");
+
+    // TODO output debug information regarding config inputs
+    // conf_service.log_raw_config_input(&logging_service);
 
     // Validate raw configurations
     conf_service.validate_raw_logging_config(logging_service.get_repo()); // Needs to be done after logger is initialized
@@ -17,5 +23,5 @@ fn main() {
     // Log the current configuration
     logging_service.log_set_config(conf_service.get_logging_config());
 
-    logging_service.info(module_path!(), "EAS Weather Server ended");
+    //logging_service.info(module_path!(), "EAS Weather Server ended");
 }

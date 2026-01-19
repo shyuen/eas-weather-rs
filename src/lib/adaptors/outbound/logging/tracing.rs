@@ -52,15 +52,12 @@ impl LoggingRepo for TracingLogging {
     fn log_set_config(&self, conf_log: &Logging) {
         self.info(
             module_path!(),
-            &format!(
-                "logging format set to `{:?}`",
-                conf_log.format.format_type()
-            ),
+            &format!("tracing_format={:?}", conf_log.format.format_type()),
         );
         self.info(
             module_path!(),
             &format!(
-                "log trace level set to `{:?}`",
+                "tracing_trace_level={:?}",
                 conf_log.trace_level.trace_level_type()
             ),
         );

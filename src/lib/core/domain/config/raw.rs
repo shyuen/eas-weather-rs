@@ -12,8 +12,8 @@ pub struct Config {
 /// The raw configuration for logging.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigLogging {
-    pub log_format: Option<String>,
-    pub log_trace_level: Option<String>,
+    pub format: Option<String>,
+    pub trace_level: Option<String>,
 }
 
 /// The raw configuration for the server and its components.

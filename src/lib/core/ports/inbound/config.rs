@@ -9,15 +9,15 @@ pub trait ConfigRepo {
     /// CLI args > Environment File > Environment Variables > Configuration File > Default Configuration File > Default Values
     fn new() -> Self;
 
+    /// Get the raw configuration
+    fn get_raw_config(&self) -> &Config;
+
     /// Log any validation messages regarding the configuration
     /// This is needed to be triggered after the logging subsystem is initialized
     /// so that configutation log messages can be captured correctly.
     fn log_raw_config_input(&self);
 
-    /// Get the application configuration
-    /// Returns a reference to the Config struct
-    fn get_raw_config(&self) -> &Config;
-
+    /// Get the logging configurations
     fn get_logging_config(&self) -> &Logging;
 
     /// Validate the raw logging configuration
