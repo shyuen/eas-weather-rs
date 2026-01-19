@@ -5,7 +5,6 @@ use figment::{
     providers::{Env, Format, Serialized, Toml},
 };
 use std::env;
-use tracing::debug;
 
 use crate::adaptors::inbound::config::clap::Cli;
 use crate::core::domain::config::logging::Logging;
@@ -74,19 +73,6 @@ impl ConfigRepo for FigmentConfig {
         }
     }
 
-    // Log debug information regarding config inputs
-    fn log_raw_config_input(&self) {
-        debug!("configuration from {:?}", Cli::parse());
-        debug!(
-            "configuration from Env {:?}",
-            env::vars()
-                .filter(|(k, _)| k.starts_with("APP__") || k.starts_with("SERVER__"))
-                .map(|(k, v)| (k.replace("__", "."), v))
-                .collect::<Vec<_>>()
-        );
-        debug!("final configuration output {:?}", &self.conf_raw);
-    }
-
     /// Get the raw configuration
     fn get_raw_config(&self) -> &Config {
         &self.conf_raw
@@ -95,6 +81,29 @@ impl ConfigRepo for FigmentConfig {
     /// Get the logging configuration
     fn get_logging_config(&self) -> &Logging {
         &self.conf_logging
+    }
+
+    // Log debug information regarding config inputs
+    fn log_raw_config_input(&self, log_serv: &impl LoggingRepo) {
+        log_serv.debug(
+            module_path!(),
+            &format!("configuration from {:?}", Cli::parse()),
+        );
+
+        log_serv.debug(
+            module_path!(),
+            &format!(
+                "configuration from Env {:?}",
+                env::vars()
+                    .filter(|(k, _)| k.starts_with("APP__") || k.starts_with("SERVER__"))
+                    .map(|(k, v)| (k.replace("__", "."), v))
+                    .collect::<Vec<_>>()
+            ),
+        );
+        log_serv.debug(
+            module_path!(),
+            &format!("final configuration output {:?}", &self.conf_raw),
+        );
     }
 
     /// Validate raw logging configuration

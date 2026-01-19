@@ -23,8 +23,8 @@ where
     }
 
     /// Log the raw configuration inputs.
-    pub fn log_raw_config_input(&self) {
-        self.repo.log_raw_config_input();
+    pub fn log_raw_config_input(&self, log_serv: &impl LoggingRepo) {
+        self.repo.log_raw_config_input(log_serv);
     }
 
     /// Returns the raw configuration.

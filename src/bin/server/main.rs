@@ -7,7 +7,7 @@ fn main() {
     // Initialize services we depend on
     let conf_service: ConfigService<FigmentConfig> = ConfigService::new();
 
-    dbg!(conf_service.get_raw_config());
+    //dbg!(conf_service.get_raw_config());
 
     let logging_service: LoggingService<TracingLogging> =
         LoggingService::new(conf_service.get_logging_config());
@@ -15,7 +15,7 @@ fn main() {
     //logging_service.info(module_path!(), "EAS Weather Server started");
 
     // TODO output debug information regarding config inputs
-    // conf_service.log_raw_config_input(&logging_service);
+    conf_service.log_raw_config_input(logging_service.get_repo());
 
     // Validate raw configurations
     conf_service.validate_raw_logging_config(logging_service.get_repo()); // Needs to be done after logger is initialized
