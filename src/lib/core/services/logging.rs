@@ -1,5 +1,6 @@
-use crate::core::domain::config::logging::Logging;
+use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
+use crate::core::services::config::ConfigService;
 
 #[derive(Debug, Clone)]
 pub struct LoggingService<L>
@@ -14,7 +15,11 @@ where
     L: LoggingRepo,
 {
     /// Creates a new instance of LoggingService.
-    pub fn new(conf_log: &Logging) -> Self {
+    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
+    where
+        C: ConfigRepo,
+    {
+        let conf_log = conf_serv.get_logging_config();
         let repo = L::new(conf_log);
         Self { repo }
     }
@@ -25,7 +30,11 @@ where
     }
 
     /// Log configuration that's currently set
-    pub fn log_set_config(&self, conf_log: &Logging) {
+    pub fn log_set_config<C>(&self, conf_serv: &ConfigService<C>)
+    where
+        C: ConfigRepo,
+    {
+        let conf_log = conf_serv.get_logging_config();
         self.repo.log_set_config(conf_log);
     }
 
