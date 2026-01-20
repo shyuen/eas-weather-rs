@@ -12,14 +12,14 @@ pub trait ConfigRepo {
     /// Get the raw configuration
     fn get_raw_config(&self) -> &Config;
 
-    /// Log any validation messages regarding the configuration
-    /// This is needed to be triggered after the logging subsystem is initialized
-    /// so that configutation log messages can be captured correctly.
-    fn log_raw_config_input(&self, log_serv: &impl LoggingRepo);
-
     /// Get the logging configurations
     fn get_logging_config(&self) -> &Logging;
 
-    /// Validate the raw logging configuration
-    fn validate_raw_logging_config(&self, log_serv: &impl LoggingRepo);
+    /// Outputs raw config from inputs without validation
+    fn log_raw_config_input(&self, log_serv: &impl LoggingRepo);
+
+    /// Log any validation messages regarding the configuration
+    /// This is needed to be triggered after the logging subsystem is initialized
+    /// so that configutation log messages can be captured correctly.
+    fn log_raw_config_validation(&self, log_serv: &impl LoggingRepo);
 }
