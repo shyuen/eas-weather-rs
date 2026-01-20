@@ -14,8 +14,8 @@ fn main() {
     //logging_service.info(module_path!(), "EAS Weather Server started");
 
     // Output configuration information after logger is initialized
-    conf_service.log_raw_config_input(logging_service.get_repo()); // Output raw config inputs with debug level set, needs to be done after logger is initialized
-    conf_service.validate_raw_logging_config(logging_service.get_repo()); // Validate raw configurations, needs to be done after logger is initialized
+    conf_service.log_raw_config_input(&logging_service); // Output raw config inputs with debug level set, needs to be done after logger is initialized
+    conf_service.log_raw_config_validation(&logging_service); // Validate raw configurations, needs to be done after logger is initialized
 
     // Output configuration information
     logging_service.log_set_config(&conf_service);

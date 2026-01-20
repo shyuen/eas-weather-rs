@@ -84,15 +84,15 @@ impl ConfigRepo for FigmentConfig {
     }
 
     // Log debug information regarding config inputs
-    fn log_raw_config_input(&self, log_serv: &impl LoggingRepo) {
+    fn log_raw_config_input(&self, log_repo: &impl LoggingRepo) {
         // Log config from CLI
-        log_serv.debug(
+        log_repo.debug(
             module_path!(),
             &format!("configuration from {:?}", Cli::parse()),
         );
 
         // Log config from ENV
-        log_serv.debug(
+        log_repo.debug(
             module_path!(),
             &format!(
                 "configuration from Env {:?}",
@@ -122,20 +122,20 @@ impl ConfigRepo for FigmentConfig {
                 std::process::exit(1);
             }
         };
-        log_serv.debug(
+        log_repo.debug(
             module_path!(),
             &format!("configuration from Files {:?}", conf_files),
         );
 
         // Log final raw config
-        log_serv.debug(
+        log_repo.debug(
             module_path!(),
             &format!("final Raw Config {:?}", &self.conf_raw),
         );
     }
 
     /// Validate raw logging configuration
-    fn validate_raw_logging_config(&self, log_serv: &impl LoggingRepo) {
+    fn log_raw_config_validation(&self, log_serv: &impl LoggingRepo) {
         self.conf_logging
             .validate_raw_logging_config(log_serv, &self.conf_raw.logging);
     }
