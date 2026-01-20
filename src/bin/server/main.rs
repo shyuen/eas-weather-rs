@@ -8,8 +8,7 @@ fn main() {
     let conf_service: ConfigService<FigmentConfig> = ConfigService::new();
 
     // Initialize logging service with the loaded configuration so we can start logging messages
-    let logging_service: LoggingService<TracingLogging> =
-        LoggingService::new(conf_service.get_logging_config());
+    let logging_service: LoggingService<TracingLogging> = LoggingService::new(&conf_service);
 
     // TODO: Implement cool ASCII art banner
     //logging_service.info(module_path!(), "EAS Weather Server started");
@@ -19,7 +18,7 @@ fn main() {
     conf_service.validate_raw_logging_config(logging_service.get_repo()); // Validate raw configurations, needs to be done after logger is initialized
 
     // Output configuration information
-    logging_service.log_set_config(conf_service.get_logging_config());
+    logging_service.log_set_config(&conf_service);
 
     //logging_service.info(module_path!(), "EAS Weather Server ended");
 }
