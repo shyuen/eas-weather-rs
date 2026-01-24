@@ -1,6 +1,7 @@
 use crate::core::domain::config::logging::Logging;
 
 pub trait LoggingRepo {
+    /// Create a new instance of the logging repository with the given configuration
     fn new(conf: &Logging) -> Self;
 
     /// Log an info level message
@@ -18,5 +19,6 @@ pub trait LoggingRepo {
     /// Log a trace level message
     fn trace(&self, target: &str, message: &str);
 
+    /// Log configuration that was set for this service
     fn log_set_config(&self, conf: &Logging);
 }

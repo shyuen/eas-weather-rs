@@ -7,9 +7,9 @@ use crate::core::domain::config::logging_trace_level::LoggingTraceLevelType;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
 #[derive(Debug, Clone)]
-pub struct TracingLogging {}
+pub struct LoggingTracing {}
 
-impl TracingLogging {
+impl LoggingTracing {
     fn map_trace_level(trace_level_type: &LoggingTraceLevelType) -> Level {
         match trace_level_type {
             LoggingTraceLevelType::Error => Level::ERROR,
@@ -21,7 +21,7 @@ impl TracingLogging {
     }
 }
 
-impl LoggingRepo for TracingLogging {
+impl LoggingRepo for LoggingTracing {
     fn new(conf_log: &Logging) -> Self {
         // Map LoggingTraceLevel to tracing::Level
         let trace_level = Self::map_trace_level(&conf_log.trace_level.trace_level_type());
@@ -45,7 +45,7 @@ impl LoggingRepo for TracingLogging {
             }
         }
 
-        TracingLogging {}
+        LoggingTracing {}
     }
 
     /// Log configuration that's currently set

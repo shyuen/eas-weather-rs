@@ -27,3 +27,5 @@ strum_macros = "0.27"
 
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
+sqlx = { version = "0.8", features = [ "mysql", "runtime-tokio", "time"] }
+tokio = {version="1", features = ["macros", "rt-multi-thread", "signal"]}
