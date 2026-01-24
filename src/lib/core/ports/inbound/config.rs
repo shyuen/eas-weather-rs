@@ -1,6 +1,5 @@
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
-
 use crate::core::ports::outbound::logging::LoggingRepo;
 
 pub trait ConfigRepo {

@@ -34,12 +34,7 @@ pub struct ConfigServer {
 /// The raw configuration for the databse and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigDatabase {
-    pub conn_: Option<String>,
-    pub port: Option<u16>,
-    pub name: Option<String>,
-
-    pub username: Option<String>,
-    pub password_file: Option<String>,
+    pub conn_url_file: Option<String>,
 
     pub conn_max_retries: Option<u8>,
     pub conn_retry_init_delay_secs: Option<u64>,

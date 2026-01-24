@@ -13,7 +13,7 @@ use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
 #[derive(Debug)]
-pub struct FigmentConfig {
+pub struct ConfigFigment {
     conf_raw: Config,
     conf_logging: Logging,
 }
@@ -64,7 +64,7 @@ fn collect_raw_input() -> Config {
     conf
 }
 
-impl ConfigRepo for FigmentConfig {
+impl ConfigRepo for ConfigFigment {
     fn new() -> Self {
         let conf = collect_raw_input();
         Self {

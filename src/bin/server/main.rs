@@ -1,14 +1,14 @@
-use eas_weather_rs::adaptors::inbound::config::figment::FigmentConfig;
-use eas_weather_rs::adaptors::outbound::logging::tracing::TracingLogging;
+use eas_weather_rs::adaptors::inbound::config::figment::ConfigFigment;
+use eas_weather_rs::adaptors::outbound::logging::tracing::LoggingTracing;
 use eas_weather_rs::core::services::config::ConfigService;
 use eas_weather_rs::core::services::logging::LoggingService;
 
 fn main() {
     // Initialize configuration service to load configuration input
-    let conf_service: ConfigService<FigmentConfig> = ConfigService::new();
+    let conf_service: ConfigService<ConfigFigment> = ConfigService::new();
 
     // Initialize logging service with the loaded configuration so we can start logging messages
-    let logging_service: LoggingService<TracingLogging> = LoggingService::new(&conf_service);
+    let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
 
     // TODO: Implement cool ASCII art banner
     //logging_service.info(module_path!(), "EAS Weather Server started");
@@ -19,6 +19,8 @@ fn main() {
 
     // Output configuration information
     logging_service.log_set_config(&conf_service);
+
+    // TODO setup MySQL connection pool
 
     //logging_service.info(module_path!(), "EAS Weather Server ended");
 }
