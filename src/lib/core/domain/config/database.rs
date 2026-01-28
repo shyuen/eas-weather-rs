@@ -15,7 +15,7 @@ pub struct Database {
 
 impl Database {
     /// Create a new instance of Database configuration
-    fn new(conf: &ConfigDatabase) -> Self {
+    pub fn new(conf: &ConfigDatabase) -> Self {
         let conn_string = match &conf.conn_url_file {
             Some(raw_conn_url_file) => {
                 DbConnectionString::new(&raw_conn_url_file).unwrap_or_else(|err| match &err {
@@ -35,7 +35,8 @@ impl Database {
             Some(raw_conn_max_retries) => DbConnMaxRetries::new(raw_conn_max_retries)
                 .unwrap_or_else(|err| match &err {
                     _ => {
-                        panic!("uncaught DbConnMaxRetriesError");
+                        eprintln!("uncaught DbConnMaxRetriesError");
+                        std::process::exit(1); // We use exit for planned exits instead of panics
                     }
                 }),
             None => DbConnMaxRetries::default(),
@@ -47,7 +48,8 @@ impl Database {
             )
             .unwrap_or_else(|err| match &err {
                 _ => {
-                    panic!("uncaught DbConnRetryInitDelaySecsError");
+                    eprintln!("uncaught DbConnRetryInitDelaySecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 }
             }),
             None => DbConnRetryInitDelaySecs::default(),
@@ -70,8 +72,10 @@ impl Database {
                 if let Err(err) = DbConnectionString::new(raw_conn_url_file) {
                     match &err {
                         DbConnectionStringError::BadFileLoad(e) => {
-                            log_serv.error(module_path!(), &format!("{}", e));
-
+                            log_serv.error(
+                                module_path!(),
+                                &format!("database load connection file error: {}", e),
+                            );
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
@@ -80,8 +84,8 @@ impl Database {
                                 ),
                             );
                         }
-                        DbConnectionStringError::EmptyConnectionString(e) => {
-                            log_serv.warn(module_path!(), &format!("{}", e));
+                        DbConnectionStringError::EmptyConnectionString(_) => {
+                            log_serv.warn(module_path!(), "database connection string was empty");
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
@@ -90,8 +94,9 @@ impl Database {
                                 ),
                             );
                         }
-                        DbConnectionStringError::EmptyFilePath(e) => {
-                            log_serv.warn(module_path!(), &format!("{}", e));
+                        DbConnectionStringError::EmptyFilePath(_) => {
+                            log_serv
+                                .warn(module_path!(), "database connection file path was empty");
                             log_serv.warn(
                                 module_path!(),
                                 &format!(

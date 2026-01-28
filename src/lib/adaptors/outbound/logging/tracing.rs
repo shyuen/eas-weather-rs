@@ -49,7 +49,7 @@ impl LoggingRepo for LoggingTracing {
     }
 
     /// Log configuration that's currently set
-    fn log_set_config(&self, conf_log: &Logging) {
+    fn log_adaptor_config(&self, conf_log: &Logging) {
         self.info(
             module_path!(),
             &format!("tracing_format={:?}", conf_log.format.format_type()),
