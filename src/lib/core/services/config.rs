@@ -1,3 +1,4 @@
+use crate::core::domain::config::database::Database;
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
 use crate::core::ports::inbound::config::ConfigRepo;
@@ -48,5 +49,10 @@ where
     /// Returns the logging configuration.
     pub fn get_logging_config(&self) -> &Logging {
         self.repo.get_logging_config()
+    }
+
+    /// Returns the database configuration.
+    pub fn get_database_config(&self) -> &Database {
+        self.repo.get_database_config()
     }
 }

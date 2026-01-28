@@ -7,6 +7,7 @@ use figment::{
 use std::env;
 
 use crate::adaptors::inbound::config::clap::Cli;
+use crate::core::domain::config::database::Database;
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
 use crate::core::ports::inbound::config::ConfigRepo;
@@ -16,6 +17,7 @@ use crate::core::ports::outbound::logging::LoggingRepo;
 pub struct ConfigFigment {
     conf_raw: Config,
     conf_logging: Logging,
+    conf_database: Database,
 }
 
 fn collect_raw_input() -> Config {
@@ -70,6 +72,7 @@ impl ConfigRepo for ConfigFigment {
         Self {
             conf_raw: conf.clone(),
             conf_logging: Logging::new(&conf.logging),
+            conf_database: Database::new(&conf.database),
         }
     }
 
@@ -81,6 +84,11 @@ impl ConfigRepo for ConfigFigment {
     /// Get the logging configuration
     fn get_logging_config(&self) -> &Logging {
         &self.conf_logging
+    }
+
+    /// Get the database configuration
+    fn get_database_config(&self) -> &Database {
+        &self.conf_database
     }
 
     // Log debug information regarding config inputs
@@ -138,5 +146,7 @@ impl ConfigRepo for ConfigFigment {
     fn log_raw_config_validation(&self, log_serv: &impl LoggingRepo) {
         self.conf_logging
             .validate_raw_logging_config(log_serv, &self.conf_raw.logging);
+        self.conf_database
+            .validate_raw_database_config(log_serv, &self.conf_raw.database);
     }
 }

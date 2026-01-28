@@ -20,5 +20,5 @@ pub trait LoggingRepo {
     fn trace(&self, target: &str, message: &str);
 
     /// Log configuration that was set for this service
-    fn log_set_config(&self, conf: &Logging);
+    fn log_adaptor_config(&self, conf: &Logging);
 }

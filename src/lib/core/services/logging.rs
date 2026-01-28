@@ -30,12 +30,12 @@ where
     }
 
     /// Log configuration that's currently set
-    pub fn log_set_config<C>(&self, conf_serv: &ConfigService<C>)
+    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
     where
         C: ConfigRepo,
     {
         let conf_log = conf_serv.get_logging_config();
-        self.repo.log_set_config(conf_log);
+        self.repo.log_adaptor_config(conf_log);
     }
 
     /// Log an info level message
