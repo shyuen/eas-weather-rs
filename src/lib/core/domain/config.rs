@@ -1,7 +1,12 @@
 pub mod database;
+pub mod database_conn_acquire_timeout_secs;
+pub mod database_conn_idle_timeout_secs;
 pub mod database_conn_init_delay_secs;
+pub mod database_conn_max_lifetime_secs;
 pub mod database_conn_max_retries;
 pub mod database_conn_string;
+pub mod database_max_connections;
+pub mod database_min_connections;
 pub mod logging;
 pub mod logging_format;
 pub mod logging_trace_level;

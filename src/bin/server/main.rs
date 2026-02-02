@@ -27,7 +27,12 @@ async fn main() {
     // Output dataase adaptor configuration
     database_service.log_adaptor_config(&logging_service, &conf_service);
 
+    // Initialize database connection pool within the service
     database_service
         .create_pool(&conf_service, &logging_service)
         .await;
+
+    // TODO: Initialize other services (e.g., weather data service, API service, etc.)
+
+    // TODO: Start server to listen for incoming requests
 }

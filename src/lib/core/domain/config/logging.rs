@@ -20,8 +20,7 @@ impl Logging {
                 LoggingFormat::new(&raw_log_format).unwrap_or_else(|err| match &err {
                     // Set to default the default option on errors
                     // We don't handle logging here as the logger is not yet initialized
-                    LoggingFormatError::EmptyType(_) => LoggingFormat::default(),
-                    LoggingFormatError::UnknownFormat(_) => LoggingFormat::default(),
+                    _ => LoggingFormat::default(),
                 })
             }
             None => LoggingFormat::default(),
@@ -32,8 +31,7 @@ impl Logging {
             // We don't handle logging here as the logger is not yet initialized
             Some(raw_trace_level) => {
                 LoggingTraceLevel::new(&raw_trace_level).unwrap_or_else(|err| match &err {
-                    LoggingTraceLevelError::EmptyTraceLevel(_) => LoggingTraceLevel::default(),
-                    LoggingTraceLevelError::UnknownTraceLevel(_) => LoggingTraceLevel::default(),
+                    _ => LoggingTraceLevel::default(),
                 })
             }
             None => LoggingTraceLevel::default(),
@@ -58,7 +56,7 @@ impl Logging {
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
-                                    "logging format type is empty, setting to `{}`",
+                                    "config logging format type is empty, setting to `{}`",
                                     LoggingFormat::default()
                                 ),
                             );
@@ -67,7 +65,7 @@ impl Logging {
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
-                                    "unknown logging format `{}`, setting value to `{}`",
+                                    "config logging format of unknown type `{}`, setting value to `{}`",
                                     raw_log_format,
                                     LoggingFormat::default(),
                                 ),
@@ -80,7 +78,7 @@ impl Logging {
                 log_serv.warn(
                     module_path!(),
                     &format!(
-                        "logging format was not specified, setting value to `{}`",
+                        "config logging format was not specified, setting value to `{}`",
                         LoggingFormat::default()
                     ),
                 );
@@ -95,7 +93,7 @@ impl Logging {
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
-                                    "logging trace level is empty, setting to `{}`",
+                                    "config logging trace level is empty, setting to `{}`",
                                     LoggingTraceLevel::default()
                                 ),
                             );
@@ -104,7 +102,7 @@ impl Logging {
                             log_serv.warn(
                                 module_path!(),
                                 &format!(
-                                    "unknown logging trace level `{}`, setting value to `{}`",
+                                    "config logging trace level of unknown type `{}`, setting value to `{}`",
                                     raw_trace_level,
                                     LoggingTraceLevel::default(),
                                 ),
@@ -117,7 +115,7 @@ impl Logging {
                 log_serv.warn(
                     module_path!(),
                     &format!(
-                        "logging trace level was not specified, setting value to `{}`",
+                        "config logging trace level was not specified, setting value to `{}`",
                         LoggingTraceLevel::default()
                     ),
                 );

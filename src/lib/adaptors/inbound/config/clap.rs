@@ -75,5 +75,30 @@ struct Database {
     /// Initial delay in seconds before retrying database connection
     #[arg(short = 'I', long, env = "DATABASE__CONN_RETRY_INIT_DELAY_SECS")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub(crate) conn_retry_init_delay_secs: Option<u64>,
+    pub(crate) conn_retry_init_delay_secs: Option<u16>,
+
+    /// Maximum number of database connections
+    #[arg(short = 'M', long, env = "DATABASE__MAX_CONNECTIONS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) max_connections: Option<u32>,
+
+    /// Minimum number of database connections
+    #[arg(short = 'm', long, env = "DATABASE__MIN_CONNECTIONS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) min_connections: Option<u32>,
+
+    /// Database connection acquire timeout in seconds
+    #[arg(short = 'A', long, env = "DATABASE__CONN_ACQUIRE_TIMEOUT_SECS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) conn_acquire_timeout_secs: Option<u16>,
+
+    /// Database connection idle timeout in seconds
+    #[arg(short = 'E', long, env = "DATABASE__CONN_IDLE_TIMEOUT_SECS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) conn_idle_timeout_secs: Option<u32>,
+
+    /// Database connection maximum lifetime in seconds
+    #[arg(short = 'L', long, env = "DATABASE__CONN_MAX_LIFETIME_SECS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) conn_max_lifetime_secs: Option<u32>,
 }

@@ -1,4 +1,5 @@
-use sqlx::mysql::{MySqlConnectOptions, MySqlPool};
+use sqlx::mysql::{MySqlConnectOptions, MySqlPoolOptions};
+use std::time::Duration;
 
 use crate::core::domain::config::database::Database;
 use crate::core::ports::outbound::database::DatabaseRepo;
@@ -65,12 +66,47 @@ impl DatabaseRepo for DatabaseMySql {
             module_path!(),
             &format!("database_conn_max_retries={}", &conf_db.conn_max_retries),
         );
+
         log_repo.info(
             module_path!(),
             &format!(
                 "database_conn_retry_init_delay_secs={}",
                 &conf_db.conn_retry_init_delay_secs
             ),
+        );
+
+        log_repo.info(
+            module_path!(),
+            &format!(
+                "database_conn_acquire_timeout_secs={}",
+                &conf_db.conn_acquire_timeout_secs
+            ),
+        );
+
+        log_repo.info(
+            module_path!(),
+            &format!(
+                "database_conn_idle_timeout_secs={}",
+                &conf_db.conn_idle_timeout_secs
+            ),
+        );
+
+        log_repo.info(
+            module_path!(),
+            &format!(
+                "database_conn_max_lifetime_secs={}",
+                &conf_db.conn_max_lifetime_secs
+            ),
+        );
+
+        log_repo.info(
+            module_path!(),
+            &format!("database_min_connections={}", &conf_db.min_connections),
+        );
+
+        log_repo.info(
+            module_path!(),
+            &format!("database_max_connections={}", &conf_db.max_connections),
         );
     }
 
@@ -80,9 +116,24 @@ impl DatabaseRepo for DatabaseMySql {
         match &self.conn_opt {
             Some(conn_opt) => {
                 for i in 0..conf_db.conn_max_retries.get() {
-                    match MySqlPool::connect_with(conn_opt.clone()).await {
+                    // Attempt to create the connection pool with configured options
+                    match MySqlPoolOptions::new()
+                        .acquire_timeout(Duration::from_secs(
+                            conf_db.conn_acquire_timeout_secs.get() as u64,
+                        ))
+                        .idle_timeout(Duration::from_secs(
+                            conf_db.conn_idle_timeout_secs.get() as u64
+                        ))
+                        .max_lifetime(Duration::from_secs(
+                            conf_db.conn_max_lifetime_secs.get() as u64
+                        ))
+                        .min_connections(conf_db.min_connections.get())
+                        .max_connections(conf_db.max_connections.get())
+                        .connect_with(conn_opt.clone())
+                        .await
+                    {
                         Ok(pool) => {
-                            log_repo.info(module_path!(), "pool created successfully");
+                            log_repo.info(module_path!(), "database pool created successfully");
                             self.pool = Some(pool);
                             return;
                         }
@@ -99,7 +150,7 @@ impl DatabaseRepo for DatabaseMySql {
                             if i + 1 == conf_db.conn_max_retries.get() {
                                 log_repo.error(
                                     module_path!(),
-                                    "exhausted all retries to connect to database",
+                                    "database connection retries exhausted all attempts",
                                 );
                                 self.pool = None;
                                 return;
@@ -107,13 +158,15 @@ impl DatabaseRepo for DatabaseMySql {
                                 log_repo.warn(
                                     module_path!(),
                                     &format!(
-                                        "retrying to connect to database in {} seconds",
+                                        "database retrying connection in {} seconds",
                                         current_backoff
                                     ),
                                 );
 
-                                tokio::time::sleep(std::time::Duration::from_secs(current_backoff))
-                                    .await;
+                                tokio::time::sleep(std::time::Duration::from_secs(
+                                    current_backoff as u64,
+                                ))
+                                .await;
                                 current_backoff *= 2; // Exponential backoff
                             }
                         }
@@ -135,13 +188,13 @@ impl DatabaseRepo for DatabaseMySql {
                 pool.close().await;
                 log_repo.info(
                     module_path!(),
-                    "connection pool to MySQL closed successfully",
+                    "database connection pool to MySQL closed successfully",
                 );
             }
             None => {
                 log_repo.warn(
                     module_path!(),
-                    "connection pool to MySQL was not initialized",
+                    "database connection pool to MySQL was not initialized",
                 );
             }
         }

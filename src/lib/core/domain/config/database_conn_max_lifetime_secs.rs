@@ -1,0 +1,28 @@
+use std::fmt;
+use thiserror::Error;
+
+/// A validated and formatted Db connection retry initial delay in seconds.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DbConnMaxLifetimeSecs(u32);
+
+impl fmt::Display for DbConnMaxLifetimeSecs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DbConnMaxLifetimeSecsError {}
+
+impl DbConnMaxLifetimeSecs {
+    pub fn new(raw_db_max_connections: &u32) -> Result<Self, DbConnMaxLifetimeSecsError> {
+        // Add validation logic here if needed
+        Ok(DbConnMaxLifetimeSecs(*raw_db_max_connections))
+    }
+    pub fn default() -> Self {
+        DbConnMaxLifetimeSecs(1800)
+    }
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+}

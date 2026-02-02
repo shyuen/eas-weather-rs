@@ -1,0 +1,28 @@
+use std::fmt;
+use thiserror::Error;
+
+/// A validated and formatted Db connection retry initial delay in seconds.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DbConnIdleTimeoutSecs(u32);
+
+impl fmt::Display for DbConnIdleTimeoutSecs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DbConnIdleTimeoutSecsError {}
+
+impl DbConnIdleTimeoutSecs {
+    pub fn new(raw_db_max_connections: &u32) -> Result<Self, DbConnIdleTimeoutSecsError> {
+        // Add validation logic here if needed
+        Ok(DbConnIdleTimeoutSecs(*raw_db_max_connections))
+    }
+    pub fn default() -> Self {
+        DbConnIdleTimeoutSecs(300)
+    }
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+}
