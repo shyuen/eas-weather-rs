@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub logging: ConfigLogging,
-    pub server: ConfigServer,
+    pub webserver: ConfigWebserver,
     pub database: ConfigDatabase,
     pub config_file: Option<String>,
 }
@@ -18,7 +18,7 @@ pub struct ConfigLogging {
 
 /// The raw configuration for the server and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConfigServer {
+pub struct ConfigWebserver {
     pub hostname: Option<String>,
     pub port: Option<u16>,
     pub base_path: Option<String>,

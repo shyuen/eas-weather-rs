@@ -7,7 +7,7 @@
 format = "text"               # Log formatting ["text", "json"]
 trace_level = "info"          # Log level ["error", "warn", "info", "debug", "trace"]
 
-[server]
+[webserver]
 hostname = "localhost"      # Server host
 base_path = "/"             # Base path for API
 port = 8080                 # Server port
