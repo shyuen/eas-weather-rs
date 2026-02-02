@@ -14,11 +14,8 @@ pub trait DatabaseRepo: Clone + Send + Sync + 'static {
         &mut self,
         log_repo: &(impl LoggingRepo + Sync),
         conf: &Database,
-    ) -> impl std::future::Future<Output = ()> + Send;
+    ) -> impl Future<Output = ()> + Send;
 
     /// Close the database connection pool
-    fn close_pool(
-        &self,
-        log_repo: &(impl LoggingRepo + Sync),
-    ) -> impl std::future::Future<Output = ()> + Send;
+    fn close_pool(&self, log_repo: &(impl LoggingRepo + Sync)) -> impl Future<Output = ()> + Send;
 }

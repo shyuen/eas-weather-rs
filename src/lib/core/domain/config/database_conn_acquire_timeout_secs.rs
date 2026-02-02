@@ -3,26 +3,26 @@ use thiserror::Error;
 
 /// A validated and formatted Db connection retry initial delay in seconds.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DbConnRetryInitDelaySecs(u16);
+pub struct DbConnAcquireTimeoutSecs(u16);
 
-impl fmt::Display for DbConnRetryInitDelaySecs {
+impl fmt::Display for DbConnAcquireTimeoutSecs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 #[derive(Error, Debug)]
-pub enum DbConnRetryInitDelaySecsError {}
+pub enum DbConnAcquireTimeoutSecsError {}
 
-impl DbConnRetryInitDelaySecs {
+impl DbConnAcquireTimeoutSecs {
     pub fn new(
-        raw_db_conn_retry_init_delay_secs: &u16,
-    ) -> Result<Self, DbConnRetryInitDelaySecsError> {
+        raw_db_conn_aquire_timeout_secs: &u16,
+    ) -> Result<Self, DbConnAcquireTimeoutSecsError> {
         // Add validation logic here if needed
-        Ok(DbConnRetryInitDelaySecs(*raw_db_conn_retry_init_delay_secs))
+        Ok(DbConnAcquireTimeoutSecs(*raw_db_conn_aquire_timeout_secs))
     }
     pub fn default() -> Self {
-        DbConnRetryInitDelaySecs(1)
+        DbConnAcquireTimeoutSecs(5)
     }
     pub fn get(&self) -> u16 {
         self.0
