@@ -9,7 +9,7 @@ pub(crate) struct Cli {
     #[clap(flatten)]
     logging: Logging,
     #[clap(flatten)]
-    server: Server,
+    webserver: Webserver,
     #[clap(flatten)]
     database: Database,
 
@@ -33,7 +33,7 @@ struct Logging {
 }
 
 #[derive(Debug, Parser, Serialize)]
-struct Server {
+struct Webserver {
     /// Host name for the server
     #[arg(short = 'n', long = "hostname", env = "SERVER__HOSTNAME")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
