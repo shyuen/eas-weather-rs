@@ -1,0 +1,33 @@
+use std::fmt;
+use thiserror::Error;
+
+#[derive(Debug)]
+pub struct WebserverBasePath(Option<String>);
+
+impl fmt::Display for WebserverBasePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(path) => write!(f, "{}", path),
+            None => write!(f, ""),
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum WebserverBasePathError {}
+
+impl WebserverBasePath {
+    pub fn new(raw_base_path: &str) -> Result<Self, WebserverBasePathError> {
+        let trimmed_hostname = raw_base_path.trim();
+        if trimmed_hostname.is_empty() {
+            return Ok(WebserverBasePath(None));
+        }
+        // Additional validation can be added here
+
+        Ok(WebserverBasePath(Some(trimmed_hostname.to_string())))
+    }
+
+    pub fn default() -> Self {
+        WebserverBasePath(None)
+    }
+}

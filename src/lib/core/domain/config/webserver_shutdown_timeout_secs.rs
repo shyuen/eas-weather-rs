@@ -3,24 +3,24 @@ use thiserror::Error;
 
 /// A validated and formatted Db connection retry initial delay in seconds.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DbConnIdleTimeoutSecs(u32);
+pub struct WebserverShutdownTimeoutSecs(u32);
 
-impl fmt::Display for DbConnIdleTimeoutSecs {
+impl fmt::Display for WebserverShutdownTimeoutSecs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 #[derive(Error, Debug)]
-pub enum DbConnIdleTimeoutSecsError {}
+pub enum WebserverShutdownTimeoutSecsError {}
 
-impl DbConnIdleTimeoutSecs {
-    pub fn new(raw_db_conn_idle_timeout_secs: &u32) -> Result<Self, DbConnIdleTimeoutSecsError> {
+impl WebserverShutdownTimeoutSecs {
+    pub fn new(raw_shutdown_timeout_secs: &u32) -> Result<Self, WebserverShutdownTimeoutSecsError> {
         // Add validation logic here if needed
-        Ok(DbConnIdleTimeoutSecs(*raw_db_conn_idle_timeout_secs))
+        Ok(WebserverShutdownTimeoutSecs(*raw_shutdown_timeout_secs))
     }
     pub fn default() -> Self {
-        DbConnIdleTimeoutSecs(300)
+        WebserverShutdownTimeoutSecs(300)
     }
     pub fn get(&self) -> u32 {
         self.0
