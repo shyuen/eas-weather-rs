@@ -15,9 +15,9 @@ impl fmt::Display for DbConnMaxLifetimeSecs {
 pub enum DbConnMaxLifetimeSecsError {}
 
 impl DbConnMaxLifetimeSecs {
-    pub fn new(raw_db_max_connections: &u32) -> Result<Self, DbConnMaxLifetimeSecsError> {
+    pub fn new(raw_db_conn_max_lifetime_secs: &u32) -> Result<Self, DbConnMaxLifetimeSecsError> {
         // Add validation logic here if needed
-        Ok(DbConnMaxLifetimeSecs(*raw_db_max_connections))
+        Ok(DbConnMaxLifetimeSecs(*raw_db_conn_max_lifetime_secs))
     }
     pub fn default() -> Self {
         DbConnMaxLifetimeSecs(1800)

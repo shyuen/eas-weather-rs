@@ -155,7 +155,10 @@ impl Database {
                         DbConnectionStringError::BadFileLoad(e) => {
                             log_serv.error(
                                 module_path!(),
-                                &format!("config database load connection file error: {}", e),
+                                &format!(
+                                    "config database load connection file error: `{}` - {}",
+                                    &raw_conn_url_file, e
+                                ),
                             );
                             log_serv.warn(
                                 module_path!(),

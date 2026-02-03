@@ -15,9 +15,9 @@ impl fmt::Display for DbMinConnections {
 pub enum DbMinConnectionsError {}
 
 impl DbMinConnections {
-    pub fn new(raw_db_max_connections: &u32) -> Result<Self, DbMinConnectionsError> {
+    pub fn new(raw_db_min_connections: &u32) -> Result<Self, DbMinConnectionsError> {
         // Add validation logic here if needed
-        Ok(DbMinConnections(*raw_db_max_connections))
+        Ok(DbMinConnections(*raw_db_min_connections))
     }
     pub fn default() -> Self {
         DbMinConnections(1)
