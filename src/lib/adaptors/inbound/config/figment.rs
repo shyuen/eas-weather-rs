@@ -94,6 +94,11 @@ impl ConfigRepo for ConfigFigment {
         &self.conf_database
     }
 
+    /// Get the webserver configuration
+    fn get_webserver_config(&self) -> &Webserver {
+        &self.conf_webserver
+    }
+
     // Log debug information regarding config inputs
     fn log_raw_config_input(&self, log_repo: &impl LoggingRepo) {
         // Log config from CLI

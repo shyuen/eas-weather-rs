@@ -52,4 +52,8 @@ impl WebserverApiKey {
     pub fn default() -> Self {
         WebserverApiKey(None)
     }
+
+    pub fn get(&self) -> &Option<String> {
+        &self.0
+    }
 }

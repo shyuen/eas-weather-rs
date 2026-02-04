@@ -52,4 +52,8 @@ impl WebserverJwtKey {
     pub fn default() -> Self {
         WebserverJwtKey(None)
     }
+
+    pub fn get(&self) -> &Option<String> {
+        &self.0
+    }
 }

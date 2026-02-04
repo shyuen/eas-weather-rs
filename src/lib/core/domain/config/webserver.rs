@@ -19,9 +19,9 @@ pub struct Webserver {
 
     pub shutdown_timeout_secs: WebserverShutdownTimeoutSecs,
 
-    pub api_key_file: WebserverApiKey,
+    pub api_key: WebserverApiKey,
 
-    pub jwt_key_file: WebserverJwtKey,
+    pub jwt_key: WebserverJwtKey,
     pub jwt_access_token_expiry_secs: WebserverJwtAccessTokenExpirySecs,
 }
 
@@ -83,7 +83,7 @@ impl Webserver {
             None => WebserverShutdownTimeoutSecs::default(),
         };
 
-        let api_key_file = match &conf.api_key_file {
+        let api_key = match &conf.api_key_file {
             Some(raw_api_key_file) => {
                 WebserverApiKey::new(raw_api_key_file).unwrap_or_else(|err| match &err {
                     // Set to default the default option on errors
@@ -94,7 +94,7 @@ impl Webserver {
             None => WebserverApiKey::default(),
         };
 
-        let jwt_key_file = match &conf.jwt_key_file {
+        let jwt_key = match &conf.jwt_key_file {
             Some(raw_jwt_key_file) => {
                 WebserverJwtKey::new(raw_jwt_key_file).unwrap_or_else(|err| match &err {
                     // Set to default the default option on errors
@@ -125,8 +125,8 @@ impl Webserver {
             port,
             base_path,
             shutdown_timeout_secs,
-            api_key_file,
-            jwt_key_file,
+            api_key,
+            jwt_key,
             jwt_access_token_expiry_secs,
         }
     }

@@ -1,6 +1,7 @@
 use crate::core::domain::config::database::Database;
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
+use crate::core::domain::config::webserver::Webserver;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
 pub trait ConfigRepo {
@@ -17,6 +18,9 @@ pub trait ConfigRepo {
 
     /// Get the database configuration
     fn get_database_config(&self) -> &Database;
+
+    /// Get the webserver configuration
+    fn get_webserver_config(&self) -> &Webserver;
 
     /// Outputs raw config from inputs without validation
     fn log_raw_config_input(&self, log_serv: &impl LoggingRepo);

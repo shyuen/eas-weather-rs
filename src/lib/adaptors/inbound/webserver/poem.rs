@@ -1,7 +1,8 @@
-use crate::core::domain::config::webserver::ConfigWebserver;
+use crate::core::domain::config::webserver::Webserver;
+use crate::core::ports::inbound::webserver::WebserverRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
-use crate::lib::application::ports::inbound::webserver::WebserverRepo;
 
+#[derive(Debug, Clone)]
 pub struct WebserverPoem {}
 
 impl WebserverPoem {
@@ -16,14 +17,39 @@ impl WebserverRepo for WebserverPoem {
         WebserverPoem::new()
     }
 
-    fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_webserv: &ConfigWebserver) {
+    fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_webserv: &Webserver) {
         log_repo.info(
             module_path!(),
             &format!("webserver_hostname={}", conf_webserv.hostname.get()),
         );
+        log_repo.info(
+            module_path!(),
+            &format!("webserver_port={}", conf_webserv.port.get()),
+        );
+        log_repo.info(
+            module_path!(),
+            &format!("webserver_base_path={}", conf_webserv.base_path.to_string()),
+        );
+        log_repo.info(
+            module_path!(),
+            &format!(
+                "shutdown_timeout_secs={}",
+                conf_webserv.shutdown_timeout_secs.get()
+            ),
+        );
+
+        log_repo.info(module_path!(), &format!("api_key={}", conf_webserv.api_key));
+        log_repo.info(module_path!(), &format!("jwt_key={}", conf_webserv.jwt_key));
+        log_repo.info(
+            module_path!(),
+            &format!(
+                "jwt_access_token_expiry_secs={}",
+                conf_webserv.jwt_access_token_expiry_secs.get()
+            ),
+        );
     }
 
-    fn start_server(&self, config: &ConfigWebserver) {
-        // Implementation to start the webserver using Poem framework
-    }
+    // fn start_server(&self, config: &Webserver) {
+    //     // Implementation to start the webserver using Poem framework
+    // }
 }
