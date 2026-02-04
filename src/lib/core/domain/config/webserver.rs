@@ -311,8 +311,12 @@ impl Webserver {
             None => {
                 log_serv.warn(
                     module_path!(),
+                    &format!("config webserver jwt key file was not specified",),
+                );
+                log_serv.warn(
+                    module_path!(),
                     &format!(
-                        "config webserver jwt key was not specified, setting to `{}`",
+                        "config webserver jwt key will be set to `{}`",
                         WebserverJwtKey::default()
                     ),
                 );

@@ -10,6 +10,7 @@ use crate::adaptors::inbound::config::clap::Cli;
 use crate::core::domain::config::database::Database;
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
+use crate::core::domain::config::webserver::Webserver;
 use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
@@ -18,6 +19,7 @@ pub struct ConfigFigment {
     conf_raw: Config,
     conf_logging: Logging,
     conf_database: Database,
+    conf_webserver: Webserver,
 }
 
 fn collect_raw_input() -> Config {
@@ -73,6 +75,7 @@ impl ConfigRepo for ConfigFigment {
             conf_raw: conf.clone(),
             conf_logging: Logging::new(&conf.logging),
             conf_database: Database::new(&conf.database),
+            conf_webserver: Webserver::new(&conf.webserver),
         }
     }
 
@@ -148,5 +151,7 @@ impl ConfigRepo for ConfigFigment {
             .validate_raw_logging_config(log_serv, &self.conf_raw.logging);
         self.conf_database
             .validate_raw_database_config(log_serv, &self.conf_raw.database);
+        self.conf_webserver
+            .validate_raw_webserver_config(log_serv, &self.conf_raw.webserver);
     }
 }
