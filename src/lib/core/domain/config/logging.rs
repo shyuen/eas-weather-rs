@@ -41,6 +41,7 @@ impl Logging {
         }
     }
 
+    /// Validates the raw logging configuration and logs warnings for any issues found.
     pub fn validate_raw_logging_config(
         &self,
         log_serv: &impl LoggingRepo,
