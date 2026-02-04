@@ -1,6 +1,7 @@
 use crate::core::domain::config::database::Database;
 use crate::core::domain::config::logging::Logging;
 use crate::core::domain::config::raw::Config;
+use crate::core::domain::config::webserver::Webserver;
 use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
 use crate::core::services::logging::LoggingService;
@@ -54,5 +55,9 @@ where
     /// Returns the database configuration.
     pub fn get_database_config(&self) -> &Database {
         self.repo.get_database_config()
+    }
+
+    pub fn get_webservicer_config(&self) -> &Webserver {
+        self.repo.get_webserver_config()
     }
 }

@@ -30,4 +30,8 @@ impl WebserverBasePath {
     pub fn default() -> Self {
         WebserverBasePath(None)
     }
+
+    pub fn get(&self) -> &Option<String> {
+        &self.0
+    }
 }

@@ -30,4 +30,8 @@ impl WebserverHostname {
     pub fn default() -> Self {
         WebserverHostname("localhost".to_string())
     }
+
+    pub fn get(&self) -> &String {
+        &self.0
+    }
 }

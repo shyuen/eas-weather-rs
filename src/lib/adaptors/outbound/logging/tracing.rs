@@ -24,9 +24,9 @@ impl LoggingTracing {
 impl LoggingRepo for LoggingTracing {
     fn new(conf_log: &Logging) -> Self {
         // Map LoggingTraceLevel to tracing::Level
-        let trace_level = Self::map_trace_level(&conf_log.trace_level.trace_level_type());
+        let trace_level = Self::map_trace_level(&conf_log.trace_level.get());
 
-        match &conf_log.format.format_type() {
+        match &conf_log.format.get() {
             LoggingFormatType::Json => {
                 tracing_subscriber::fmt()
                     .json()
