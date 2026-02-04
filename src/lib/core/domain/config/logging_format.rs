@@ -50,7 +50,7 @@ impl LoggingFormat {
     pub fn default() -> Self {
         LoggingFormat(LoggingFormatType::Text)
     }
-    pub fn format_type(&self) -> &LoggingFormatType {
+    pub fn get(&self) -> &LoggingFormatType {
         &self.0
     }
 }

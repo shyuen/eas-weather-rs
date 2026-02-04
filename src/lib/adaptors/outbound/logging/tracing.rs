@@ -52,14 +52,11 @@ impl LoggingRepo for LoggingTracing {
     fn log_adaptor_config(&self, conf_log: &Logging) {
         self.info(
             module_path!(),
-            &format!("tracing_format={:?}", conf_log.format.format_type()),
+            &format!("tracing_format={:?}", conf_log.format.get()),
         );
         self.info(
             module_path!(),
-            &format!(
-                "tracing_trace_level={:?}",
-                conf_log.trace_level.trace_level_type()
-            ),
+            &format!("tracing_trace_level={:?}", conf_log.trace_level.get()),
         );
     }
 
