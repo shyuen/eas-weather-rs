@@ -16,6 +16,20 @@ pub struct ConfigLogging {
     pub trace_level: Option<String>,
 }
 
+/// The raw configuration for the databse and its components.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfigDatabase {
+    pub conn_url_file: Option<String>,
+    pub conn_max_retries: Option<u8>,
+    pub conn_retry_init_delay_secs: Option<u16>,
+
+    pub conn_acquire_timeout_secs: Option<u16>,
+    pub conn_idle_timeout_secs: Option<u32>,
+    pub conn_max_lifetime_secs: Option<u32>,
+    pub max_connections: Option<u32>,
+    pub min_connections: Option<u32>,
+}
+
 /// The raw configuration for the server and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigWebserver {
@@ -29,18 +43,4 @@ pub struct ConfigWebserver {
 
     pub jwt_key_file: Option<String>,
     pub jwt_access_token_expiry_secs: Option<u64>,
-}
-
-/// The raw configuration for the databse and its components.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConfigDatabase {
-    pub conn_url_file: Option<String>,
-    pub conn_max_retries: Option<u8>,
-    pub conn_retry_init_delay_secs: Option<u16>,
-
-    pub conn_acquire_timeout_secs: Option<u16>,
-    pub conn_idle_timeout_secs: Option<u32>,
-    pub conn_max_lifetime_secs: Option<u32>,
-    pub max_connections: Option<u32>,
-    pub min_connections: Option<u32>,
 }
