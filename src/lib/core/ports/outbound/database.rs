@@ -17,5 +17,5 @@ pub trait DatabaseRepo: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = ()> + Send;
 
     /// Close the database connection pool
-    fn close_pool(&self, log_repo: &(impl LoggingRepo + Sync)) -> impl Future<Output = ()> + Send;
+    fn close_pool(&self, log_repo: &impl LoggingRepo) -> impl Future<Output = ()> + Send;
 }
