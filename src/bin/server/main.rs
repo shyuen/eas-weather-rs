@@ -8,7 +8,7 @@ use eas_weather_rs::core::services::logging::LoggingService;
 use eas_weather_rs::core::services::webserver::WebserverService;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), std::io::Error> {
     // Initialize configuration service to load configuration input
     let conf_service: ConfigService<ConfigFigment> = ConfigService::new();
 
@@ -39,4 +39,12 @@ async fn main() {
     // TODO: Start server to listen for incoming requests
     let webserver_service: WebserverService<WebserverPoem> =
         WebserverService::new(&conf_service, &logging_service);
+
+    // Output dataase adaptor configuration
+    webserver_service.log_adaptor_config(&logging_service, &conf_service);
+
+    // Start Poem Web Server
+    webserver_service
+        .start_server(&conf_service, &database_service, &logging_service)
+        .await
 }

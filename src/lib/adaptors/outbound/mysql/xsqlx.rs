@@ -46,7 +46,7 @@ impl DatabaseRepo for DatabaseMySql {
                 log_repo.info(
                     module_path!(),
                     &format!(
-                        "database MySQL connection options set to `{host}:{port}{name}` as `{username}`",
+                        "xsqlx_conn_opt={username}@{host}:{port}{name}",
                         host = options.get_host(),
                         port = options.get_port(),
                         name = dn_name,
@@ -64,13 +64,13 @@ impl DatabaseRepo for DatabaseMySql {
 
         log_repo.info(
             module_path!(),
-            &format!("database_conn_max_retries={}", &conf_db.conn_max_retries),
+            &format!("xsqlx_conn_max_retries={}", &conf_db.conn_max_retries),
         );
 
         log_repo.info(
             module_path!(),
             &format!(
-                "database_conn_retry_init_delay_secs={}",
+                "xsqlx_conn_retry_init_delay_secs={}",
                 &conf_db.conn_retry_init_delay_secs
             ),
         );
@@ -78,7 +78,7 @@ impl DatabaseRepo for DatabaseMySql {
         log_repo.info(
             module_path!(),
             &format!(
-                "database_conn_acquire_timeout_secs={}",
+                "xsqlx_conn_acquire_timeout_secs={}",
                 &conf_db.conn_acquire_timeout_secs
             ),
         );
@@ -86,7 +86,7 @@ impl DatabaseRepo for DatabaseMySql {
         log_repo.info(
             module_path!(),
             &format!(
-                "database_conn_idle_timeout_secs={}",
+                "xsqlx_conn_idle_timeout_secs={}",
                 &conf_db.conn_idle_timeout_secs
             ),
         );
@@ -94,19 +94,19 @@ impl DatabaseRepo for DatabaseMySql {
         log_repo.info(
             module_path!(),
             &format!(
-                "database_conn_max_lifetime_secs={}",
+                "xsqlx_conn_max_lifetime_secs={}",
                 &conf_db.conn_max_lifetime_secs
             ),
         );
 
         log_repo.info(
             module_path!(),
-            &format!("database_min_connections={}", &conf_db.min_connections),
+            &format!("xsqlx_min_connections={}", &conf_db.min_connections),
         );
 
         log_repo.info(
             module_path!(),
-            &format!("database_max_connections={}", &conf_db.max_connections),
+            &format!("xsqlx_max_connections={}", &conf_db.max_connections),
         );
     }
 
@@ -182,7 +182,7 @@ impl DatabaseRepo for DatabaseMySql {
         }
     }
 
-    async fn close_pool(&self, log_repo: &(impl LoggingRepo + Sync)) {
+    async fn close_pool(&self, log_repo: &impl LoggingRepo) {
         match &self.pool {
             Some(pool) => {
                 pool.close().await;
