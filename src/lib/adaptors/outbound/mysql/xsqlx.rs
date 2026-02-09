@@ -38,7 +38,7 @@ impl DatabaseRepo for DatabaseMySql {
     fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_db: &Database) {
         match &self.conn_opt {
             Some(options) => {
-                let dn_name = match options.get_database() {
+                let db_name = match options.get_database() {
                     Some(db_name) => &format!("/{}", db_name),
                     None => "",
                 };
@@ -49,7 +49,7 @@ impl DatabaseRepo for DatabaseMySql {
                         "xsqlx_conn_opt={username}@{host}:{port}{name}",
                         host = options.get_host(),
                         port = options.get_port(),
-                        name = dn_name,
+                        name = db_name,
                         username = options.get_username(),
                     ),
                 );
