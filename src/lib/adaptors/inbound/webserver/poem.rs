@@ -69,8 +69,28 @@ impl WebserverRepo for WebserverPoem {
         // Construct root address
         let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
 
+        // Check the base_path value
+        let base_path: &str = match &config.base_path.get() {
+            Some(base_path) => {
+                let mut clean_base_path = base_path.to_string();
+
+                // Ensure it begins with `/`
+                if !base_path.starts_with("/") {
+                    clean_base_path = "/".to_string() + &clean_base_path;
+                };
+
+                &clean_base_path.to_string()
+            }
+            None => "/",
+        };
+
         // Construct base address for OpenAPI server
-        let base_addr = format!("{}{:?}", &root_addr, &config.base_path.get());
+        let base_addr = format!("{}{}", &root_addr, &base_path);
+
+        log_repo.info(
+            module_path!(),
+            &format!("poem server path: http://{}", &base_addr),
+        );
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -84,7 +104,9 @@ impl WebserverRepo for WebserverPoem {
         let ui = main_paths.swagger_ui();
 
         // Create routes
-        let routes = Route::new().nest("/", main_paths).nest("/docs", ui);
+        let routes = Route::new()
+            .nest("/", main_paths)
+            .nest(format!("{}/docs", &base_path), ui);
         //.data(app_state.clone()); // Pass app_state to the routes
 
         // Start the server with graceful shutdown
