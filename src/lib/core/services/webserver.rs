@@ -2,9 +2,12 @@ use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::inbound::webserver::WebserverRepo;
 use crate::core::ports::outbound::database::DatabaseRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
+//use crate::core::ports::outbound::meta::MetaRepo;
 use crate::core::services::config::ConfigService;
 use crate::core::services::database::DatabaseService;
 use crate::core::services::logging::LoggingService;
+//use crate::core::services::meta::{self, MetaService};
+use crate::core::domain::meta::ports::Meta;
 
 #[derive(Debug, Clone)]
 pub struct WebserverService<W>
@@ -55,6 +58,9 @@ where
         conf_serv: &ConfigService<C>,
         db_serv: &DatabaseService<D>,
         log_serv: &LoggingService<L>,
+        //meta_serv: &MetaService<'_, C>,
+        //meta_serv: &MetaService<C>,
+        meta: &impl Meta,
     ) -> Result<(), std::io::Error>
     where
         L: LoggingRepo,
@@ -66,7 +72,7 @@ where
         let log_repo = log_serv.get_repo();
 
         self.repo
-            .start_server(webserv_conf, log_repo, db_repo)
+            .start_server(webserv_conf, log_repo, db_repo, meta)
             .await
     }
 }

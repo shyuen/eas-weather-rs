@@ -1,10 +1,13 @@
-use crate::core::domain::config::webserver::Webserver;
+use crate::core::domain::meta::ports::Meta;
+use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::inbound::webserver::WebserverRepo;
 use crate::core::ports::outbound::database::DatabaseRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
+use crate::core::{domain::config::webserver::Webserver, services::meta::MetaService};
 
-use poem::{Route, Server, listener::TcpListener};
-use poem_openapi::OpenApiService;
+use poem::{EndpointExt, Route, Server, listener::TcpListener};
+use poem_openapi::{OpenApiService, Tags};
+use std::sync::Arc;
 use tokio::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -14,6 +17,18 @@ impl WebserverPoem {
     pub fn new() -> Self {
         WebserverPoem {}
     }
+}
+
+#[derive(Debug, Clone)]
+/// The global application state shared between all request handlers.
+struct AppState<M: Meta> {
+    meta: Arc<M>,
+}
+
+#[derive(Tags)]
+pub enum OperationalTags {
+    /// Metadata endpoints
+    Meta,
 }
 
 impl WebserverRepo for WebserverPoem {
@@ -60,12 +75,21 @@ impl WebserverRepo for WebserverPoem {
         );
     }
 
+    //async fn start_server<'a>(
     async fn start_server(
         &self,
         config: &Webserver,
         log_repo: &impl LoggingRepo,
         db_repo: &impl DatabaseRepo,
+        //meta_serv: &'a MetaService<'_, impl ConfigRepo>,
+        //meta_serv: &MetaService<impl ConfigRepo>,
+        meta: &impl Meta,
     ) -> Result<(), std::io::Error> {
+        // Construct dependencies to inject into handlers.
+        let state = AppState {
+            meta: Arc::new(meta.clone()),
+        };
+
         // Construct root address
         let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
 
@@ -107,7 +131,7 @@ impl WebserverRepo for WebserverPoem {
         let routes = Route::new()
             .nest("/", main_paths)
             .nest(format!("{}/docs", &base_path), ui);
-        //.data(app_state.clone()); // Pass app_state to the routes
+        //.data(meta_serv.clone()); // Pass meta_service to the routes, requires EndpointExt
 
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(

@@ -1,7 +1,7 @@
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebserverBasePath(Option<String>);
 
 impl fmt::Display for WebserverBasePath {

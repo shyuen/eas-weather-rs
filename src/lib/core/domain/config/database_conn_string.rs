@@ -2,7 +2,7 @@ use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DbConnectionString(String);
 
 impl fmt::Display for DbConnectionString {

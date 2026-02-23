@@ -2,7 +2,7 @@ use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebserverApiKey(Option<String>);
 
 impl fmt::Display for WebserverApiKey {

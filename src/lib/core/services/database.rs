@@ -45,6 +45,7 @@ where
     {
         let log_repo = log_serv.get_repo();
         let conf_db = conf_serv.get_database_config();
+
         self.repo.log_adaptor_config(log_repo, conf_db);
     }
 

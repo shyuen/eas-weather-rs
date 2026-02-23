@@ -14,7 +14,7 @@ use crate::core::domain::config::webserver::Webserver;
 use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConfigFigment {
     conf_raw: Config,
     conf_logging: Logging,

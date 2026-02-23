@@ -24,6 +24,11 @@ where
         Self { repo }
     }
 
+    /// Get the Config repository
+    pub fn get_repo(&self) -> &C {
+        &self.repo
+    }
+
     /// Log the raw configuration inputs.
     pub fn log_raw_config_input<L>(&self, logging_serv: &LoggingService<L>)
     where

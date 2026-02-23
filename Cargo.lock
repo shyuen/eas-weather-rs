@@ -401,6 +401,7 @@ dependencies = [
  "poem-openapi",
  "serde",
  "serde_derive",
+ "serde_json",
  "sqlx",
  "strum",
  "strum_macros",

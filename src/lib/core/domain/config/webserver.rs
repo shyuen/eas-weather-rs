@@ -11,7 +11,7 @@ use crate::core::domain::config::webserver_port::WebserverPort;
 use crate::core::domain::config::webserver_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Webserver {
     pub hostname: WebserverHostname,
     pub port: WebserverPort,

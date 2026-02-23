@@ -4,7 +4,7 @@ use crate::core::domain::config::raw::ConfigLogging;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
 /// Configuration for logging.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Logging {
     pub format: LoggingFormat,
     pub trace_level: LoggingTraceLevel,

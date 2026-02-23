@@ -11,7 +11,7 @@ use crate::core::domain::config::database_min_connections::DbMinConnections;
 use crate::core::domain::config::raw::ConfigDatabase;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Database {
     pub conn_string: DbConnectionString,
     pub conn_max_retries: DbConnMaxRetries,
