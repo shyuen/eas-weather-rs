@@ -4,7 +4,7 @@ use crate::core::domain::config::raw::Config;
 use crate::core::domain::config::webserver::Webserver;
 use crate::core::ports::outbound::logging::LoggingRepo;
 
-pub trait ConfigRepo {
+pub trait ConfigRepo: Clone + Send + Sync + 'static {
     /// Generate and return the application configuration
     /// Should gather configuration based on the priority order of:
     /// CLI args > Environment File > Environment Variables > Configuration File > Default Configuration File > Default Values

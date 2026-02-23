@@ -5,6 +5,7 @@ use eas_weather_rs::adaptors::outbound::mysql::xsqlx::DatabaseMySql;
 use eas_weather_rs::core::services::config::ConfigService;
 use eas_weather_rs::core::services::database::DatabaseService;
 use eas_weather_rs::core::services::logging::LoggingService;
+use eas_weather_rs::core::services::meta::MetaService;
 use eas_weather_rs::core::services::webserver::WebserverService;
 
 #[tokio::main]
@@ -43,8 +44,15 @@ async fn main() -> Result<(), std::io::Error> {
     // Output dataase adaptor configuration
     webserver_service.log_adaptor_config(&logging_service, &conf_service);
 
+    let meta_service = MetaService::new(conf_service.clone());
+
     // Start Poem Web Server
     webserver_service
-        .start_server(&conf_service, &database_service, &logging_service)
+        .start_server(
+            &conf_service,
+            &database_service,
+            &logging_service,
+            &meta_service,
+        )
         .await
 }

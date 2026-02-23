@@ -1,7 +1,7 @@
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebserverHostname(String);
 
 impl fmt::Display for WebserverHostname {

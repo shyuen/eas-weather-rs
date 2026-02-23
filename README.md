@@ -43,3 +43,6 @@ The configuration is loaded in the following order, with later values overriding
 1. Environment variable file (e.g., `.env`)
 1. Environment variables (e.g., `APP__LOG_FORMAT`)
 1. Command line arguments (e.g., `--log-format`)
+
+### Logging
+https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/

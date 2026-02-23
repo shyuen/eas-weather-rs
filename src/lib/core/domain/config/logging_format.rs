@@ -3,7 +3,7 @@ use strum_macros::EnumString;
 use thiserror::Error;
 
 /// Logging output format newtype for application
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LoggingFormat(LoggingFormatType);
 
 impl fmt::Display for LoggingFormat {
