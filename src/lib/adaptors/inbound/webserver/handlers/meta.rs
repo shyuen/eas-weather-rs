@@ -1,12 +1,12 @@
+use crate::adaptors::inbound::webserver::poem::AppState;
 use crate::adaptors::inbound::webserver::poem::OperationalTags;
-use crate::core::ports::inbound::config::ConfigRepo;
-use crate::core::services::meta::MetaService;
+use crate::core::domain::meta::ports::Meta;
 
 use poem::web::Data;
 use poem_openapi::{ApiResponse, OpenApi, payload::Json};
 use serde_json::Value;
 
-pub struct Meta;
+pub struct MetaHandler;
 
 /// API responses for Meta endpoints
 #[derive(ApiResponse)]
@@ -19,21 +19,41 @@ enum MetaResponses {
 }
 
 #[OpenApi(prefix_path = "/meta", tag = "OperationalTags::Meta")]
-impl Meta {
+impl MetaHandler {
     /// Outputs application configuration information
     #[oai(path = "/info", method = "get", hidden = false)]
     async fn info(
         &self,
-        //meta_serv: Data<&MetaService<C>>
+        //Data(app_state): Data<&AppState<M>>
     ) -> MetaResponses
 where
-        //C: ConfigRepo,
+        //M: Meta,
     {
         // Return the configuration with app_state as JSON
+
+        //app_state.meta.get_app_data().await;
+
         MetaResponses::Ok(Json(serde_json::json!(
             // Access the inner Config reference
-            //meta_serv.get_app_config()
-            {}
+            {
+                "app_data": "test",
+            }
         )))
     }
+}
+
+async fn info<M>(Data(_app_state): Data<&AppState<M>>) -> MetaResponses
+where
+    M: Meta,
+{
+    // Return the configuration with app_state as JSON
+
+    //app_state.meta.get_app_data().await;
+
+    MetaResponses::Ok(Json(serde_json::json!(
+        // Access the inner Config reference
+        {
+            "app_data": "test",
+        }
+    )))
 }

@@ -1,9 +1,9 @@
+use crate::adaptors::inbound::webserver::handlers::meta::MetaHandler;
+use crate::core::domain::config::webserver::Webserver;
 use crate::core::domain::meta::ports::Meta;
-use crate::core::ports::inbound::config::ConfigRepo;
 use crate::core::ports::inbound::webserver::WebserverRepo;
 use crate::core::ports::outbound::database::DatabaseRepo;
 use crate::core::ports::outbound::logging::LoggingRepo;
-use crate::core::{domain::config::webserver::Webserver, services::meta::MetaService};
 
 use poem::{EndpointExt, Route, Server, listener::TcpListener};
 use poem_openapi::{OpenApiService, Tags};
@@ -20,9 +20,10 @@ impl WebserverPoem {
 }
 
 #[derive(Debug, Clone)]
-/// The global application state shared between all request handlers.
-struct AppState<M: Meta> {
-    meta: Arc<M>,
+//The global application state shared between all request handlers.
+pub struct AppState<M: Meta> {
+    pub meta: Arc<M>,
+    pub moose: String,
 }
 
 #[derive(Tags)]
@@ -81,15 +82,8 @@ impl WebserverRepo for WebserverPoem {
         config: &Webserver,
         log_repo: &impl LoggingRepo,
         db_repo: &impl DatabaseRepo,
-        //meta_serv: &'a MetaService<'_, impl ConfigRepo>,
-        //meta_serv: &MetaService<impl ConfigRepo>,
         meta: &impl Meta,
     ) -> Result<(), std::io::Error> {
-        // Construct dependencies to inject into handlers.
-        let state = AppState {
-            meta: Arc::new(meta.clone()),
-        };
-
         // Construct root address
         let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
 
@@ -118,7 +112,7 @@ impl WebserverRepo for WebserverPoem {
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
-            (),
+            MetaHandler,
             env!("CARGO_PKG_NAME").to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         )
@@ -127,11 +121,17 @@ impl WebserverRepo for WebserverPoem {
         // Create Swagger UI
         let ui = main_paths.swagger_ui();
 
+        // Construct dependencies to inject into handlers.
+        let app_state = AppState {
+            meta: Arc::new(meta.clone()),
+            moose: "string".to_string(),
+        };
+
         // Create routes
         let routes = Route::new()
             .nest("/", main_paths)
-            .nest(format!("{}/docs", &base_path), ui);
-        //.data(meta_serv.clone()); // Pass meta_service to the routes, requires EndpointExt
+            .nest(format!("{}/docs", &base_path), ui)
+            .data(app_state.clone()); // Pass meta_service to the routes, requires EndpointExt
 
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(
