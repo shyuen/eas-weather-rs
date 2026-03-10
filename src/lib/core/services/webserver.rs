@@ -53,6 +53,29 @@ where
         self.repo.log_adaptor_config(log_repo, conf_webserver);
     }
 
+    // pub async fn start_server<C, D, L>(
+    //     &self,
+    //     conf_serv: &ConfigService<C>,
+    //     db_serv: &DatabaseService<D>,
+    //     log_serv: &LoggingService<L>,
+    //     //meta_serv: &MetaService<'_, C>,
+    //     //meta_serv: &MetaService<C>,
+    //     meta: &impl Meta,
+    // ) -> Result<(), std::io::Error>
+    // where
+    //     L: LoggingRepo,
+    //     D: DatabaseRepo,
+    //     C: ConfigRepo,
+    // {
+    //     let webserv_conf = conf_serv.get_webservicer_config();
+    //     let db_repo = db_serv.get_repo();
+    //     let log_repo = log_serv.get_repo();
+
+    //     self.repo
+    //         .start_server(webserv_conf, log_repo, db_repo, meta)
+    //         .await
+    // }
+
     pub async fn start_server<C, D, L>(
         &self,
         conf_serv: &ConfigService<C>,
