@@ -1,5 +1,6 @@
 use eas_weather_rs::adaptors::inbound::config::figment::ConfigFigment;
-use eas_weather_rs::adaptors::inbound::webserver::poem::WebserverPoem;
+//use eas_weather_rs::adaptors::inbound::webserver::poem::WebserverPoem;
+use eas_weather_rs::adaptors::inbound::webserver::axum::WebserverAxum;
 use eas_weather_rs::adaptors::outbound::logging::tracing::LoggingTracing;
 use eas_weather_rs::adaptors::outbound::mysql::xsqlx::DatabaseMySql;
 use eas_weather_rs::core::services::config::ConfigService;
@@ -38,7 +39,9 @@ async fn main() -> Result<(), std::io::Error> {
     // TODO: Initialize other services (e.g., weather data service, API service, etc.)
 
     // TODO: Start server to listen for incoming requests
-    let webserver_service: WebserverService<WebserverPoem> =
+    // let webserver_service: WebserverService<WebserverPoem> =
+    //     WebserverService::new(&conf_service, &logging_service);
+    let webserver_service: WebserverService<WebserverAxum> =
         WebserverService::new(&conf_service, &logging_service);
 
     // Output dataase adaptor configuration
