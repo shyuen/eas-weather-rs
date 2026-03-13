@@ -4,7 +4,7 @@ use crate::domain::database::port::DatabaseRepo;
 use crate::domain::database::service::DatabaseService;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::logging::service::LoggingService;
-use crate::domain::meta::port::MetaRepo;
+use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
 
 #[derive(Debug, Clone)]
@@ -56,7 +56,7 @@ where
         conf_serv: &ConfigService<C>,
         db_serv: &DatabaseService<D>,
         log_serv: &LoggingService<L>,
-        meta_serv: &impl MetaRepo,
+        meta_serv: &MetaService<C>,
     ) -> Result<(), std::io::Error>
     where
         L: LoggingRepo,
