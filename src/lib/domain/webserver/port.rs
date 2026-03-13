@@ -11,7 +11,6 @@ pub trait WebserverRepo: Clone + Send + Sync + 'static {
     fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf: &Webserver);
 
     /// Start the web server
-    //fn start_server<'a>(
     fn start_server(
         &self,
         config: &Webserver,
