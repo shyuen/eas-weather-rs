@@ -2,9 +2,9 @@ use tracing::{Level, error, info, warn};
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::domain::logging::model::Logging;
+use crate::domain::logging::new_types::lg_format::LoggingFormatType;
+use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevelType;
 use crate::domain::logging::port::LoggingRepo;
-use crate::domain::logging::sub_models::lg_format::LoggingFormatType;
-use crate::domain::logging::sub_models::lg_trace_level::LoggingTraceLevelType;
 
 #[derive(Debug, Clone)]
 pub struct LoggingTracing {}

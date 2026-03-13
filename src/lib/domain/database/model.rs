@@ -1,14 +1,14 @@
 use crate::domain::config::model::ConfigDatabase;
-use crate::domain::database::sub_models::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
-use crate::domain::database::sub_models::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
-use crate::domain::database::sub_models::db_conn_init_delay_secs::DbConnRetryInitDelaySecs;
-use crate::domain::database::sub_models::db_conn_max_lifetime_secs::DbConnMaxLifetimeSecs;
-use crate::domain::database::sub_models::db_conn_max_retries::DbConnMaxRetries;
-use crate::domain::database::sub_models::db_conn_string::{
+use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
+use crate::domain::database::new_types::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
+use crate::domain::database::new_types::db_conn_init_delay_secs::DbConnRetryInitDelaySecs;
+use crate::domain::database::new_types::db_conn_max_lifetime_secs::DbConnMaxLifetimeSecs;
+use crate::domain::database::new_types::db_conn_max_retries::DbConnMaxRetries;
+use crate::domain::database::new_types::db_conn_string::{
     DbConnectionString, DbConnectionStringError,
 };
-use crate::domain::database::sub_models::db_max_connections::DbMaxConnections;
-use crate::domain::database::sub_models::db_min_connections::DbMinConnections;
+use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
+use crate::domain::database::new_types::db_min_connections::DbMinConnections;
 use crate::domain::logging::port::LoggingRepo;
 
 #[derive(Debug, Clone)]

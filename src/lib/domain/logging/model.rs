@@ -1,9 +1,9 @@
 use crate::domain::config::model::ConfigLogging;
-use crate::domain::logging::port::LoggingRepo;
-use crate::domain::logging::sub_models::lg_format::{LoggingFormat, LoggingFormatError};
-use crate::domain::logging::sub_models::lg_trace_level::{
+use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatError};
+use crate::domain::logging::new_types::lg_trace_level::{
     LoggingTraceLevel, LoggingTraceLevelError,
 };
+use crate::domain::logging::port::LoggingRepo;
 
 /// Configuration for logging.
 #[derive(Debug, Clone)]

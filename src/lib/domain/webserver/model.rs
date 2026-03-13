@@ -1,15 +1,15 @@
 use crate::domain::config::model::ConfigWebserver;
 use crate::domain::logging::port::LoggingRepo;
-use crate::domain::webserver::sub_models::ws_api_key::WebserverApiKey;
-use crate::domain::webserver::sub_models::ws_api_key::WebserverApiKeyError;
-use crate::domain::webserver::sub_models::ws_base_path::WebserverBasePath;
-use crate::domain::webserver::sub_models::ws_hostname::WebserverHostname;
-use crate::domain::webserver::sub_models::ws_hostname::WebserverHostnameError;
-use crate::domain::webserver::sub_models::ws_jwt_access_token_expiry_secs::WebserverJwtAccessTokenExpirySecs;
-use crate::domain::webserver::sub_models::ws_jwt_key::WebserverJwtKey;
-use crate::domain::webserver::sub_models::ws_jwt_key::WebserverJwtKeyError;
-use crate::domain::webserver::sub_models::ws_port::WebserverPort;
-use crate::domain::webserver::sub_models::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
+use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
+use crate::domain::webserver::new_types::ws_api_key::WebserverApiKeyError;
+use crate::domain::webserver::new_types::ws_base_path::WebserverBasePath;
+use crate::domain::webserver::new_types::ws_hostname::WebserverHostname;
+use crate::domain::webserver::new_types::ws_hostname::WebserverHostnameError;
+use crate::domain::webserver::new_types::ws_jwt_access_token_expiry_secs::WebserverJwtAccessTokenExpirySecs;
+use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKey;
+use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
+use crate::domain::webserver::new_types::ws_port::WebserverPort;
+use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 
 #[derive(Debug, Clone)]
 pub struct Webserver {
