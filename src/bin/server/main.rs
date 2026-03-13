@@ -1,13 +1,12 @@
-use eas_weather_rs::adaptors::inbound::config::figment::ConfigFigment;
-//use eas_weather_rs::adaptors::inbound::webserver::poem::WebserverPoem;
-use eas_weather_rs::adaptors::inbound::webserver::axum::WebserverAxum;
-use eas_weather_rs::adaptors::outbound::logging::tracing::LoggingTracing;
-use eas_weather_rs::adaptors::outbound::mysql::xsqlx::DatabaseMySql;
-use eas_weather_rs::core::services::config::ConfigService;
-use eas_weather_rs::core::services::database::DatabaseService;
-use eas_weather_rs::core::services::logging::LoggingService;
-use eas_weather_rs::core::services::meta::MetaService;
-use eas_weather_rs::core::services::webserver::WebserverService;
+use eas_weather_rs::adaptors::axum::model::WebserverAxum;
+use eas_weather_rs::adaptors::figment::model::ConfigFigment;
+use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
+use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
+use eas_weather_rs::domain::config::service::ConfigService;
+use eas_weather_rs::domain::database::service::DatabaseService;
+use eas_weather_rs::domain::logging::service::LoggingService;
+use eas_weather_rs::domain::meta::service::MetaService;
+use eas_weather_rs::domain::webserver::service::WebserverService;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -49,7 +48,7 @@ async fn main() -> Result<(), std::io::Error> {
 
     let meta_service = MetaService::new(conf_service.clone());
 
-    // Start Poem Web Server
+    // Start Web Server
     webserver_service
         .start_server(
             &conf_service,
