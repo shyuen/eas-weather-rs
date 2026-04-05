@@ -1,3 +1,4 @@
+use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigRepo;
 use crate::domain::config::service::ConfigService;
 use crate::domain::meta::port::MetaRepo;
@@ -35,9 +36,7 @@ impl<C> MetaRepo for MetaService<C>
 where
     C: ConfigRepo,
 {
-    async fn get_app_data(&self) -> String {
-        // For demonstration purposes, we will just return a static string.
-        // In a real application, this could be dynamic data such as version info, uptime, etc.
-        "EAS Weather API - Version 1.0".to_string()
+    fn get_app_data(&self) -> Config {
+        self.conf_repo.get_raw_config().clone()
     }
 }

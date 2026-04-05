@@ -16,6 +16,6 @@ pub trait WebserverRepo: Clone + Send + Sync + 'static {
         config: &Webserver,
         log_repo: &impl LoggingRepo,
         db_repo: &impl DatabaseRepo,
-        meta_serv: &impl MetaRepo,
+        meta_repo: &impl MetaRepo,
     ) -> impl std::future::Future<Output = Result<(), std::io::Error>> + Send;
 }
