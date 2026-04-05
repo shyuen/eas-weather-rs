@@ -124,8 +124,11 @@ impl WebserverRepo for WebserverAxum {
             .route("/health", get(health_check))
             .route("/users", get(list_users))
             .route("/user/{:id}", get(get_user))
-            .nest("/meta", api_routes())
+            .route("/meta/raw_conf", get(get_raw_app_config))
+            //.nest("/meta", api_routes())
             .with_state(state);
+
+        //let app = api_routes(state);
 
         let addr = format!("{}:{}", config.hostname.get(), config.port.get());
         log_repo.info(module_path!(), &format!("starting axum server at {}", addr));
@@ -144,9 +147,13 @@ impl WebserverRepo for WebserverAxum {
 }
 
 /// Define the API routes for the application, mapping each route to its corresponding handler function. This function can be extended to include additional routes as needed.
-fn api_routes<MR: MetaRepo>() -> Router<AppState<MR>> {
-    Router::new().route("/raw_conf", get(get_raw_app_config::<MR>))
-}
+// fn api_routes<MR>(// state: AppState<MR>
+// ) -> Router<AppState<MR>>
+// where
+//     MR: MetaRepo,
+// {
+//     Router::new().route("/raw_conf", get(get_raw_app_config::<MR>))
+// }
 
 /// The body of an [Meta] creation request.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
