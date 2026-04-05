@@ -20,11 +20,8 @@ where
             meta_serv: Arc::new(meta_serv),
         }
     }
-}
 
-/// Methods to access the services from the application state,
-/// allowing request handlers to retrieve the necessary dependencies for processing requests.
-impl<MR: MetaRepo> AppState<MR> {
+    /// Get a reference to the MetaService.
     pub fn get_meta_serv(&self) -> Arc<MR> {
         self.meta_serv.clone()
     }
