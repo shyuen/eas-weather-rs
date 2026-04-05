@@ -1,11 +1,14 @@
+use crate::adaptors::axum::api_errors::ApiError;
+use crate::adaptors::axum::app_state::AppState;
+use crate::adaptors::axum::handlers::get_app_config::get_raw_app_config;
 use crate::domain::database::port::DatabaseRepo;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::meta::port::MetaRepo;
 use crate::domain::webserver::model::Webserver;
 use crate::domain::webserver::port::WebserverRepo;
 
-use axum::extract::{Path, State};
-use axum::{Json, Router, http::StatusCode, response::IntoResponse, routing::get};
+use axum::extract::Path;
+use axum::{Json, Router, response::IntoResponse, routing::get};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -14,33 +17,6 @@ use tokio::signal;
 
 #[derive(Debug, Clone)]
 pub struct WebserverAxum {}
-
-#[derive(Debug)]
-enum ApiError {
-    NotFound,             // 404
-    InvalidInput(String), // 400
-    InternalError,        // 500
-}
-
-// Axum turns return values into HTTP responses with the IntoReponse trait
-impl IntoResponse for ApiError {
-    fn into_response(self) -> axum::response::Response {
-        let (status, error_message) = match self {
-            ApiError::NotFound => (StatusCode::NOT_FOUND, "data not found".to_string()),
-            ApiError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, msg),
-            ApiError::InternalError => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal Server error".to_string(),
-            ),
-        };
-
-        let body = Json(json! ({
-            "error": error_message
-        }));
-
-        (status, body).into_response()
-    }
-}
 
 async fn health_check() -> impl IntoResponse {
     Json(json!({"status": "ok", "message": "Server is running"}))
@@ -141,9 +117,8 @@ impl WebserverRepo for WebserverAxum {
         db_repo: &impl DatabaseRepo,
         meta_serv: &impl MetaRepo,
     ) -> Result<(), std::io::Error> {
-        let state = AppState {
-            meta_serv: Arc::new(meta_serv.clone()),
-        };
+        // Create the application state with the necessary services
+        let state = AppState::new(meta_serv.clone());
 
         let app = Router::new()
             .route("/", get(|| async { "Hello, World!" }))
@@ -169,42 +144,9 @@ impl WebserverRepo for WebserverAxum {
     }
 }
 
-#[derive(Debug, Clone)]
-/// The global application state shared between all request handlers.
-struct AppState<M: MetaRepo> {
-    meta_serv: Arc<M>,
-}
-
-fn api_routes<M: MetaRepo>() -> Router<AppState<M>> {
-    //Router::new().route("/authors", get(meta_info::<M>))
-    Router::new().route("/authors", get(list_users))
-}
-
-async fn meta_info<M: MetaRepo>(
-    State(state): State<AppState<M>>,
-    //Json(body): Json<CreateMetaHttpRequestBody>,
-) -> Result<ApiSuccess<GetMetaResponseData>, ApiError> {
-    //Result<ApiSuccess<GetMetaHttpRequestBody>, ApiError>
-    let data = state.meta_serv.get_app_data().await;
-    //Ok(Json(json!(data)))
-    //
-    // Ok(ApiSuccess(StatusCode::OK, Json(ApiResponseBody {
-    //     status_code: 200,
-    //     data: GetMetaHttpRequestBody {
-    //         name: "test".to_string(),
-    //         email_address: "".to_string(),
-    //     },
-    // )))
-    //
-    Ok(ApiSuccess(
-        StatusCode::OK,
-        Json(ApiResponseBody {
-            status_code: 200,
-            data: GetMetaResponseData {
-                id: "Test".to_string(),
-            },
-        }),
-    ))
+/// Define the API routes for the application, mapping each route to its corresponding handler function. This function can be extended to include additional routes as needed.
+fn api_routes<MR: MetaRepo>() -> Router<AppState<MR>> {
+    Router::new().route("/raw_conf", get(get_raw_app_config::<MR>))
 }
 
 /// The body of an [Meta] creation request.
@@ -220,20 +162,10 @@ pub struct GetMetaResponseData {
     id: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct ApiSuccess<T: Serialize + PartialEq>(StatusCode, Json<ApiResponseBody<T>>);
-
-/// Generic response structure shared by all API responses.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct ApiResponseBody<T: Serialize + PartialEq> {
-    status_code: u16,
-    data: T,
-}
-
 #[cfg(test)]
 mod tests {
+    use axum::http::StatusCode;
     use axum::{body::Body, http::Request};
-    //use serde_json::Value;
     use tower::util::ServiceExt;
 
     use super::*;
