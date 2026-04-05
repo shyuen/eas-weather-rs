@@ -11,7 +11,6 @@ use axum::extract::Path;
 use axum::{Json, Router, response::IntoResponse, routing::get};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::signal;
 
