@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 /// The global application state shared between all request handlers.
-pub struct AppState<MR: MetaRepo> {
+pub struct AppState<MR>
+where
+    MR: MetaRepo,
+{
     meta_serv: Arc<MR>,
 }
 
