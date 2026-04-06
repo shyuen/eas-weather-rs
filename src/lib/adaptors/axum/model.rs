@@ -1,6 +1,6 @@
 use crate::adaptors::axum::api_errors::ApiError;
 use crate::adaptors::axum::app_state::AppState;
-use crate::adaptors::axum::handlers::get_app_config::get_raw_app_config;
+use crate::adaptors::axum::handlers::meta::get_raw_app_config;
 use crate::domain::database::port::DatabaseRepo;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::meta::port::MetaRepo;
