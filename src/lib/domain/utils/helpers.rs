@@ -17,6 +17,10 @@ pub fn capitalize_first_lowercase_rest(s: &str) -> String {
     }
 }
 
+pub fn mask_string(s: &str, mask_char: char) -> String {
+    s.chars().map(|_| mask_char).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

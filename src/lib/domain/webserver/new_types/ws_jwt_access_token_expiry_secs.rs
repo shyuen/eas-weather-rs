@@ -1,8 +1,9 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
 /// A validated and formatted Db connection retry initial delay in seconds.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct WebserverJwtAccessTokenExpirySecs(u64);
 
 impl fmt::Display for WebserverJwtAccessTokenExpirySecs {

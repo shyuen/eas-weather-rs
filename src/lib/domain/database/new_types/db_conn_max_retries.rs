@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
 /// A validated and formatted MySQL connection max retries.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DbConnMaxRetries(u8);
 
 impl fmt::Display for DbConnMaxRetries {

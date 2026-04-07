@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::domain::config::model::ConfigDatabase;
 use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
 use crate::domain::database::new_types::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
@@ -11,8 +13,10 @@ use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
 use crate::domain::database::new_types::db_min_connections::DbMinConnections;
 use crate::domain::logging::port::LoggingRepo;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
+    //#[serde(skip_serializing)]
+    #[serde(serialize_with = "hide_connection_string")]
     pub conn_string: DbConnectionString,
     pub conn_max_retries: DbConnMaxRetries,
     pub conn_retry_init_delay_secs: DbConnRetryInitDelaySecs,
@@ -22,6 +26,36 @@ pub struct Database {
     pub conn_max_lifetime_secs: DbConnMaxLifetimeSecs,
     pub max_connections: DbMaxConnections,
     pub min_connections: DbMinConnections,
+}
+
+/// Helper function to hide sensitive data during serialization
+fn hide_connection_string<S>(
+    conn_string: &DbConnectionString,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let string = conn_string.to_string();
+    let db_type_rest: Vec<&str> = string.split("://").collect();
+    let cred_rest: Vec<&str> = db_type_rest[1].split('@').collect();
+
+    // Create string that replaces all characters except `:` with a `*`
+    let cred = cred_rest[0]
+        .chars()
+        .map(|c| if c == ':' { ':' } else { '*' })
+        .collect::<String>();
+
+    // Reconstruct the connection string with the masked credentials
+    serializer.serialize_str(
+        format!(
+            "{}://{}@{}",
+            db_type_rest[0],
+            cred,
+            cred_rest[1].to_string()
+        )
+        .as_str(),
+    )
 }
 
 impl Database {

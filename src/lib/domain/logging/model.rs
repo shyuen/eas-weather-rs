@@ -1,3 +1,5 @@
+use serde_derive::{Deserialize, Serialize};
+
 use crate::domain::config::model::ConfigLogging;
 use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatError};
 use crate::domain::logging::new_types::lg_trace_level::{
@@ -6,7 +8,7 @@ use crate::domain::logging::new_types::lg_trace_level::{
 use crate::domain::logging::port::LoggingRepo;
 
 /// Configuration for logging.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logging {
     pub format: LoggingFormat,
     pub trace_level: LoggingTraceLevel,

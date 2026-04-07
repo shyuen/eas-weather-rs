@@ -159,4 +159,5 @@ impl ConfigRepo for ConfigFigment {
         self.conf_webserver
             .validate_raw_config(log_serv, &self.conf_raw.webserver);
     }
+
 }

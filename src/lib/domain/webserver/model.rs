@@ -1,3 +1,6 @@
+//use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+
 use crate::domain::config::model::ConfigWebserver;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
@@ -11,7 +14,7 @@ use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
 use crate::domain::webserver::new_types::ws_port::WebserverPort;
 use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Webserver {
     pub hostname: WebserverHostname,
     pub port: WebserverPort,
@@ -19,10 +22,52 @@ pub struct Webserver {
 
     pub shutdown_timeout_secs: WebserverShutdownTimeoutSecs,
 
+    //#[serde(skip_serializing)]
+    #[serde(serialize_with = "hide_api_key")]
     pub api_key: WebserverApiKey,
 
+    //#[serde(skip_serializing)]
+    #[serde(serialize_with = "hide_jwt_key")]
     pub jwt_key: WebserverJwtKey,
     pub jwt_access_token_expiry_secs: WebserverJwtAccessTokenExpirySecs,
+}
+
+fn hide_api_key<S>(key: &WebserverApiKey, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if key.get().is_none() {
+        // Put null in the serialized output if the key is not set, instead of "****"
+        return serializer.serialize_none();
+    }
+    let masked_secret = key
+        .get()
+        .as_ref()
+        .unwrap()
+        .chars()
+        .map(|_| '*')
+        .collect::<String>();
+
+    serializer.serialize_str(masked_secret.to_string().as_str())
+}
+
+fn hide_jwt_key<S>(key: &WebserverJwtKey, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if key.get().is_none() {
+        // Put null in the serialized output if the key is not set, instead of "****"
+        return serializer.serialize_none();
+    }
+    let masked_secret = key
+        .get()
+        .as_ref()
+        .unwrap()
+        .chars()
+        .map(|_| '*')
+        .collect::<String>();
+
+    serializer.serialize_str(masked_secret.to_string().as_str())
 }
 
 impl Webserver {

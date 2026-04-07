@@ -1,5 +1,6 @@
 use crate::adaptors::axum::api_errors::ApiError;
 use crate::adaptors::axum::app_state::AppState;
+use crate::adaptors::axum::handlers::meta::get_app_config;
 use crate::adaptors::axum::handlers::meta::get_raw_app_config;
 use crate::domain::database::port::DatabaseRepo;
 use crate::domain::logging::port::LoggingRepo;
@@ -125,6 +126,7 @@ impl WebserverRepo for WebserverAxum {
             .route("/users", get(list_users))
             .route("/user/{:id}", get(get_user))
             .route("/meta/raw_conf", get(get_raw_app_config))
+            .route("/meta/conf", get(get_app_config))
             //.nest("/meta", api_routes())
             .with_state(state);
 

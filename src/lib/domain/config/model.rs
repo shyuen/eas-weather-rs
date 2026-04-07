@@ -1,4 +1,4 @@
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// The raw configuration for the driver and its components.
 #[derive(Debug, Serialize, Deserialize, Clone)]

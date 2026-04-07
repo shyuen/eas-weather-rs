@@ -1,7 +1,8 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct WebserverBasePath(Option<String>);
 
 impl fmt::Display for WebserverBasePath {
