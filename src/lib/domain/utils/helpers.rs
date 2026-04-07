@@ -17,8 +17,18 @@ pub fn capitalize_first_lowercase_rest(s: &str) -> String {
     }
 }
 
-pub fn mask_string(s: &str, mask_char: char) -> String {
-    s.chars().map(|_| mask_char).collect()
+/// Serializes a value that implements `Display` as a string using its `to_string()` method.
+/// Useful for hiding sensitive information (e.g., database connection strings) when serializing to formats like JSON.
+pub fn serialize_with_display<S, K>(conn_string: &K, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+    K: std::fmt::Display,
+{
+    if &conn_string.to_string() == "" || &conn_string.to_string() == "<None>" {
+        return serializer.serialize_none();
+    }
+
+    serializer.serialize_str(&conn_string.to_string())
 }
 
 #[cfg(test)]
