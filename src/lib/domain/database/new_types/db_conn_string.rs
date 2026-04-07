@@ -8,7 +8,19 @@ pub struct DbConnectionString(String);
 
 impl fmt::Display for DbConnectionString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        let string = self.0.to_string();
+        let db_type_rest: Vec<&str> = string.split("://").collect();
+        let cred_rest: Vec<&str> = db_type_rest[1].split('@').collect();
+
+        // Create string that replaces all characters except `:` with a `*`
+        let cred = cred_rest[0]
+            .chars()
+            .map(|c| if c == ':' { ':' } else { '*' })
+            .collect::<String>();
+
+        let conn_string = format!("{}://{}@{}", db_type_rest[0], cred, cred_rest[1]);
+
+        write!(f, "{}", conn_string)
     }
 }
 
@@ -57,5 +69,9 @@ impl DbConnectionString {
         DbConnectionString(
             format!("mysql://root@localhost:3306/{}", env!("CARGO_PKG_NAME")).to_string(),
         )
+    }
+
+    pub fn get(&self) -> &str {
+        &self.0
     }
 }
