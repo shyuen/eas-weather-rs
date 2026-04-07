@@ -50,12 +50,12 @@ struct Webserver {
     pub(crate) base_path: Option<String>,
 
     /// Path to the API key file
-    #[arg(short = 'k', long, env = "APP__API_KEY_FILE")]
+    #[arg(short = 'k', long, env = "SERVER__API_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) api_key_file: Option<String>,
 
     /// Path to the JWK key file
-    #[arg(short = 'j', long, env = "APP__JWK_KEY_FILE")]
+    #[arg(short = 'j', long, env = "SERVER__JWK_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwk_key_file: Option<String>,
 }

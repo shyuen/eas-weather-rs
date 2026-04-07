@@ -1,9 +1,10 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use strum_macros::EnumString;
 use thiserror::Error;
 
 /// Logging output format newtype for application
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingFormat(LoggingFormatType);
 
 impl fmt::Display for LoggingFormat {
@@ -16,7 +17,9 @@ impl fmt::Display for LoggingFormat {
 }
 
 /// Available logging output format types for application
-#[derive(EnumString, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    EnumString, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum LoggingFormatType {
     Text,
     Json,

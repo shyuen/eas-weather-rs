@@ -1,9 +1,10 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use strum_macros::EnumString;
 use thiserror::Error;
 
 /// A validated and formatted logging trace level.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct LoggingTraceLevel(LoggingTraceLevelType);
 
 impl fmt::Display for LoggingTraceLevel {
@@ -19,7 +20,9 @@ impl fmt::Display for LoggingTraceLevel {
 }
 
 /// Available logging trace level types for application
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, EnumString,
+)]
 pub enum LoggingTraceLevelType {
     Error,
     Warn,

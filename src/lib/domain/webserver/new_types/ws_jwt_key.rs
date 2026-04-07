@@ -1,8 +1,9 @@
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct WebserverJwtKey(Option<String>);
 
 impl fmt::Display for WebserverJwtKey {
