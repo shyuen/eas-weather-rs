@@ -14,7 +14,9 @@ pub struct DatabaseMySql {
 impl DatabaseRepo for DatabaseMySql {
     fn new(log_repo: &impl LoggingRepo, conf_db: &Database) -> Self {
         // Extract connection string
-        let conn_string = &conf_db.conn_string.to_string();
+        //let conn_string = &conf_db.conn_string.to_string();
+
+        let conn_string = &conf_db.conn_string.get();
 
         // Attempt to create MySQL connection options
         let conn_opt = match conn_string.parse::<MySqlConnectOptions>() {
@@ -37,22 +39,26 @@ impl DatabaseRepo for DatabaseMySql {
     /// Log configuration that's currently set
     fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_db: &Database) {
         match &self.conn_opt {
-            Some(options) => {
-                let db_name = match options.get_database() {
-                    Some(db_name) => &format!("/{}", db_name),
-                    None => "",
-                };
+            Some(_) => {
+                // let db_name = match options.get_database() {
+                //     Some(db_name) => &format!("/{}", db_name),
+                //     None => "",
+                // };
 
-                log_repo.info(
-                    module_path!(),
-                    &format!(
-                        "xsqlx_conn_opt={username}@{host}:{port}{name}",
-                        host = options.get_host(),
-                        port = options.get_port(),
-                        name = db_name,
-                        username = options.get_username(),
-                    ),
-                );
+                // log_repo.info(
+                //     module_path!(),
+                //     &format!(
+                //         "xsqlx_conn_opt={username}@{host}:{port}{name}",
+                //         host = options.get_host(),
+                //         port = options.get_port(),
+                //         name = db_name,
+                //         username = options.get_username(),
+                //     ),
+                // );
+
+                let conn_string = conf_db.conn_string.to_string();
+
+                log_repo.info(module_path!(), &format!("xsqlx_conn_opt={}", conn_string));
             }
             None => {
                 log_repo.warn(
