@@ -24,7 +24,7 @@ where
     S: serde::Serializer,
     K: std::fmt::Display,
 {
-    if &conn_string.to_string() == "" || &conn_string.to_string() == "<None>" {
+    if &conn_string.to_string() == "<None>" {
         return serializer.serialize_none();
     }
 
