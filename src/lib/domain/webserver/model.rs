@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::config::model::ConfigWebserver;
 use crate::domain::logging::port::LoggingRepo;
+use crate::domain::utils::helpers::serialize_with_display;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKeyError;
 use crate::domain::webserver::new_types::ws_base_path::WebserverBasePath;
@@ -23,51 +24,13 @@ pub struct Webserver {
     pub shutdown_timeout_secs: WebserverShutdownTimeoutSecs,
 
     //#[serde(skip_serializing)]
-    #[serde(serialize_with = "hide_api_key")]
+    #[serde(serialize_with = "serialize_with_display")]
     pub api_key: WebserverApiKey,
 
     //#[serde(skip_serializing)]
-    #[serde(serialize_with = "hide_jwt_key")]
+    #[serde(serialize_with = "serialize_with_display")]
     pub jwt_key: WebserverJwtKey,
     pub jwt_access_token_expiry_secs: WebserverJwtAccessTokenExpirySecs,
-}
-
-fn hide_api_key<S>(key: &WebserverApiKey, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    if key.get().is_none() {
-        // Put null in the serialized output if the key is not set, instead of "****"
-        return serializer.serialize_none();
-    }
-    let masked_secret = key
-        .get()
-        .as_ref()
-        .unwrap()
-        .chars()
-        .map(|_| '*')
-        .collect::<String>();
-
-    serializer.serialize_str(masked_secret.to_string().as_str())
-}
-
-fn hide_jwt_key<S>(key: &WebserverJwtKey, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    if key.get().is_none() {
-        // Put null in the serialized output if the key is not set, instead of "****"
-        return serializer.serialize_none();
-    }
-    let masked_secret = key
-        .get()
-        .as_ref()
-        .unwrap()
-        .chars()
-        .map(|_| '*')
-        .collect::<String>();
-
-    serializer.serialize_str(masked_secret.to_string().as_str())
 }
 
 impl Webserver {
