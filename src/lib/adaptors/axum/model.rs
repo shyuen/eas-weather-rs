@@ -85,7 +85,7 @@ impl WebserverRepo for WebserverAxum {
         );
         log_repo.info(
             module_path!(),
-            &format!("axum_jwt_key={}", conf_webserv.jwt_key),
+            &format!("axum_jwt_key={}", conf_webserv.jwt_key.to_string()),
         );
     }
 

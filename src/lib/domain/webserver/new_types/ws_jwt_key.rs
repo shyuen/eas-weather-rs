@@ -9,7 +9,7 @@ pub struct WebserverJwtKey(Option<String>);
 impl fmt::Display for WebserverJwtKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Some(key) => write!(f, "{}", key.chars().map(|_| '*').collect::<String>()),
+            Some(key) => write!(f, "\"{}\"", key.chars().map(|_| '*').collect::<String>()),
             None => write!(f, "None"),
         }
     }
