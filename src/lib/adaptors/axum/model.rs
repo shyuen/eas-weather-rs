@@ -48,7 +48,7 @@ impl WebserverAxum {
         // Perform other tasks as necessary
         let _ = db_repo.close_pool(&log_repo).await; // Close DB connection pool
 
-        log_repo.info(module_path!(), &format!("goodbye"));
+        log_repo.info(module_path!(), &format!("goodbye from axum"));
     }
 }
 
