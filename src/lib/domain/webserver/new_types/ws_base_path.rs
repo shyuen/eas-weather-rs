@@ -8,8 +8,8 @@ pub struct WebserverBasePath(Option<String>);
 impl fmt::Display for WebserverBasePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Some(path) => write!(f, "{}", path),
-            None => write!(f, ""),
+            Some(path) => write!(f, "\"{}\"", path),
+            None => write!(f, "None"),
         }
     }
 }
