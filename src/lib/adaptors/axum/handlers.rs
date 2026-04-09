@@ -1,2 +1,3 @@
+pub mod health;
 pub mod meta;
-pub mod list_users;
+pub mod test;

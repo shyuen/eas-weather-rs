@@ -56,9 +56,10 @@ impl DatabaseRepo for DatabaseMySql {
                 //     ),
                 // );
 
-                let conn_string = conf_db.conn_string.to_string();
-
-                log_repo.info(module_path!(), &format!("xsqlx_conn_opt={}", conn_string));
+                log_repo.info(
+                    module_path!(),
+                    &format!("xsqlx_conn_opt=\"{}\"", conf_db.conn_string.to_string()),
+                );
             }
             None => {
                 log_repo.warn(

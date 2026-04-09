@@ -4,21 +4,20 @@ use crate::domain::config::service::ConfigService;
 use crate::domain::meta::port::MetaRepo;
 use crate::domain::meta::port::ValidatedConfig;
 
+/// The MetaService provides access to application metadata, such as configuration data.
 #[derive(Debug, Clone)]
 pub struct MetaService<C>
 where
     C: ConfigRepo,
 {
-    //conf_repo: &'a C,
     conf_repo: C,
 }
 
-//impl<'a, C> Service<'a, C>
+/// The MetaService is responsible for providing access to application metadata, such as configuration data.
 impl<C> MetaService<C>
 where
     C: ConfigRepo,
 {
-    //pub fn new(conf_serv: &'a ConfigService<C>) -> Self
     pub fn new(conf_serv: ConfigService<C>) -> Self
     where
         C: ConfigRepo,
@@ -33,6 +32,7 @@ where
     }
 }
 
+/// Implement the MetaRepo trait for MetaService, allowing it to provide access to configuration data.
 impl<C> MetaRepo for MetaService<C>
 where
     C: ConfigRepo,
