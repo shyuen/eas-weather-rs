@@ -23,11 +23,9 @@ pub struct Webserver {
 
     pub shutdown_timeout_secs: WebserverShutdownTimeoutSecs,
 
-    //#[serde(skip_serializing)]
     #[serde(serialize_with = "serialize_with_display")]
     pub api_key: WebserverApiKey,
 
-    //#[serde(skip_serializing)]
     #[serde(serialize_with = "serialize_with_display")]
     pub jwt_key: WebserverJwtKey,
     pub jwt_access_token_expiry_secs: WebserverJwtAccessTokenExpirySecs,
