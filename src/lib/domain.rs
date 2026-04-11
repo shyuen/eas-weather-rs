@@ -1,3 +1,4 @@
+pub mod alert;
 pub mod config;
 pub mod database;
 pub mod logging;
