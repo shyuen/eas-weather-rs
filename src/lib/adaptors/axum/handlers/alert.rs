@@ -1,6 +1,6 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaRepo;
+use crate::domain::meta::port::MetaPort;
 
 use axum::Json;
 use axum::extract::State;
@@ -12,10 +12,10 @@ pub(crate) async fn get_daily_alerts<MR, DR>(
     State(state): State<AppState<MR, DR>>,
 ) -> impl IntoResponse
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
-    let data = state.get_db_repo();
+    let data = state.get_db_port();
 
     Json(json!({
         "conf": "moose",

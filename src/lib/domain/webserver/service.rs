@@ -1,9 +1,9 @@
 use crate::domain::alert::port::DatabasePortAlert;
-use crate::domain::config::port::ConfigRepo;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 use crate::domain::logging::service::LoggingService;
 use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
@@ -23,18 +23,18 @@ where
     /// Creates a new instance of WebserverService.
     pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self
     where
-        C: ConfigRepo,
-        L: LoggingRepo,
+        C: ConfigPort,
+        L: LoggingPort,
     {
-        let log_repo = log_serv.get_repo();
+        let log_port = log_serv.get_port();
         let conf_webserv = conf_serv.get_webservicer_config();
 
-        let repo = WR::new(log_repo, conf_webserv);
+        let repo = WR::new(log_port, conf_webserv);
         Self { repo }
     }
 
     /// Get the Webserver repository
-    pub fn get_repo(&self) -> &WR {
+    pub fn get_port(&self) -> &WR {
         &self.repo
     }
 
@@ -44,12 +44,12 @@ where
         log_serv: &LoggingService<L>,
         conf_serv: &ConfigService<C>,
     ) where
-        C: ConfigRepo,
-        L: LoggingRepo,
+        C: ConfigPort,
+        L: LoggingPort,
     {
-        let log_repo = log_serv.get_repo();
+        let log_port = log_serv.get_port();
         let conf_webserver = conf_serv.get_webservicer_config();
-        self.repo.log_adaptor_config(log_repo, conf_webserver);
+        self.repo.log_adaptor_config(log_port, conf_webserver);
     }
 
     pub async fn start_server<C, D, L>(
@@ -60,16 +60,16 @@ where
         meta_serv: &MetaService<C>,
     ) -> Result<(), std::io::Error>
     where
-        L: LoggingRepo,
+        L: LoggingPort,
         D: DatabasePort + DatabasePortAlert,
-        C: ConfigRepo,
+        C: ConfigPort,
     {
         let webserv_conf = conf_serv.get_webservicer_config();
-        let db_repo = db_serv.get_repo();
-        let log_repo = log_serv.get_repo();
+        let db_port = db_serv.get_port();
+        let log_port = log_serv.get_port();
 
         self.repo
-            .start_server(webserv_conf, log_repo, db_repo, meta_serv)
+            .start_server(webserv_conf, log_port, db_port, meta_serv)
             .await
     }
 }

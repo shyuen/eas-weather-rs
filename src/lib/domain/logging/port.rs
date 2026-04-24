@@ -1,6 +1,6 @@
 use crate::domain::logging::model::Logging;
 
-pub trait LoggingRepo: Clone + Send + Sync + 'static {
+pub trait LoggingPort: Clone + Send + Sync + 'static {
     /// Create a new instance of the logging repository with the given configuration
     fn new(conf: &Logging) -> Self;
 

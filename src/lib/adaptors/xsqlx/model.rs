@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::domain::database::model::Database;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseMySql {
@@ -20,7 +20,7 @@ impl DatabaseMySql {
 
 /// Implementation of the DatabaseRepo trait for MySQL using sqlx
 impl DatabasePort for DatabaseMySql {
-    fn new(log_repo: &impl LoggingRepo, conf_db: &Database) -> Self {
+    fn new(log_port: &impl LoggingPort, conf_db: &Database) -> Self {
         // Extract connection string
         //let conn_string = &conf_db.conn_string.to_string();
 
@@ -30,7 +30,7 @@ impl DatabasePort for DatabaseMySql {
         let conn_opt = match conn_string.parse::<MySqlConnectOptions>() {
             Ok(conn_opt) => Some(conn_opt),
             Err(err_msg) => {
-                log_repo.error(
+                log_port.error(
                     module_path!(),
                     &format!("unable to parse connection string - error: {}", err_msg),
                 );
@@ -45,7 +45,7 @@ impl DatabasePort for DatabaseMySql {
     }
 
     /// Log configuration that's currently set
-    fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_db: &Database) {
+    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_db: &Database) {
         match &self.conn_opt {
             Some(_) => {
                 // let db_name = match options.get_database() {
@@ -53,7 +53,7 @@ impl DatabasePort for DatabaseMySql {
                 //     None => "",
                 // };
 
-                // log_repo.info(
+                // log_port.info(
                 //     module_path!(),
                 //     &format!(
                 //         "xsqlx_conn_opt={username}@{host}:{port}{name}",
@@ -64,25 +64,25 @@ impl DatabasePort for DatabaseMySql {
                 //     ),
                 // );
 
-                log_repo.info(
+                log_port.info(
                     module_path!(),
                     &format!("xsqlx_conn_opt=\"{}\"", conf_db.conn_string.to_string()),
                 );
             }
             None => {
-                log_repo.warn(
+                log_port.warn(
                     module_path!(),
                     "database MySQL options were not set successfully",
                 );
             }
         }
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("xsqlx_conn_max_retries={}", &conf_db.conn_max_retries),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!(
                 "xsqlx_conn_retry_init_delay_secs={}",
@@ -90,7 +90,7 @@ impl DatabasePort for DatabaseMySql {
             ),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!(
                 "xsqlx_conn_acquire_timeout_secs={}",
@@ -98,7 +98,7 @@ impl DatabasePort for DatabaseMySql {
             ),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!(
                 "xsqlx_conn_idle_timeout_secs={}",
@@ -106,7 +106,7 @@ impl DatabasePort for DatabaseMySql {
             ),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!(
                 "xsqlx_conn_max_lifetime_secs={}",
@@ -114,18 +114,18 @@ impl DatabasePort for DatabaseMySql {
             ),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("xsqlx_min_connections={}", &conf_db.min_connections),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("xsqlx_max_connections={}", &conf_db.max_connections),
         );
     }
 
-    async fn create_pool(&mut self, log_repo: &(impl LoggingRepo + Sync), conf_db: &Database) {
+    async fn create_pool(&mut self, log_port: &(impl LoggingPort + Sync), conf_db: &Database) {
         let mut current_backoff = *(&conf_db.conn_retry_init_delay_secs.get());
 
         match &self.conn_opt {
@@ -148,12 +148,12 @@ impl DatabasePort for DatabaseMySql {
                         .await
                     {
                         Ok(pool) => {
-                            log_repo.info(module_path!(), "database pool created successfully");
+                            log_port.info(module_path!(), "database pool created successfully");
                             self.pool = Some(pool);
                             return;
                         }
                         Err(e) => {
-                            log_repo.warn(
+                            log_port.warn(
                                 module_path!(),
                                 &format!(
                                     "failed to connect to database (attempt {}/{}): {}",
@@ -163,14 +163,14 @@ impl DatabasePort for DatabaseMySql {
                                 ),
                             );
                             if i + 1 == conf_db.conn_max_retries.get() {
-                                log_repo.error(
+                                log_port.error(
                                     module_path!(),
                                     "database connection retries exhausted all attempts",
                                 );
                                 self.pool = None;
                                 return;
                             } else {
-                                log_repo.warn(
+                                log_port.warn(
                                     module_path!(),
                                     &format!(
                                         "database retrying connection in {} seconds",
@@ -189,7 +189,7 @@ impl DatabasePort for DatabaseMySql {
                 }
             }
             None => {
-                log_repo.error(
+                log_port.error(
                     module_path!(),
                     "database MySQL connection options were not initialized successfully",
                 );
@@ -197,17 +197,17 @@ impl DatabasePort for DatabaseMySql {
         }
     }
 
-    async fn close_pool(&self, log_repo: &impl LoggingRepo) {
+    async fn close_pool(&self, log_port: &impl LoggingPort) {
         match &self.pool {
             Some(pool) => {
                 pool.close().await;
-                log_repo.info(
+                log_port.info(
                     module_path!(),
                     "database connection pool to MySQL closed successfully",
                 );
             }
             None => {
-                log_repo.warn(
+                log_port.warn(
                     module_path!(),
                     "database connection pool to MySQL was not initialized",
                 );

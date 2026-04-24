@@ -8,10 +8,10 @@ use std::env;
 
 use crate::adaptors::clap::model::Cli;
 use crate::domain::config::model::Config;
-use crate::domain::config::port::ConfigRepo;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ fn collect_raw_input() -> Config {
     conf
 }
 
-impl ConfigRepo for ConfigFigment {
+impl ConfigPort for ConfigFigment {
     fn new() -> Self {
         let conf = collect_raw_input();
         Self {
@@ -100,15 +100,15 @@ impl ConfigRepo for ConfigFigment {
     }
 
     // Log debug information regarding config inputs
-    fn log_raw_config_input(&self, log_repo: &impl LoggingRepo) {
+    fn log_raw_config_input(&self, log_port: &impl LoggingPort) {
         // Log config from CLI
-        log_repo.debug(
+        log_port.debug(
             module_path!(),
             &format!("configuration from {:?}", Cli::parse()),
         );
 
         // Log config from ENV
-        log_repo.debug(
+        log_port.debug(
             module_path!(),
             &format!(
                 "configuration from Env {:?}",
@@ -138,20 +138,20 @@ impl ConfigRepo for ConfigFigment {
                 std::process::exit(1);
             }
         };
-        log_repo.debug(
+        log_port.debug(
             module_path!(),
             &format!("configuration from Files {:?}", conf_files),
         );
 
         // Log final raw config
-        log_repo.debug(
+        log_port.debug(
             module_path!(),
             &format!("final Raw Config {:?}", &self.conf_raw),
         );
     }
 
     /// Validate raw logging configuration
-    fn log_raw_config_validation(&self, log_serv: &impl LoggingRepo) {
+    fn log_raw_config_validation(&self, log_serv: &impl LoggingPort) {
         self.conf_logging
             .validate_raw_config(log_serv, &self.conf_raw.logging);
         self.conf_database
@@ -159,5 +159,4 @@ impl ConfigRepo for ConfigFigment {
         self.conf_webserver
             .validate_raw_config(log_serv, &self.conf_raw.webserver);
     }
-
 }

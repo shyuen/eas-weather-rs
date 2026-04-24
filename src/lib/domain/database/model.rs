@@ -11,7 +11,7 @@ use crate::domain::database::new_types::db_conn_string::{
 };
 use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
 use crate::domain::database::new_types::db_min_connections::DbMinConnections;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 use crate::domain::utils::helpers::serialize_with_display;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,7 +147,7 @@ impl Database {
         }
     }
 
-    pub fn validate_raw_config(&self, log_serv: &impl LoggingRepo, raw_db_conf: &ConfigDatabase) {
+    pub fn validate_raw_config(&self, log_serv: &impl LoggingPort, raw_db_conf: &ConfigDatabase) {
         // Validate raw database connection string file input
         match &raw_db_conf.conn_url_file {
             Some(raw_conn_url_file) => {
