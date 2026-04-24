@@ -1,4 +1,4 @@
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::meta::port::MetaRepo;
 use crate::domain::webserver::model::Webserver;
@@ -15,7 +15,7 @@ pub trait WebserverRepo: Clone + Send + Sync + 'static {
         &self,
         config: &Webserver,
         log_repo: &impl LoggingRepo,
-        db_repo: &impl DatabaseRepo,
+        db_repo: &impl DatabasePort,
         meta_repo: &impl MetaRepo,
     ) -> impl std::future::Future<Output = Result<(), std::io::Error>> + Send;
 }

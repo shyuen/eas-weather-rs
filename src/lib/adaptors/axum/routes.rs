@@ -5,13 +5,13 @@ use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::handlers::test::{get_user, list_error};
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaRepo;
 
 pub fn create_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
@@ -23,7 +23,7 @@ where
 pub fn create_health_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     Router::new()
         .route("/startup", get(startup))
@@ -34,7 +34,7 @@ where
 pub fn create_test_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     Router::new()
         .route("/error", get(list_error))
@@ -44,7 +44,7 @@ where
 pub fn create_meta_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     Router::new()
         .route("/raw_conf", get(get_raw_app_config))

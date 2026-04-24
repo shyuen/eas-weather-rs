@@ -2,6 +2,7 @@ use eas_weather_rs::adaptors::axum::model::WebserverAxum;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
 use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
+use eas_weather_rs::domain::alert::service::AlertService;
 use eas_weather_rs::domain::config::service::ConfigService;
 use eas_weather_rs::domain::database::service::DatabaseService;
 use eas_weather_rs::domain::logging::service::LoggingService;
@@ -46,7 +47,12 @@ async fn main() -> Result<(), std::io::Error> {
     // Output dataase adaptor configuration
     webserver_service.log_adaptor_config(&logging_service, &conf_service);
 
+    // Initialize meta service
     let meta_service = MetaService::new(conf_service.clone());
+    //let meta_service = MetaService::new(&conf_service);
+
+    // Initalize alert service
+    let alert_service = AlertService::new(&logging_service, database_service.clone());
 
     // Start Web Server
     webserver_service

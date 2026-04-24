@@ -4,7 +4,7 @@ use tokio::net::TcpListener;
 use tokio::signal;
 
 use crate::adaptors::axum::routes::create_routes;
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::meta::port::MetaRepo;
 use crate::domain::webserver::model::Webserver;
@@ -18,7 +18,7 @@ impl WebserverAxum {
         WebserverAxum {}
     }
 
-    async fn shutdown_signal(log_repo: impl LoggingRepo, db_repo: impl DatabaseRepo) {
+    async fn shutdown_signal(log_repo: impl LoggingRepo, db_repo: impl DatabasePort) {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -93,7 +93,7 @@ impl WebserverRepo for WebserverAxum {
         &self,
         config: &Webserver,
         log_repo: &impl LoggingRepo,
-        db_repo: &impl DatabaseRepo,
+        db_repo: &impl DatabasePort,
         meta_repo: &impl MetaRepo,
     ) -> Result<(), std::io::Error> {
         // Create the application state with the necessary services

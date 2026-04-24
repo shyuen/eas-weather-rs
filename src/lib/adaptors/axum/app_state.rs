@@ -1,4 +1,4 @@
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaRepo;
 use std::sync::Arc;
 
@@ -7,7 +7,7 @@ use std::sync::Arc;
 pub struct AppState<MR, DR>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     meta_repo: Arc<MR>,
     db_repo: Arc<DR>,
@@ -16,7 +16,7 @@ where
 impl<MR, DR> AppState<MR, DR>
 where
     MR: MetaRepo,
-    DR: DatabaseRepo,
+    DR: DatabasePort,
 {
     /// Create a new AppState with the given services.
     pub fn new(meta_repo: MR, db_repo: DR) -> Self {
@@ -29,5 +29,10 @@ where
     /// Get a reference to the MetaService.
     pub fn get_meta_repo(&self) -> Arc<MR> {
         self.meta_repo.clone()
+    }
+
+    /// Get a reference to the DatabaseService.
+    pub fn get_db_repo(&self) -> Arc<DR> {
+        self.db_repo.clone()
     }
 }

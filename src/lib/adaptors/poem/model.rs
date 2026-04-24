@@ -1,5 +1,5 @@
 use crate::adaptors::poem::handlers::meta::MetaHandler;
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::meta::port::MetaRepo;
 use crate::domain::webserver::model::Webserver;
@@ -81,7 +81,7 @@ impl WebserverRepo for WebserverPoem {
         &self,
         config: &Webserver,
         log_repo: &impl LoggingRepo,
-        db_repo: &impl DatabaseRepo,
+        db_repo: &impl DatabasePort,
         meta_serv: &impl MetaRepo,
     ) -> Result<(), std::io::Error> {
         // Construct root address

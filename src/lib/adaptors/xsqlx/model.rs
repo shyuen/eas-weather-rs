@@ -2,7 +2,7 @@ use sqlx::mysql::{MySqlConnectOptions, MySqlPoolOptions};
 use std::time::Duration;
 
 use crate::domain::database::model::Database;
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::port::LoggingRepo;
 
 #[derive(Debug, Clone)]
@@ -11,7 +11,15 @@ pub struct DatabaseMySql {
     pool: Option<sqlx::MySqlPool>, // This is optional to allow application startup without immediate DB connection
 }
 
-impl DatabaseRepo for DatabaseMySql {
+/// Implementation of the DatabaseRepo trait for MySQL using sqlx
+impl DatabaseMySql {
+    pub fn get_pool(&self) -> Option<&sqlx::MySqlPool> {
+        self.pool.as_ref()
+    }
+}
+
+/// Implementation of the DatabaseRepo trait for MySQL using sqlx
+impl DatabasePort for DatabaseMySql {
     fn new(log_repo: &impl LoggingRepo, conf_db: &Database) -> Self {
         // Extract connection string
         //let conn_string = &conf_db.conn_string.to_string();
