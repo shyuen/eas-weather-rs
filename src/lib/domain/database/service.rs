@@ -1,20 +1,21 @@
+use crate::domain::alert::port::DatabasePortAlert;
 use crate::domain::config::port::ConfigRepo;
 use crate::domain::config::service::ConfigService;
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::logging::service::LoggingService;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseService<D>
 where
-    D: DatabaseRepo,
+    D: DatabasePort + DatabasePortAlert,
 {
-    pub repo: D,
+    repo: D,
 }
 
 impl<D> DatabaseService<D>
 where
-    D: DatabaseRepo,
+    D: DatabasePort + DatabasePortAlert,
 {
     /// Creates a new instance of DatabaseService.
     pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self

@@ -50,4 +50,12 @@ where
             self.conf_repo.get_webserver_config().clone(),
         )
     }
+
+    // fn get_conf(&self) -> ValidatedConfig<'c> {
+    //     ValidatedConfig::new(
+    //         self.conf_repo.get_logging_config(),
+    //         self.conf_repo.get_database_config(),
+    //         self.conf_repo.get_webserver_config(),
+    //     )
+    // }
 }

@@ -2,7 +2,7 @@ use crate::domain::database::model::Database;
 use crate::domain::logging::port::LoggingRepo;
 
 //#[async_trait]
-pub trait DatabaseRepo: Clone + Send + Sync + 'static {
+pub trait DatabasePort: Clone + Send + Sync + 'static {
     /// Create a new instance of the database repository with the given configuration
     fn new(log_repo: &impl LoggingRepo, conf: &Database) -> Self;
 

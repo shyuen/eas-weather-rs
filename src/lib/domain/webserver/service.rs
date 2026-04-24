@@ -1,6 +1,7 @@
+use crate::domain::alert::port::DatabasePortAlert;
 use crate::domain::config::port::ConfigRepo;
 use crate::domain::config::service::ConfigService;
-use crate::domain::database::port::DatabaseRepo;
+use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
 use crate::domain::logging::port::LoggingRepo;
 use crate::domain::logging::service::LoggingService;
@@ -8,16 +9,16 @@ use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
 
 #[derive(Debug, Clone)]
-pub struct WebserverService<W>
+pub struct WebserverService<WR>
 where
-    W: WebserverRepo,
+    WR: WebserverRepo,
 {
-    pub repo: W,
+    pub repo: WR,
 }
 
-impl<W> WebserverService<W>
+impl<WR> WebserverService<WR>
 where
-    W: WebserverRepo,
+    WR: WebserverRepo,
 {
     /// Creates a new instance of WebserverService.
     pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self
@@ -28,12 +29,12 @@ where
         let log_repo = log_serv.get_repo();
         let conf_webserv = conf_serv.get_webservicer_config();
 
-        let repo = W::new(log_repo, conf_webserv);
+        let repo = WR::new(log_repo, conf_webserv);
         Self { repo }
     }
 
     /// Get the Webserver repository
-    pub fn get_repo(&self) -> &W {
+    pub fn get_repo(&self) -> &WR {
         &self.repo
     }
 
@@ -60,7 +61,7 @@ where
     ) -> Result<(), std::io::Error>
     where
         L: LoggingRepo,
-        D: DatabaseRepo,
+        D: DatabasePort + DatabasePortAlert,
         C: ConfigRepo,
     {
         let webserv_conf = conf_serv.get_webservicer_config();
