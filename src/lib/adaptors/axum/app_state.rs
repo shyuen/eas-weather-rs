@@ -1,38 +1,38 @@
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaRepo;
+use crate::domain::meta::port::MetaPort;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 /// The global application state shared between all request handlers.
 pub struct AppState<MR, DR>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
-    meta_repo: Arc<MR>,
-    db_repo: Arc<DR>,
+    meta_port: Arc<MR>,
+    db_port: Arc<DR>,
 }
 
 impl<MR, DR> AppState<MR, DR>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
     /// Create a new AppState with the given services.
-    pub fn new(meta_repo: MR, db_repo: DR) -> Self {
+    pub fn new(meta_port: MR, db_port: DR) -> Self {
         Self {
-            meta_repo: Arc::new(meta_repo),
-            db_repo: Arc::new(db_repo),
+            meta_port: Arc::new(meta_port),
+            db_port: Arc::new(db_port),
         }
     }
 
     /// Get a reference to the MetaService.
-    pub fn get_meta_repo(&self) -> Arc<MR> {
-        self.meta_repo.clone()
+    pub fn get_meta_port(&self) -> Arc<MR> {
+        self.meta_port.clone()
     }
 
     /// Get a reference to the DatabaseService.
-    pub fn get_db_repo(&self) -> Arc<DR> {
-        self.db_repo.clone()
+    pub fn get_db_port(&self) -> Arc<DR> {
+        self.db_port.clone()
     }
 }

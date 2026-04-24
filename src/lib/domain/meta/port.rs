@@ -5,7 +5,7 @@ use crate::domain::webserver::model::Webserver;
 
 //use std::future::Future;
 
-pub trait MetaRepo: Clone + Send + Sync + 'static {
+pub trait MetaPort: Clone + Send + Sync + 'static {
     /// Get application metadata, such as version info, uptime, etc.
     fn get_raw_config_data(&self) -> Config;
 

@@ -4,7 +4,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
 use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevelType;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 
 #[derive(Debug, Clone)]
 pub struct LoggingTracing {}
@@ -21,7 +21,7 @@ impl LoggingTracing {
     }
 }
 
-impl LoggingRepo for LoggingTracing {
+impl LoggingPort for LoggingTracing {
     fn new(conf_log: &Logging) -> Self {
         // Map LoggingTraceLevel to tracing::Level
         let trace_level = Self::map_trace_level(&conf_log.trace_level.get());

@@ -5,8 +5,8 @@ use tokio::signal;
 
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingRepo;
-use crate::domain::meta::port::MetaRepo;
+use crate::domain::logging::port::LoggingPort;
+use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
 use crate::domain::webserver::port::WebserverRepo;
 
@@ -18,7 +18,7 @@ impl WebserverAxum {
         WebserverAxum {}
     }
 
-    async fn shutdown_signal(log_repo: impl LoggingRepo, db_repo: impl DatabasePort) {
+    async fn shutdown_signal(log_port: impl LoggingPort, db_port: impl DatabasePort) {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -38,40 +38,40 @@ impl WebserverAxum {
 
         tokio::select! {
             _ = ctrl_c => {
-                log_repo.info(module_path!(), &format!("ctrl_c received"));
+                log_port.info(module_path!(), &format!("ctrl_c received"));
             },
             _ = terminate => {
-                log_repo.info(module_path!(), &format!("terminate signal received"));
+                log_port.info(module_path!(), &format!("terminate signal received"));
             },
         }
 
         // Perform other tasks as necessary
-        let _ = db_repo.close_pool(&log_repo).await; // Close DB connection pool
+        let _ = db_port.close_pool(&log_port).await; // Close DB connection pool
 
-        log_repo.info(module_path!(), &format!("goodbye from axum"));
+        log_port.info(module_path!(), &format!("goodbye from axum"));
     }
 }
 
 impl WebserverRepo for WebserverAxum {
     /// Create a new instance of the webserver repository with the given configuration
-    fn new(_log_repo: &impl LoggingRepo, _conf_webserv: &Webserver) -> Self {
+    fn new(_log_port: &impl LoggingPort, _conf_webserv: &Webserver) -> Self {
         WebserverAxum::new()
     }
 
-    fn log_adaptor_config(&self, log_repo: &impl LoggingRepo, conf_webserv: &Webserver) {
-        log_repo.info(
+    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_webserv: &Webserver) {
+        log_port.info(
             module_path!(),
             &format!("axum_hostname={}", conf_webserv.hostname.to_string()),
         );
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("axum_port={}", conf_webserv.port.get()),
         );
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("axum_base_path={}", conf_webserv.base_path.to_string()),
         );
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!(
                 "axum_shutdown_timeout_secs={}",
@@ -79,11 +79,11 @@ impl WebserverRepo for WebserverAxum {
             ),
         );
 
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("axum_api_key={}", conf_webserv.api_key.to_string()),
         );
-        log_repo.info(
+        log_port.info(
             module_path!(),
             &format!("axum_jwt_key={}", conf_webserv.jwt_key.to_string()),
         );
@@ -92,18 +92,18 @@ impl WebserverRepo for WebserverAxum {
     async fn start_server(
         &self,
         config: &Webserver,
-        log_repo: &impl LoggingRepo,
-        db_repo: &impl DatabasePort,
-        meta_repo: &impl MetaRepo,
+        log_port: &impl LoggingPort,
+        db_port: &impl DatabasePort,
+        meta_port: &impl MetaPort,
     ) -> Result<(), std::io::Error> {
         // Create the application state with the necessary services
-        let state = AppState::new(meta_repo.clone(), db_repo.clone());
+        let state = AppState::new(meta_port.clone(), db_port.clone());
 
         // Create the Axum application with the defined routes and state
         let app = create_routes().with_state(state);
 
         let addr = format!("{}:{}", config.hostname.get(), config.port.get());
-        log_repo.info(module_path!(), &format!("starting axum server at {}", addr));
+        log_port.info(module_path!(), &format!("starting axum server at {}", addr));
 
         // Start listening to the TCP port
         let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
@@ -111,8 +111,8 @@ impl WebserverRepo for WebserverAxum {
         // Start the Axum server
         axum::serve(listener, app)
             .with_graceful_shutdown(WebserverAxum::shutdown_signal(
-                log_repo.clone(),
-                db_repo.clone(),
+                log_port.clone(),
+                db_port.clone(),
             ))
             .await
     }

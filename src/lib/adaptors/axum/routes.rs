@@ -6,11 +6,11 @@ use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::handlers::test::{get_user, list_error};
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaRepo;
+use crate::domain::meta::port::MetaPort;
 
 pub fn create_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
     Router::new()
@@ -22,7 +22,7 @@ where
 
 pub fn create_health_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
     Router::new()
@@ -33,7 +33,7 @@ where
 
 pub fn create_test_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
     Router::new()
@@ -43,7 +43,7 @@ where
 
 pub fn create_meta_routes<MR, DR>() -> Router<AppState<MR, DR>>
 where
-    MR: MetaRepo,
+    MR: MetaPort,
     DR: DatabasePort,
 {
     Router::new()

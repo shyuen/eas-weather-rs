@@ -5,7 +5,7 @@ use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatE
 use crate::domain::logging::new_types::lg_trace_level::{
     LoggingTraceLevel, LoggingTraceLevelError,
 };
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 
 /// Configuration for logging.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ impl Logging {
     }
 
     /// Validates the raw logging configuration and logs warnings for any issues found.
-    pub fn validate_raw_config(&self, log_serv: &impl LoggingRepo, raw_log_conf: &ConfigLogging) {
+    pub fn validate_raw_config(&self, log_serv: &impl LoggingPort, raw_log_conf: &ConfigLogging) {
         match &raw_log_conf.format {
             Some(raw_log_format) => {
                 if let Err(err) = LoggingFormat::new(&raw_log_format) {

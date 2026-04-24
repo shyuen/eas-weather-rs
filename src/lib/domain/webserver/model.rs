@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::config::model::ConfigWebserver;
-use crate::domain::logging::port::LoggingRepo;
+use crate::domain::logging::port::LoggingPort;
 use crate::domain::utils::helpers::serialize_with_display;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKeyError;
@@ -137,7 +137,7 @@ impl Webserver {
         }
     }
 
-    pub fn validate_raw_config(&self, log_serv: &impl LoggingRepo, raw_ws_conf: &ConfigWebserver) {
+    pub fn validate_raw_config(&self, log_serv: &impl LoggingPort, raw_ws_conf: &ConfigWebserver) {
         match &raw_ws_conf.hostname {
             Some(raw_hostname) => {
                 if let Err(err) = WebserverHostname::new(raw_hostname) {
