@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::{error, warn};
 
 use crate::domain::config::model::ConfigDatabase;
 use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
@@ -153,26 +154,25 @@ impl Database {
                 if let Err(err) = DbConnectionString::new(raw_conn_url_file) {
                     match &err {
                         DbConnectionStringError::BadFileLoad(e) => {
-                            tracing::error!(
+                            error!(
                                 "config database load connection file error: `{}` - {}",
-                                &raw_conn_url_file,
-                                e
+                                &raw_conn_url_file, e
                             );
-                            tracing::warn!(
+                            warn!(
                                 "config database connection string will be set to `{}`",
                                 DbConnectionString::default()
                             );
                         }
                         DbConnectionStringError::EmptyConnectionString(_) => {
-                            tracing::warn!("config database connection string was empty");
-                            tracing::warn!(
+                            warn!("config database connection string was empty");
+                            warn!(
                                 "config database connection string will be set to `{}`",
                                 DbConnectionString::default()
                             );
                         }
                         DbConnectionStringError::EmptyFilePath(_) => {
-                            tracing::warn!("config database connection file path was empty");
-                            tracing::warn!(
+                            warn!("config database connection file path was empty");
+                            warn!(
                                 "config database connection string will be set to `{}`",
                                 DbConnectionString::default()
                             );
@@ -181,7 +181,7 @@ impl Database {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection string file was not specified, setting database connection string to `{}`",
                     DbConnectionString::default()
                 );
@@ -192,15 +192,15 @@ impl Database {
         match &raw_db_conf.conn_max_retries {
             Some(raw_conn_max_retries) => {
                 if let Err(err) = DbConnMaxRetries::new(raw_conn_max_retries) {
-                    tracing::error!("config database connection max retries error: {}", err);
-                    tracing::warn!(
+                    error!("config database connection max retries error: {}", err);
+                    warn!(
                         "configdatabase connection max retries will be set to `{}`",
                         DbConnMaxRetries::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection max retries was not specified, setting to default `{}`",
                     DbConnMaxRetries::default()
                 );
@@ -211,18 +211,18 @@ impl Database {
         match &raw_db_conf.conn_retry_init_delay_secs {
             Some(raw_conn_retry_init_delay_secs) => {
                 if let Err(err) = DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs) {
-                    tracing::error!(
+                    error!(
                         "config database connection retry initial delay seconds error: {}",
                         err
                     );
-                    tracing::warn!(
+                    warn!(
                         "config database connection retry initial delay seconds will be set to `{}`",
                         DbConnRetryInitDelaySecs::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection retry initial delay seconds was not specified, setting to default `{}`",
                     DbConnRetryInitDelaySecs::default()
                 );
@@ -233,18 +233,18 @@ impl Database {
         match &raw_db_conf.conn_acquire_timeout_secs {
             Some(raw_conn_acquire_timeout_secs) => {
                 if let Err(err) = DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs) {
-                    tracing::error!(
+                    error!(
                         "config database connection acquire timeout seconds error: {}",
                         err
                     );
-                    tracing::warn!(
+                    warn!(
                         "config database connection acquire timeout seconds will be set to `{}`",
                         DbConnAcquireTimeoutSecs::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection acquire timeout seconds was not specified, setting to default `{}`",
                     DbConnAcquireTimeoutSecs::default()
                 );
@@ -255,18 +255,18 @@ impl Database {
         match &raw_db_conf.conn_idle_timeout_secs {
             Some(raw_conn_idle_timeout_secs) => {
                 if let Err(err) = DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs) {
-                    tracing::error!(
+                    error!(
                         "config database connection idle timeout seconds error: {}",
                         err
                     );
-                    tracing::warn!(
+                    warn!(
                         "config database connection idle timeout seconds will be set to `{}`",
                         DbConnIdleTimeoutSecs::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection idle timeout seconds was not specified, setting to default `{}`",
                     DbConnIdleTimeoutSecs::default()
                 );
@@ -277,18 +277,18 @@ impl Database {
         match &raw_db_conf.conn_max_lifetime_secs {
             Some(raw_conn_max_lifetime_secs) => {
                 if let Err(err) = DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs) {
-                    tracing::error!(
+                    error!(
                         "config database connection max lifetime seconds error: {}",
                         err
                     );
-                    tracing::warn!(
+                    warn!(
                         "config database connection max lifetime seconds will be set to `{}`",
                         DbConnMaxLifetimeSecs::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database connection max lifetime seconds was not specified, setting to default `{}`",
                     DbConnMaxLifetimeSecs::default()
                 );
@@ -299,15 +299,15 @@ impl Database {
         match &raw_db_conf.min_connections {
             Some(raw_min_connections) => {
                 if let Err(err) = DbMinConnections::new(raw_min_connections) {
-                    tracing::error!("config database min connections error: {}", err);
-                    tracing::warn!(
+                    error!("config database min connections error: {}", err);
+                    warn!(
                         "config database min connections will be set to `{}`",
                         DbMinConnections::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database min connections was not specified, setting to default `{}`",
                     DbMinConnections::default()
                 );
@@ -318,15 +318,15 @@ impl Database {
         match &raw_db_conf.max_connections {
             Some(raw_max_connections) => {
                 if let Err(err) = DbMaxConnections::new(raw_max_connections) {
-                    tracing::error!("config database max connections error: {}", err);
-                    tracing::warn!(
+                    error!("config database max connections error: {}", err);
+                    warn!(
                         "config database max connections will be set to `{}`",
                         DbMaxConnections::default()
                     );
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config database max connections was not specified, setting to default `{}`",
                     DbMaxConnections::default()
                 );

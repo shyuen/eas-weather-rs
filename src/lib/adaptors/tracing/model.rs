@@ -1,4 +1,4 @@
-use tracing::Level;
+use tracing::{Level, info};
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::domain::logging::model::Logging;
@@ -50,7 +50,7 @@ impl LoggingPort for LoggingTracing {
 
     /// Log configuration that's currently set
     fn log_adaptor_config(&self, conf_log: &Logging) {
-        tracing::info!("tracing_format={:?}", conf_log.format.to_string());
-        tracing::info!("tracing_trace_level={:?}", conf_log.trace_level.to_string());
+        info!("tracing_format={:?}", conf_log.format.to_string());
+        info!("tracing_trace_level={:?}", conf_log.trace_level.to_string());
     }
 }

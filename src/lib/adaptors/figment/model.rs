@@ -5,6 +5,7 @@ use figment::{
     providers::{Env, Format, Serialized, Toml},
 };
 use std::env;
+use tracing::debug;
 
 use crate::adaptors::clap::model::Cli;
 use crate::domain::config::model::Config;
@@ -101,10 +102,10 @@ impl ConfigPort for ConfigFigment {
     // Log debug information regarding config inputs
     fn log_raw_config_input(&self) {
         // Log config from CLI
-        tracing::debug!("configuration from {:?}", Cli::parse());
+        debug!("configuration from {:?}", Cli::parse());
 
         // Log config from ENV
-        tracing::debug!(
+        debug!(
             "configuration from Env {:?}",
             env::vars()
                 .filter(|(k, _)| k.starts_with("LOGGING__")
@@ -131,10 +132,10 @@ impl ConfigPort for ConfigFigment {
                 std::process::exit(1);
             }
         };
-        tracing::debug!("configuration from Files {:?}", conf_files);
+        debug!("configuration from Files {:?}", conf_files);
 
         // Log final raw config
-        tracing::debug!("final Raw Config {:?}", &self.conf_raw);
+        debug!("final Raw Config {:?}", &self.conf_raw);
     }
 
     /// Validate raw logging configuration

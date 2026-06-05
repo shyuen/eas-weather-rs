@@ -1,6 +1,7 @@
 use crate::domain::alert::port::DatabasePortAlert;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
+use tracing::info;
 
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
@@ -21,7 +22,7 @@ where
         let db_port = db_serv.get_port();
 
         // Log the initialization of the AlertService
-        tracing::info!("Initializing AlertService");
+        info!("Initializing AlertService");
 
         Self {
             db_port: db_port.clone(),
