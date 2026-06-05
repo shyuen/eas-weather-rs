@@ -3,6 +3,7 @@ use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
 use crate::domain::webserver::port::WebserverRepo;
+use tracing::info;
 
 use poem::{EndpointExt, Route, Server, listener::TcpListener};
 use poem_openapi::{OpenApiService, Tags};
@@ -38,17 +39,17 @@ impl WebserverRepo for WebserverPoem {
     }
 
     fn log_adaptor_config(&self, conf_webserv: &Webserver) {
-        tracing::info!("poem_hostname={}", conf_webserv.hostname.get());
-        tracing::info!("poem_port={}", conf_webserv.port.get());
-        tracing::info!("poem_base_path={}", conf_webserv.base_path.to_string());
-        tracing::info!(
+        info!("poem_hostname={}", conf_webserv.hostname.get());
+        info!("poem_port={}", conf_webserv.port.get());
+        info!("poem_base_path={}", conf_webserv.base_path.to_string());
+        info!(
             "poem_shutdown_timeout_secs={}",
             conf_webserv.shutdown_timeout_secs.get()
         );
 
-        tracing::info!("poem_api_key={}", conf_webserv.api_key);
-        tracing::info!("poem_jwt_key={}", conf_webserv.jwt_key);
-        tracing::info!(
+        info!("poem_api_key={}", conf_webserv.api_key);
+        info!("poem_jwt_key={}", conf_webserv.jwt_key);
+        info!(
             "poem_jwt_access_token_expiry_secs={}",
             conf_webserv.jwt_access_token_expiry_secs.get()
         );
@@ -82,7 +83,7 @@ impl WebserverRepo for WebserverPoem {
         // Construct base address for OpenAPI server
         let base_addr = format!("{}{}", &root_addr, &base_path);
 
-        tracing::info!("poem server path: http://{}", &base_addr);
+        info!("poem server path: http://{}", &base_addr);
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -118,8 +119,8 @@ impl WebserverRepo for WebserverPoem {
             async move {
                 let _ = tokio::signal::ctrl_c().await;
 
-                tracing::info!("shutdown signal received");
-                tracing::info!("commencing graceful shutdown");
+                info!("shutdown signal received");
+                info!("commencing graceful shutdown");
 
                 // Perform any necessary cleanup here
                 // e.g., close database connections, flush logs, etc.

@@ -2,6 +2,7 @@ use crate::adaptors::axum::app_state::AppState;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::signal;
+use tracing::info;
 
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::database::port::DatabasePort;
@@ -37,17 +38,17 @@ impl WebserverAxum {
 
         tokio::select! {
             _ = ctrl_c => {
-                tracing::info!("ctrl_c received");
+                info!("ctrl_c received");
             },
             _ = terminate => {
-                tracing::info!("terminate signal received");
+                info!("terminate signal received");
             },
         }
 
         // Perform other tasks as necessary
         let _ = db_port.close_pool().await; // Close DB connection pool
 
-        tracing::info!("goodbye from axum");
+        info!("goodbye from axum");
     }
 }
 
@@ -58,16 +59,16 @@ impl WebserverRepo for WebserverAxum {
     }
 
     fn log_adaptor_config(&self, conf_webserv: &Webserver) {
-        tracing::info!("axum_hostname={}", conf_webserv.hostname.to_string());
-        tracing::info!("axum_port={}", conf_webserv.port.get());
-        tracing::info!("axum_base_path={}", conf_webserv.base_path.to_string());
-        tracing::info!(
+        info!("axum_hostname={}", conf_webserv.hostname.to_string());
+        info!("axum_port={}", conf_webserv.port.get());
+        info!("axum_base_path={}", conf_webserv.base_path.to_string());
+        info!(
             "axum_shutdown_timeout_secs={}",
             conf_webserv.shutdown_timeout_secs.get()
         );
 
-        tracing::info!("axum_api_key={}", conf_webserv.api_key.to_string());
-        tracing::info!("axum_jwt_key={}", conf_webserv.jwt_key.to_string());
+        info!("axum_api_key={}", conf_webserv.api_key.to_string());
+        info!("axum_jwt_key={}", conf_webserv.jwt_key.to_string());
     }
 
     async fn start_server(
@@ -83,7 +84,7 @@ impl WebserverRepo for WebserverAxum {
         let app = create_routes().with_state(state);
 
         let addr = format!("{}:{}", config.hostname.get(), config.port.get());
-        tracing::info!("starting axum server at {}", addr);
+        info!("starting axum server at {}", addr);
 
         // Start listening to the TCP port
         let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();

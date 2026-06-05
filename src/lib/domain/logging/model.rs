@@ -1,4 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::domain::config::model::ConfigLogging;
 use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatError};
@@ -51,13 +52,13 @@ impl Logging {
                 if let Err(err) = LoggingFormat::new(&raw_log_format) {
                     match &err {
                         LoggingFormatError::EmptyType(_) => {
-                            tracing::warn!(
+                            warn!(
                                 "config logging format type is empty, setting to `{}`",
                                 LoggingFormat::default()
                             );
                         }
                         LoggingFormatError::UnknownFormat(_) => {
-                            tracing::warn!(
+                            warn!(
                                 "config logging format of unknown type `{}`, setting value to `{}`",
                                 raw_log_format,
                                 LoggingFormat::default()
@@ -67,7 +68,7 @@ impl Logging {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config logging format was not specified, setting value to `{}`",
                     LoggingFormat::default()
                 );
@@ -79,13 +80,13 @@ impl Logging {
                 if let Err(err) = LoggingTraceLevel::new(&raw_trace_level) {
                     match &err {
                         LoggingTraceLevelError::EmptyTraceLevel(_) => {
-                            tracing::warn!(
+                            warn!(
                                 "config logging trace level is empty, setting to `{}`",
                                 LoggingTraceLevel::default()
                             );
                         }
                         LoggingTraceLevelError::UnknownTraceLevel(_) => {
-                            tracing::warn!(
+                            warn!(
                                 "config logging trace level of unknown type `{}`, setting value to `{}`",
                                 raw_trace_level,
                                 LoggingTraceLevel::default()
@@ -95,7 +96,7 @@ impl Logging {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config logging trace level was not specified, setting value to `{}`",
                     LoggingTraceLevel::default()
                 );

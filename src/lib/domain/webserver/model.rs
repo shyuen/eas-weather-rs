@@ -1,3 +1,4 @@
+use tracing::warn;
 //use serde_derive::{Deserialize, Serialize};
 use serde::{Deserialize, Serialize};
 
@@ -142,7 +143,7 @@ impl Webserver {
                 if let Err(err) = WebserverHostname::new(raw_hostname) {
                     match &err {
                         WebserverHostnameError::EmptyHostname => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver hostname was empty, setting to `{}`",
                                 WebserverHostname::default()
                             );
@@ -151,7 +152,7 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config webserver hostname was not specified, setting to `{}`",
                     WebserverHostname::default()
                 );
@@ -163,7 +164,7 @@ impl Webserver {
                 if let Err(err) = WebserverPort::new(raw_port) {
                     match &err {
                         _ => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver port of invalid value `{}`, setting to `{}`",
                                 raw_port,
                                 WebserverPort::default()
@@ -173,7 +174,7 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config webserver port was not specified, setting to `{}`",
                     WebserverPort::default()
                 );
@@ -185,7 +186,7 @@ impl Webserver {
                 if let Err(err) = WebserverBasePath::new(raw_base_path) {
                     match &err {
                         _ => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver base path of invalid value `{}`, setting to `{}`",
                                 raw_base_path,
                                 WebserverBasePath::default()
@@ -195,7 +196,7 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config webserver base path was not specified, setting to `{}`",
                     WebserverBasePath::default()
                 );
@@ -207,7 +208,7 @@ impl Webserver {
                 if let Err(err) = WebserverShutdownTimeoutSecs::new(raw_shutdown_timeout_secs) {
                     match &err {
                         _ => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver shutdown timeout secs of invalid value `{}`, setting to `{}`",
                                 raw_shutdown_timeout_secs,
                                 WebserverShutdownTimeoutSecs::default()
@@ -217,7 +218,7 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config webserver shutdown timeout secs was not specified, setting to `{}`",
                     WebserverShutdownTimeoutSecs::default()
                 );
@@ -229,12 +230,11 @@ impl Webserver {
                 if let Err(err) = WebserverApiKey::new(raw_api_key_file) {
                     match &err {
                         WebserverApiKeyError::BadFileLoad(e) => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver load api key file error: `{}` - `{}`",
-                                raw_api_key_file,
-                                e
+                                raw_api_key_file, e
                             );
-                            tracing::warn!(
+                            warn!(
                                 "config webserver load api key will be set to `{}`",
                                 WebserverApiKey::default()
                             );
@@ -243,8 +243,8 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!("config webserver api key file was not specified");
-                tracing::warn!(
+                warn!("config webserver api key file was not specified");
+                warn!(
                     "config webserver api key will be set to `{}`",
                     WebserverApiKey::default()
                 );
@@ -256,12 +256,11 @@ impl Webserver {
                 if let Err(err) = WebserverJwtKey::new(raw_jwt_key_file) {
                     match &err {
                         WebserverJwtKeyError::BadFileLoad(e) => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver load jwt key file error: `{}` - `{}`",
-                                raw_jwt_key_file,
-                                e
+                                raw_jwt_key_file, e
                             );
-                            tracing::warn!(
+                            warn!(
                                 "config webserver jwt key will be set to `{}`",
                                 WebserverJwtKey::default()
                             );
@@ -270,8 +269,8 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!("config webserver jwt key file was not specified");
-                tracing::warn!(
+                warn!("config webserver jwt key file was not specified");
+                warn!(
                     "config webserver jwt key will be set to `{}`",
                     WebserverJwtKey::default()
                 );
@@ -285,7 +284,7 @@ impl Webserver {
                 {
                     match &err {
                         _ => {
-                            tracing::warn!(
+                            warn!(
                                 "config webserver jwt access token expiry secs of invalid value `{}`, setting to `{}`",
                                 raw_jwt_access_token_expiry_secs,
                                 WebserverJwtAccessTokenExpirySecs::default()
@@ -295,7 +294,7 @@ impl Webserver {
                 }
             }
             None => {
-                tracing::warn!(
+                warn!(
                     "config webserver jwt access token expiry secs was not specified, setting to `{}`",
                     WebserverJwtAccessTokenExpirySecs::default()
                 );
