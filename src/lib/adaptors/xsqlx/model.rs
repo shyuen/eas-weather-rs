@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use crate::domain::database::model::Database;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingPort;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseMySql {
@@ -20,7 +19,7 @@ impl DatabaseMySql {
 
 /// Implementation of the DatabaseRepo trait for MySQL using sqlx
 impl DatabasePort for DatabaseMySql {
-    fn new(log_port: &impl LoggingPort, conf_db: &Database) -> Self {
+    fn new(conf_db: &Database) -> Self {
         // Extract connection string
         //let conn_string = &conf_db.conn_string.to_string();
 
@@ -30,10 +29,7 @@ impl DatabasePort for DatabaseMySql {
         let conn_opt = match conn_string.parse::<MySqlConnectOptions>() {
             Ok(conn_opt) => Some(conn_opt),
             Err(err_msg) => {
-                log_port.error(
-                    module_path!(),
-                    &format!("unable to parse connection string - error: {}", err_msg),
-                );
+                tracing::error!("unable to parse connection string - error: {}", err_msg);
                 None
             }
         };
@@ -45,7 +41,7 @@ impl DatabasePort for DatabaseMySql {
     }
 
     /// Log configuration that's currently set
-    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_db: &Database) {
+    fn log_adaptor_config(&self, conf_db: &Database) {
         match &self.conn_opt {
             Some(_) => {
                 // let db_name = match options.get_database() {
@@ -64,68 +60,41 @@ impl DatabasePort for DatabaseMySql {
                 //     ),
                 // );
 
-                log_port.info(
-                    module_path!(),
-                    &format!("xsqlx_conn_opt=\"{}\"", conf_db.conn_string.to_string()),
-                );
+                tracing::info!("xsqlx_conn_opt=\"{}\"", conf_db.conn_string.to_string());
             }
             None => {
-                log_port.warn(
-                    module_path!(),
-                    "database MySQL options were not set successfully",
-                );
+                tracing::warn!("database MySQL options were not set successfully");
             }
         }
 
-        log_port.info(
-            module_path!(),
-            &format!("xsqlx_conn_max_retries={}", &conf_db.conn_max_retries),
+        tracing::info!("xsqlx_conn_max_retries={}", &conf_db.conn_max_retries);
+
+        tracing::info!(
+            "xsqlx_conn_retry_init_delay_secs={}",
+            &conf_db.conn_retry_init_delay_secs
         );
 
-        log_port.info(
-            module_path!(),
-            &format!(
-                "xsqlx_conn_retry_init_delay_secs={}",
-                &conf_db.conn_retry_init_delay_secs
-            ),
+        tracing::info!(
+            "xsqlx_conn_acquire_timeout_secs={}",
+            &conf_db.conn_acquire_timeout_secs
         );
 
-        log_port.info(
-            module_path!(),
-            &format!(
-                "xsqlx_conn_acquire_timeout_secs={}",
-                &conf_db.conn_acquire_timeout_secs
-            ),
+        tracing::info!(
+            "xsqlx_conn_idle_timeout_secs={}",
+            &conf_db.conn_idle_timeout_secs
         );
 
-        log_port.info(
-            module_path!(),
-            &format!(
-                "xsqlx_conn_idle_timeout_secs={}",
-                &conf_db.conn_idle_timeout_secs
-            ),
+        tracing::info!(
+            "xsqlx_conn_max_lifetime_secs={}",
+            &conf_db.conn_max_lifetime_secs
         );
 
-        log_port.info(
-            module_path!(),
-            &format!(
-                "xsqlx_conn_max_lifetime_secs={}",
-                &conf_db.conn_max_lifetime_secs
-            ),
-        );
+        tracing::info!("xsqlx_min_connections={}", &conf_db.min_connections);
 
-        log_port.info(
-            module_path!(),
-            &format!("xsqlx_min_connections={}", &conf_db.min_connections),
-        );
-
-        log_port.info(
-            module_path!(),
-            &format!("xsqlx_max_connections={}", &conf_db.max_connections),
-        );
+        tracing::info!("xsqlx_max_connections={}", &conf_db.max_connections);
     }
 
-    async fn create_pool(&mut self, log_port: &(impl LoggingPort + Sync), conf_db: &Database) {
+    async fn create_pool(&mut self, conf_db: &Database) {
         let mut current_backoff = *(&conf_db.conn_retry_init_delay_secs.get());
 
         match &self.conn_opt {
@@ -148,34 +117,25 @@ impl DatabasePort for DatabaseMySql {
                         .await
                     {
                         Ok(pool) => {
-                            log_port.info(module_path!(), "database pool created successfully");
+                            tracing::info!("database pool created successfully");
                             self.pool = Some(pool);
                             return;
                         }
                         Err(e) => {
-                            log_port.warn(
-                                module_path!(),
-                                &format!(
-                                    "failed to connect to database (attempt {}/{}): {}",
-                                    i + 1,
-                                    conf_db.conn_max_retries.get(),
-                                    e
-                                ),
+                            tracing::warn!(
+                                "failed to connect to database (attempt {}/{}): {}",
+                                i + 1,
+                                conf_db.conn_max_retries.get(),
+                                e
                             );
                             if i + 1 == conf_db.conn_max_retries.get() {
-                                log_port.error(
-                                    module_path!(),
-                                    "database connection retries exhausted all attempts",
-                                );
+                                tracing::error!("database connection retries exhausted all attempts");
                                 self.pool = None;
                                 return;
                             } else {
-                                log_port.warn(
-                                    module_path!(),
-                                    &format!(
-                                        "database retrying connection in {} seconds",
-                                        current_backoff
-                                    ),
+                                tracing::warn!(
+                                    "database retrying connection in {} seconds",
+                                    current_backoff
                                 );
 
                                 tokio::time::sleep(std::time::Duration::from_secs(
@@ -189,28 +149,19 @@ impl DatabasePort for DatabaseMySql {
                 }
             }
             None => {
-                log_port.error(
-                    module_path!(),
-                    "database MySQL connection options were not initialized successfully",
-                );
+                tracing::error!("database MySQL connection options were not initialized successfully");
             }
         }
     }
 
-    async fn close_pool(&self, log_port: &impl LoggingPort) {
+    async fn close_pool(&self) {
         match &self.pool {
             Some(pool) => {
                 pool.close().await;
-                log_port.info(
-                    module_path!(),
-                    "database connection pool to MySQL closed successfully",
-                );
+                tracing::info!("database connection pool to MySQL closed successfully");
             }
             None => {
-                log_port.warn(
-                    module_path!(),
-                    "database connection pool to MySQL was not initialized",
-                );
+                tracing::warn!("database connection pool to MySQL was not initialized");
             }
         }
     }

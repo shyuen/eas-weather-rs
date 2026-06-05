@@ -2,8 +2,6 @@ use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
-use crate::domain::logging::port::LoggingPort;
-use crate::domain::logging::service::LoggingService;
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
@@ -30,12 +28,8 @@ where
     }
 
     /// Log the raw configuration inputs.
-    pub fn log_raw_config_input<L>(&self, logging_serv: &LoggingService<L>)
-    where
-        L: LoggingPort,
-    {
-        let log_port = logging_serv.get_port();
-        self.port.log_raw_config_input(log_port);
+    pub fn log_raw_config_input(&self) {
+        self.port.log_raw_config_input();
     }
 
     /// Returns the raw configuration.
@@ -44,12 +38,8 @@ where
     }
 
     /// Validate the raw logging configuration.
-    pub fn log_raw_config_validation<L>(&self, logging_serv: &LoggingService<L>)
-    where
-        L: LoggingPort,
-    {
-        let log_port = logging_serv.get_port();
-        self.port.log_raw_config_validation(log_port);
+    pub fn log_raw_config_validation(&self) {
+        self.port.log_raw_config_validation();
     }
 
     /// Returns the logging configuration.

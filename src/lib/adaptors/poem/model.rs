@@ -1,6 +1,5 @@
 use crate::adaptors::poem::handlers::meta::MetaHandler;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingPort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
 use crate::domain::webserver::port::WebserverRepo;
@@ -34,45 +33,24 @@ pub enum OperationalTags {
 
 impl WebserverRepo for WebserverPoem {
     /// Create a new instance of the webserver repository with the given configuration
-    fn new(_log_port: &impl LoggingPort, _conf_webserv: &Webserver) -> Self {
+    fn new(_conf_webserv: &Webserver) -> Self {
         WebserverPoem::new()
     }
 
-    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_webserv: &Webserver) {
-        log_port.info(
-            module_path!(),
-            &format!("poem_hostname={}", conf_webserv.hostname.get()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_port={}", conf_webserv.port.get()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_base_path={}", conf_webserv.base_path.to_string()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!(
-                "poem_shutdown_timeout_secs={}",
-                conf_webserv.shutdown_timeout_secs.get()
-            ),
+    fn log_adaptor_config(&self, conf_webserv: &Webserver) {
+        tracing::info!("poem_hostname={}", conf_webserv.hostname.get());
+        tracing::info!("poem_port={}", conf_webserv.port.get());
+        tracing::info!("poem_base_path={}", conf_webserv.base_path.to_string());
+        tracing::info!(
+            "poem_shutdown_timeout_secs={}",
+            conf_webserv.shutdown_timeout_secs.get()
         );
 
-        log_port.info(
-            module_path!(),
-            &format!("poem_api_key={}", conf_webserv.api_key),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_jwt_key={}", conf_webserv.jwt_key),
-        );
-        log_port.info(
-            module_path!(),
-            &format!(
-                "poem_jwt_access_token_expiry_secs={}",
-                conf_webserv.jwt_access_token_expiry_secs.get()
-            ),
+        tracing::info!("poem_api_key={}", conf_webserv.api_key);
+        tracing::info!("poem_jwt_key={}", conf_webserv.jwt_key);
+        tracing::info!(
+            "poem_jwt_access_token_expiry_secs={}",
+            conf_webserv.jwt_access_token_expiry_secs.get()
         );
     }
 
@@ -80,7 +58,6 @@ impl WebserverRepo for WebserverPoem {
     async fn start_server(
         &self,
         config: &Webserver,
-        log_port: &impl LoggingPort,
         db_port: &impl DatabasePort,
         meta_serv: &impl MetaPort,
     ) -> Result<(), std::io::Error> {
@@ -105,10 +82,7 @@ impl WebserverRepo for WebserverPoem {
         // Construct base address for OpenAPI server
         let base_addr = format!("{}{}", &root_addr, &base_path);
 
-        log_port.info(
-            module_path!(),
-            &format!("poem server path: http://{}", &base_addr),
-        );
+        tracing::info!("poem server path: http://{}", &base_addr);
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -144,12 +118,12 @@ impl WebserverRepo for WebserverPoem {
             async move {
                 let _ = tokio::signal::ctrl_c().await;
 
-                log_port.info(module_path!(), "shutdown signal received");
-                log_port.info(module_path!(), "commencing graceful shutdown");
+                tracing::info!("shutdown signal received");
+                tracing::info!("commencing graceful shutdown");
 
                 // Perform any necessary cleanup here
                 // e.g., close database connections, flush logs, etc.
-                let _ = db_port.close_pool(*&log_port).await;
+                let _ = db_port.close_pool().await;
             },
             // Graceful shutdown timeout
             Some(Duration::from_secs(*&config.shutdown_timeout_secs.get())),

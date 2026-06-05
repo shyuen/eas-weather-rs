@@ -1,4 +1,4 @@
-use tracing::{Level, error, info, warn};
+use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::domain::logging::model::Logging;
@@ -22,7 +22,7 @@ impl LoggingTracing {
 }
 
 impl LoggingPort for LoggingTracing {
-    fn new(conf_log: &Logging) -> Self {
+    fn init(conf_log: &Logging) -> Self {
         // Map LoggingTraceLevel to tracing::Level
         let trace_level = Self::map_trace_level(&conf_log.trace_level.get());
 
@@ -32,7 +32,7 @@ impl LoggingPort for LoggingTracing {
                     .json()
                     .with_max_level(trace_level)
                     .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-                    .with_target(false)
+                    .with_target(true)
                     .init();
             }
             LoggingFormatType::Text => {
@@ -40,7 +40,7 @@ impl LoggingPort for LoggingTracing {
                     .with_ansi(true)
                     .with_max_level(trace_level)
                     .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-                    .with_target(false)
+                    .with_target(true)
                     .init();
             }
         }
@@ -50,38 +50,7 @@ impl LoggingPort for LoggingTracing {
 
     /// Log configuration that's currently set
     fn log_adaptor_config(&self, conf_log: &Logging) {
-        self.info(
-            module_path!(),
-            &format!("tracing_format={:?}", conf_log.format.to_string()),
-        );
-        self.info(
-            module_path!(),
-            &format!("tracing_trace_level={:?}", conf_log.trace_level.to_string()),
-        );
-    }
-
-    /// Log an info level message
-    fn info(&self, mod_path: &str, message: &str) {
-        info!(mod_path, "{}", message);
-    }
-
-    /// Log an error level message
-    fn error(&self, mod_path: &str, message: &str) {
-        error!(mod_path, "{}", message);
-    }
-
-    /// Log a debug level message
-    fn debug(&self, mod_path: &str, message: &str) {
-        tracing::debug!(mod_path, "{}", message);
-    }
-
-    /// Log a warn level message
-    fn warn(&self, mod_path: &str, message: &str) {
-        warn!(mod_path, "{}", message);
-    }
-
-    /// Log a trace level message
-    fn trace(&self, mod_path: &str, message: &str) {
-        tracing::trace!(mod_path, "{}", message);
+        tracing::info!("tracing_format={:?}", conf_log.format.to_string());
+        tracing::info!("tracing_trace_level={:?}", conf_log.trace_level.to_string());
     }
 }
