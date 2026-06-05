@@ -3,8 +3,6 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
-use crate::domain::logging::port::LoggingPort;
-use crate::domain::logging::service::LoggingService;
 use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
 
@@ -21,15 +19,13 @@ where
     WR: WebserverRepo,
 {
     /// Creates a new instance of WebserverService.
-    pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self
+    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
     where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_webserv = conf_serv.get_webservicer_config();
 
-        let repo = WR::new(log_port, conf_webserv);
+        let repo = WR::new(conf_webserv);
         Self { repo }
     }
 
@@ -39,37 +35,29 @@ where
     }
 
     /// Log configuration that's currently set
-    pub fn log_adaptor_config<L, C>(
-        &self,
-        log_serv: &LoggingService<L>,
-        conf_serv: &ConfigService<C>,
-    ) where
+    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
+    where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_webserver = conf_serv.get_webservicer_config();
-        self.repo.log_adaptor_config(log_port, conf_webserver);
+        self.repo.log_adaptor_config(conf_webserver);
     }
 
-    pub async fn start_server<C, D, L>(
+    pub async fn start_server<C, D>(
         &self,
         conf_serv: &ConfigService<C>,
         db_serv: &DatabaseService<D>,
-        log_serv: &LoggingService<L>,
         meta_serv: &MetaService<C>,
     ) -> Result<(), std::io::Error>
     where
-        L: LoggingPort,
         D: DatabasePort + DatabasePortAlert,
         C: ConfigPort,
     {
         let webserv_conf = conf_serv.get_webservicer_config();
         let db_port = db_serv.get_port();
-        let log_port = log_serv.get_port();
 
         self.repo
-            .start_server(webserv_conf, log_port, db_port, meta_serv)
+            .start_server(webserv_conf, db_port, meta_serv)
             .await
     }
 }

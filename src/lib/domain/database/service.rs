@@ -2,15 +2,13 @@ use crate::domain::alert::port::DatabasePortAlert;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingPort;
-use crate::domain::logging::service::LoggingService;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseService<D>
 where
     D: DatabasePort + DatabasePortAlert,
 {
-    repo: D,
+    db_port: D,
 }
 
 impl<D> DatabaseService<D>
@@ -18,50 +16,38 @@ where
     D: DatabasePort + DatabasePortAlert,
 {
     /// Creates a new instance of DatabaseService.
-    pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self
+    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
     where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_db = conf_serv.get_database_config();
 
-        let repo = D::new(log_port, conf_db);
-        Self { repo }
+        let db_port = D::new(conf_db);
+        Self { db_port }
     }
 
-    /// Get the Database repository
+    /// Get the Database port
     pub fn get_port(&self) -> &D {
-        &self.repo
+        &self.db_port
     }
 
     /// Log configuration that's currently set
-    pub fn log_adaptor_config<L, C>(
-        &self,
-        log_serv: &LoggingService<L>,
-        conf_serv: &ConfigService<C>,
-    ) where
+    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
+    where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_db = conf_serv.get_database_config();
 
-        self.repo.log_adaptor_config(log_port, conf_db);
+        self.db_port.log_adaptor_config(conf_db);
     }
 
-    pub async fn create_pool<C, L>(
-        &mut self,
-        conf_serv: &ConfigService<C>,
-        log_serv: &LoggingService<L>,
-    ) where
+    pub async fn create_pool<C>(&mut self, conf_serv: &ConfigService<C>)
+    where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_db = conf_serv.get_database_config();
         // Implementation for creating database pool goes here
 
-        self.repo.create_pool(log_port, conf_db).await;
+        self.db_port.create_pool(conf_db).await;
     }
 }

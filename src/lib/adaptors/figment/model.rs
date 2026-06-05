@@ -11,7 +11,6 @@ use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
-use crate::domain::logging::port::LoggingPort;
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
@@ -100,25 +99,19 @@ impl ConfigPort for ConfigFigment {
     }
 
     // Log debug information regarding config inputs
-    fn log_raw_config_input(&self, log_port: &impl LoggingPort) {
+    fn log_raw_config_input(&self) {
         // Log config from CLI
-        log_port.debug(
-            module_path!(),
-            &format!("configuration from {:?}", Cli::parse()),
-        );
+        tracing::debug!("configuration from {:?}", Cli::parse());
 
         // Log config from ENV
-        log_port.debug(
-            module_path!(),
-            &format!(
-                "configuration from Env {:?}",
-                env::vars()
-                    .filter(|(k, _)| k.starts_with("LOGGING__")
-                        || k.starts_with("SERVER__")
-                        || k.starts_with("DATABASE__"))
-                    .map(|(k, v)| (k.replace("__", "."), v))
-                    .collect::<Vec<_>>()
-            ),
+        tracing::debug!(
+            "configuration from Env {:?}",
+            env::vars()
+                .filter(|(k, _)| k.starts_with("LOGGING__")
+                    || k.starts_with("SERVER__")
+                    || k.starts_with("DATABASE__"))
+                .map(|(k, v)| (k.replace("__", "."), v))
+                .collect::<Vec<_>>()
         );
 
         let conf_files: Config = match Figment::new()
@@ -138,25 +131,19 @@ impl ConfigPort for ConfigFigment {
                 std::process::exit(1);
             }
         };
-        log_port.debug(
-            module_path!(),
-            &format!("configuration from Files {:?}", conf_files),
-        );
+        tracing::debug!("configuration from Files {:?}", conf_files);
 
         // Log final raw config
-        log_port.debug(
-            module_path!(),
-            &format!("final Raw Config {:?}", &self.conf_raw),
-        );
+        tracing::debug!("final Raw Config {:?}", &self.conf_raw);
     }
 
     /// Validate raw logging configuration
-    fn log_raw_config_validation(&self, log_serv: &impl LoggingPort) {
+    fn log_raw_config_validation(&self) {
         self.conf_logging
-            .validate_raw_config(log_serv, &self.conf_raw.logging);
+            .validate_raw_config(&self.conf_raw.logging);
         self.conf_database
-            .validate_raw_config(log_serv, &self.conf_raw.database);
+            .validate_raw_config(&self.conf_raw.database);
         self.conf_webserver
-            .validate_raw_config(log_serv, &self.conf_raw.webserver);
+            .validate_raw_config(&self.conf_raw.webserver);
     }
 }

@@ -1,7 +1,7 @@
 # Configuration file that shows default settings
 # By default, a `config.toml` file in the same directory will be merged with this file and override the default settings.
 # You can override this location by either using the `--config-file` parameter
-# or setting the `EAS_WEATHER__CONFIG_FILE` environment variable.
+# or setting the `APP__CONFIG_FILE` environment variable.
 
 [logging]
 format = "text"               # Log formatting ["text", "json"]

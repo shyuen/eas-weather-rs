@@ -20,7 +20,9 @@ impl IntoResponse for ApiError {
                 "Internal Server Error".to_string(),
             ),
             ApiError::NotFound => (StatusCode::NOT_FOUND, "Resource Not Found".to_string()),
-            ApiError::InvalidInput(msg) => (StatusCode::BAD_REQUEST, format!("Invalid Input: {}", msg)),
+            ApiError::InvalidInput(msg) => {
+                (StatusCode::BAD_REQUEST, format!("Invalid Input: {}", msg))
+            }
         };
 
         // Create a JSON response body containing the error message.
