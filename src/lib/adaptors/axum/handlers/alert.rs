@@ -10,6 +10,39 @@ use axum::response::IntoResponse;
 use serde_json::json;
 use tracing::error;
 
+/// Handler for GET /alerts/latest
+///
+/// Returns the latest 100 alerts from the database,
+/// ordered by sent time descending.
+pub(crate) async fn get_latest_alerts<MR, DR>(
+    State(state): State<AppState<MR, DR>>,
+) -> impl IntoResponse
+where
+    MR: MetaPort,
+    DR: DatabasePort + AlertPort,
+{
+    let alert_service = state.get_alert_service();
+
+    match alert_service.get_latest_alerts().await {
+        Ok(response) => (
+            StatusCode::OK,
+            Json(json!({
+                "count": response.alerts.len(),
+                "alerts": response.alerts,
+            })),
+        )
+            .into_response(),
+        Err(err) => {
+            error!("failed to retrieve latest alerts: {}", err);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": err.to_string() })),
+            )
+                .into_response()
+        }
+    }
+}
+
 /// Handler for GET /alerts/daily
 ///
 /// Returns the latest version of each alert sent within the last 24 hours,
