@@ -58,6 +58,16 @@ struct Webserver {
     #[arg(short = 'j', long, env = "SERVER__JWK_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwk_key_file: Option<String>,
+
+    /// Default page limit for paginated endpoints
+    #[arg(long, env = "SERVER__DEFAULT_PAGE_LIMIT")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) default_page_limit: Option<u64>,
+
+    /// Maximum page limit for paginated endpoints
+    #[arg(long, env = "SERVER__PAGE_LIMIT_MAX")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) page_limit_max: Option<u64>,
 }
 
 #[derive(Debug, Parser, Serialize)]

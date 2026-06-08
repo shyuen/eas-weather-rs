@@ -38,12 +38,20 @@ where
     }
 
     /// Retrieve the latest alerts sent within the last 24 hours from the database.
-    pub async fn get_daily_alerts(&self) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
-        self.db_port.get_daily_alerts_data().await
+    pub async fn get_daily_alerts(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
+        self.db_port.get_daily_alerts_data(limit, offset).await
     }
 
-    /// Retrieve the latest 100 alerts from the database.
-    pub async fn get_latest_alerts(&self) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
-        self.db_port.get_latest_alerts_data().await
+    /// Retrieve the latest alerts from the database.
+    pub async fn get_latest_alerts(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
+        self.db_port.get_latest_alerts_data(limit, offset).await
     }
 }

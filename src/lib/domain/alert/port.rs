@@ -6,21 +6,27 @@ pub trait AlertPort: Clone + Send + Sync + 'static {
     // Get alerts within 24 hours
     fn get_daily_alerts_data(
         &self,
+        limit: u64,
+        offset: u64,
     ) -> impl Future<Output = Result<GetDailyAlertsResponse, GetDailyAlertsError>> + Send;
 
-    // Get the latest 100 alerts
+    // Get the latest alerts
     fn get_latest_alerts_data(
         &self,
+        limit: u64,
+        offset: u64,
     ) -> impl Future<Output = Result<GetLatestAlertsResponse, GetLatestAlertsError>> + Send;
 }
 
 // Daily Alerts
 pub struct GetDailyAlertsResponse {
     pub alerts: Vec<Alert>,
+    pub total: u64,
 }
 // Latest Alerts
 pub struct GetLatestAlertsResponse {
     pub alerts: Vec<Alert>,
+    pub total: u64,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum GetLatestAlertsError {

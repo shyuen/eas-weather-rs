@@ -1,3 +1,6 @@
 [logging]
 format = "text"               # Log formatting ["text", "json"]
 trace_level = "info"          # Log level ["error", "warn", "info", "debug", "trace"]
+
+[webserver]
+default_page_limit = 10    # Default page size for paginated endpoints
