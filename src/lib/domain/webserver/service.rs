@@ -1,8 +1,8 @@
-use crate::domain::alert::port::DatabasePortAlert;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::database::service::DatabaseService;
 use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
 
@@ -46,18 +46,17 @@ where
     pub async fn start_server<C, D>(
         &self,
         conf_serv: &ConfigService<C>,
-        db_serv: &DatabaseService<D>,
+        alert_serv: &AlertService<D>,
         meta_serv: &MetaService<C>,
     ) -> Result<(), std::io::Error>
     where
-        D: DatabasePort + DatabasePortAlert,
+        D: DatabasePort + AlertPort,
         C: ConfigPort,
     {
         let webserv_conf = conf_serv.get_webservicer_config();
-        let db_port = db_serv.get_port();
 
         self.repo
-            .start_server(webserv_conf, db_port, meta_serv)
+            .start_server(webserv_conf, alert_serv, meta_serv)
             .await
     }
 }

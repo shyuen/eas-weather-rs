@@ -52,6 +52,6 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Start Web Server
     webserver_service
-        .start_server(&conf_service, &database_service, &meta_service)
+        .start_server(&conf_service, &alert_service, &meta_service)
         .await
 }

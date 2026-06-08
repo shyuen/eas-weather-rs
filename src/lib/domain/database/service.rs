@@ -1,4 +1,4 @@
-use crate::domain::alert::port::DatabasePortAlert;
+use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
@@ -6,14 +6,14 @@ use crate::domain::database::port::DatabasePort;
 #[derive(Debug, Clone)]
 pub struct DatabaseService<D>
 where
-    D: DatabasePort + DatabasePortAlert,
+    D: DatabasePort + AlertPort,
 {
     db_port: D,
 }
 
 impl<D> DatabaseService<D>
 where
-    D: DatabasePort + DatabasePortAlert,
+    D: DatabasePort + AlertPort,
 {
     /// Creates a new instance of DatabaseService.
     pub fn new<C>(conf_serv: &ConfigService<C>) -> Self

@@ -1,4 +1,5 @@
 use crate::adaptors::axum::app_state::AppState;
+use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 
@@ -13,7 +14,7 @@ pub(crate) async fn get_raw_app_config<MR, DR>(
 ) -> impl IntoResponse
 where
     MR: MetaPort,
-    DR: DatabasePort,
+    DR: DatabasePort + AlertPort,
 {
     let raw_conf = state.get_meta_port().get_raw_config_data();
 
@@ -28,7 +29,7 @@ pub(crate) async fn get_app_config<MR, DR>(
 ) -> impl IntoResponse
 where
     MR: MetaPort,
-    DR: DatabasePort,
+    DR: DatabasePort + AlertPort,
 {
     let conf = state.get_meta_port().get_conf();
 

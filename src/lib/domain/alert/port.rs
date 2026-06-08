@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use crate::domain::alert::model::Alert;
 
-pub trait DatabasePortAlert: Clone + Send + Sync + 'static {
+pub trait AlertPort: Clone + Send + Sync + 'static {
     // Get alerts within 24 hours
     fn get_daily_alerts_data(
         &self,
