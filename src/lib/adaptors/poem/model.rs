@@ -1,4 +1,6 @@
 use crate::adaptors::poem::handlers::meta::MetaHandler;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
@@ -56,12 +58,15 @@ impl WebserverRepo for WebserverPoem {
     }
 
     //async fn start_server<'a>(
-    async fn start_server(
+    async fn start_server<D>(
         &self,
         config: &Webserver,
-        db_port: &impl DatabasePort,
+        alert_service: &AlertService<D>,
         meta_serv: &impl MetaPort,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), std::io::Error>
+    where
+        D: DatabasePort + AlertPort,
+    {
         // Construct root address
         let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
 
@@ -107,6 +112,9 @@ impl WebserverRepo for WebserverPoem {
             .nest("/", main_paths)
             .nest(format!("{}/docs", &base_path), ui)
             .data(app_state.clone()); // Pass meta_service to the routes, requires EndpointExt
+
+        // Database port for graceful shutdown is sourced from the alert service.
+        let db_port = alert_service.get_db_port().clone();
 
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(

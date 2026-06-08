@@ -9,6 +9,7 @@ use crate::domain::alert::new_types::alert_status::AlertStatus;
 
 /// Complete alert structure.
 /// See https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2.html for reference.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Alert {
     identifier: AlertIdentifier,
     sender: AlertSender,

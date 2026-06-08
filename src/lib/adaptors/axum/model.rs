@@ -5,6 +5,8 @@ use tokio::signal;
 use tracing::info;
 
 use crate::adaptors::axum::routes::create_routes;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
@@ -71,14 +73,20 @@ impl WebserverRepo for WebserverAxum {
         info!("axum_jwt_key={}", conf_webserv.jwt_key.to_string());
     }
 
-    async fn start_server(
+    async fn start_server<D>(
         &self,
         config: &Webserver,
-        db_port: &impl DatabasePort,
+        alert_service: &AlertService<D>,
         meta_port: &impl MetaPort,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), std::io::Error>
+    where
+        D: DatabasePort + AlertPort,
+    {
+        // Database port for graceful shutdown is sourced from the alert service.
+        let db_port = alert_service.get_db_port().clone();
+
         // Create the application state with the necessary services
-        let state = AppState::new(meta_port.clone(), db_port.clone());
+        let state = AppState::new(meta_port.clone(), alert_service.clone());
 
         // Create the Axum application with the defined routes and state
         let app = create_routes().with_state(state);
@@ -91,7 +99,7 @@ impl WebserverRepo for WebserverAxum {
 
         // Start the Axum server
         axum::serve(listener, app)
-            .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port.clone()))
+            .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port))
             .await
     }
 }

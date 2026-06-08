@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// The text identifying the source of the alert message (OPTIONAL)
 /// The particular source of this alert; e.g., an operator or a specific device.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertSource(Option<String>);
 
 #[derive(Error, Debug)]

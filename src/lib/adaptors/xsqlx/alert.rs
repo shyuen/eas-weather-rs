@@ -9,7 +9,7 @@ use crate::domain::alert::new_types::alert_sender::AlertSender;
 use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
-use crate::domain::alert::port::DatabasePortAlert;
+use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::port::{GetDailyAlertsError, GetDailyAlertsResponse};
 
 use sqlx::FromRow;
@@ -63,7 +63,7 @@ pub struct MySqlAlert {
     pub references: Option<String>,
 }
 
-impl DatabasePortAlert for DatabaseMySql {
+impl AlertPort for DatabaseMySql {
     async fn get_daily_alerts_data(&self) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
         match self.get_pool() {
             Some(pool) => {
