@@ -13,6 +13,8 @@ use crate::domain::webserver::new_types::ws_jwt_access_token_expiry_secs::Webser
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKey;
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
 use crate::domain::webserver::new_types::ws_port::WebserverPort;
+use crate::domain::webserver::new_types::ws_default_page_limit::WebserverDefaultPageLimit;
+use crate::domain::webserver::new_types::ws_page_limit_max::WebserverPageLimitMax;
 use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +31,9 @@ pub struct Webserver {
     #[serde(serialize_with = "serialize_with_display")]
     pub jwt_key: WebserverJwtKey,
     pub jwt_access_token_expiry_secs: WebserverJwtAccessTokenExpirySecs,
+
+    pub default_page_limit: WebserverDefaultPageLimit,
+    pub page_limit_max: WebserverPageLimitMax,
 }
 
 impl Webserver {
@@ -126,6 +131,30 @@ impl Webserver {
             None => WebserverJwtAccessTokenExpirySecs::default(),
         };
 
+        let default_page_limit = match &conf.default_page_limit {
+            Some(raw) => {
+                WebserverDefaultPageLimit::new(raw).unwrap_or_else(|err| match &err {
+                    _ => {
+                        eprintln!("uncaught WebserverDefaultPageLimitError");
+                        std::process::exit(1);
+                    }
+                })
+            }
+            None => WebserverDefaultPageLimit::default(),
+        };
+
+        let page_limit_max = match &conf.page_limit_max {
+            Some(raw) => {
+                WebserverPageLimitMax::new(raw).unwrap_or_else(|err| match &err {
+                    _ => {
+                        eprintln!("uncaught WebserverPageLimitMaxError");
+                        std::process::exit(1);
+                    }
+                })
+            }
+            None => WebserverPageLimitMax::default(),
+        };
+
         Webserver {
             hostname,
             port,
@@ -134,6 +163,8 @@ impl Webserver {
             api_key,
             jwt_key,
             jwt_access_token_expiry_secs,
+            default_page_limit,
+            page_limit_max,
         }
     }
 
@@ -297,6 +328,50 @@ impl Webserver {
                 warn!(
                     "config webserver jwt access token expiry secs was not specified, setting to `{}`",
                     WebserverJwtAccessTokenExpirySecs::default()
+                );
+            }
+        }
+
+        match &raw_ws_conf.default_page_limit {
+            Some(raw) => {
+                if let Err(err) = WebserverDefaultPageLimit::new(raw) {
+                    match &err {
+                        _ => {
+                            warn!(
+                                "config webserver default_page_limit of invalid value `{}`, setting to `{}`",
+                                raw,
+                                WebserverDefaultPageLimit::default()
+                            );
+                        }
+                    }
+                }
+            }
+            None => {
+                warn!(
+                    "config webserver default_page_limit was not specified, setting to `{}`",
+                    WebserverDefaultPageLimit::default()
+                );
+            }
+        }
+
+        match &raw_ws_conf.page_limit_max {
+            Some(raw) => {
+                if let Err(err) = WebserverPageLimitMax::new(raw) {
+                    match &err {
+                        _ => {
+                            warn!(
+                                "config webserver page_limit_max of invalid value `{}`, setting to `{}`",
+                                raw,
+                                WebserverPageLimitMax::default()
+                            );
+                        }
+                    }
+                }
+            }
+            None => {
+                warn!(
+                    "config webserver page_limit_max was not specified, setting to `{}`",
+                    WebserverPageLimitMax::default()
                 );
             }
         }

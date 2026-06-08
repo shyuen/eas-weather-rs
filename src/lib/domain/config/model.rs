@@ -43,4 +43,7 @@ pub struct ConfigWebserver {
 
     pub jwt_key_file: Option<String>,
     pub jwt_access_token_expiry_secs: Option<u64>,
+
+    pub default_page_limit: Option<u64>,
+    pub page_limit_max: Option<u64>,
 }

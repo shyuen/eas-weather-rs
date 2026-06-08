@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::get;
 
 use crate::adaptors::axum::app_state::AppState;
-use crate::adaptors::axum::handlers::alert::{get_daily_alerts, get_latest_alerts};
+use crate::adaptors::axum::handlers::alert::{get_alerts, get_daily_alerts};
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::handlers::test::{get_user, list_error};
@@ -60,6 +60,6 @@ where
     DR: DatabasePort + AlertPort,
 {
     Router::new()
+        .route("/", get(get_alerts))
         .route("/daily", get(get_daily_alerts))
-        .route("/latest", get(get_latest_alerts))
 }
