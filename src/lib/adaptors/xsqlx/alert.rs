@@ -10,7 +10,9 @@ use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::AlertPort;
-use crate::domain::alert::port::{GetDailyAlertsError, GetDailyAlertsResponse};
+use crate::domain::alert::port::{
+    GetDailyAlertsError, GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse,
+};
 
 use sqlx::FromRow;
 use time::OffsetDateTime;
@@ -167,6 +169,81 @@ impl AlertPort for DatabaseMySql {
             )),
         }
     }
+
+    async fn get_latest_alerts_data(
+        &self,
+    ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| {
+                    GetLatestAlertsError::DatabaseConnectionError(format!(
+                        "failed to begin database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                match sqlx::query_as::<_, MySqlAlert>(
+                    r#"
+                    SELECT
+                        `identifier`,
+                        `sender`,
+                        `sent`,
+                        `status`,
+                        `msgtype`,
+                        `source`,
+                        `scope`,
+                        `references`
+                    FROM
+                        Alerts
+                    ORDER BY
+                        `sent` DESC
+                    LIMIT
+                        100
+                    "#,
+                )
+                .fetch_all(&mut *tx)
+                .await
+                {
+                    Ok(alert_items) => {
+                        tx.commit().await.map_err(|e| {
+                            GetLatestAlertsError::DatabaseConnectionError(format!(
+                                "failed to commit database transaction: {}",
+                                e
+                            ))
+                        })?;
+
+                        let alerts: Result<Vec<_>, _> = alert_items
+                            .into_iter()
+                            .map(|mysql_alert| Alert::try_from(mysql_alert))
+                            .collect();
+
+                        match alerts {
+                            Ok(alerts) => Ok(GetLatestAlertsResponse { alerts }),
+                            Err(errors) => {
+                                let error_msg = errors.join("; ");
+                                Err(GetLatestAlertsError::DataConversionError(error_msg))
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tx.commit().await.map_err(|e| {
+                            GetLatestAlertsError::DatabaseConnectionError(format!(
+                                "failed to commit database transaction: {}",
+                                e
+                            ))
+                        })?;
+                        Err(GetLatestAlertsError::DatabaseConnectionError(format!(
+                            "failed to retrieve alert items: {}",
+                            e
+                        )))
+                    }
+                }
+            }
+            None => Err(GetLatestAlertsError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
 }
 
 /// Implement TryFrom to convert MySqlAlert to Alert, handling potential conversion errors
@@ -216,7 +293,7 @@ impl TryFrom<MySqlAlert> for Alert {
             ));
         }
 
-        let source = AlertSource::new(&serde_json::to_string(&mysql_alert.source).unwrap());
+        let source = AlertSource::new(&mysql_alert.source.unwrap_or_default());
         if source.is_err() {
             errors.push(format!(
                 "failed to create AlertSource from MySqlAlert: {:?}",
@@ -233,22 +310,25 @@ impl TryFrom<MySqlAlert> for Alert {
         }
 
         // Create AlertReferences from space-separated ExtendedMessageIdentifiers
-        let references_string = serde_json::to_string(&mysql_alert.references).unwrap();
-        let references_raw: Vec<&str> = references_string.split(' ').collect();
-        let mut ext_msg_idents = Vec::new();
-
-        for ext_msg_ident in &references_raw {
-            let alert_ref = ExtendedMessageIdentifier::new(ext_msg_ident);
-            if alert_ref.is_err() {
-                errors.push(format!(
-                    "failed to create ExtendedMessageIdentifier from MySqlAlert references: {:?}",
-                    alert_ref.err()
-                ));
-                break;
-            } else {
-                ext_msg_idents.push(alert_ref.unwrap());
+        let ext_msg_idents = match &mysql_alert.references {
+            Some(refs) if !refs.is_empty() => {
+                let mut idents = Vec::new();
+                for raw in refs.split(' ') {
+                    match ExtendedMessageIdentifier::new(raw) {
+                        Ok(ident) => idents.push(ident),
+                        Err(e) => {
+                            errors.push(format!(
+                                "failed to create ExtendedMessageIdentifier: {:?}",
+                                e
+                            ));
+                            break;
+                        }
+                    }
+                }
+                idents
             }
-        }
+            _ => Vec::new(),
+        };
         if !errors.is_empty() {
             return Err(errors);
         }

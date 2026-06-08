@@ -4,3 +4,5 @@ conf/config.toml
 result
 db_password*
 mysql_conn_url
+mysql_conn_url_bk
+.mysql_data
