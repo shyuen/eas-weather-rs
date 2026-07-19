@@ -451,6 +451,7 @@ dependencies = [
  "dotenv",
  "figment",
  "figment_file_env_provider",
+ "http-body-util",
  "poem",
  "poem-openapi",
  "serde",

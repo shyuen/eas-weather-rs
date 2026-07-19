@@ -30,6 +30,9 @@ async fn main() -> Result<(), std::io::Error> {
     // Output dataase adaptor configuration
     database_service.log_adaptor_config(&conf_service);
 
+    // Show the raw configuration in the logs after logging service is initialized
+    //conf_service.emit_raw_config(&logging_service);
+
     // Initialize database connection pool within the service
     database_service.create_pool(&conf_service).await;
 
