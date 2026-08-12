@@ -1,11 +1,10 @@
 use serde_derive::{Deserialize, Serialize};
-use tracing::warn;
 
 use crate::domain::config::model::ConfigLogging;
-use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatError};
-use crate::domain::logging::new_types::lg_trace_level::{
-    LoggingTraceLevel, LoggingTraceLevelError,
-};
+use crate::domain::logging::new_types::lg_format::LoggingFormat;
+use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevel;
+use crate::warn_config_invalid;
+use crate::warn_config_not_specified;
 
 /// Configuration for logging.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,57 +48,31 @@ impl Logging {
     pub fn validate_raw_config(&self, raw_log_conf: &ConfigLogging) {
         match &raw_log_conf.format {
             Some(raw_log_format) => {
-                if let Err(err) = LoggingFormat::new(&raw_log_format) {
-                    match &err {
-                        LoggingFormatError::EmptyType(_) => {
-                            warn!(
-                                "config logging format type is empty, setting to `{}`",
-                                LoggingFormat::default()
-                            );
-                        }
-                        LoggingFormatError::UnknownFormat(_) => {
-                            warn!(
-                                "config logging format of unknown type `{}`, setting value to `{}`",
-                                raw_log_format,
-                                LoggingFormat::default()
-                            );
-                        }
-                    }
+                if LoggingFormat::new(raw_log_format).is_err() {
+                    warn_config_invalid!(
+                        "logging.format",
+                        raw_log_format,
+                        LoggingFormat::default()
+                    );
                 }
             }
             None => {
-                warn!(
-                    "config logging format was not specified, setting value to `{}`",
-                    LoggingFormat::default()
-                );
+                warn_config_not_specified!("logging.format", LoggingFormat::default());
             }
         }
 
         match &raw_log_conf.trace_level {
             Some(raw_trace_level) => {
-                if let Err(err) = LoggingTraceLevel::new(&raw_trace_level) {
-                    match &err {
-                        LoggingTraceLevelError::EmptyTraceLevel(_) => {
-                            warn!(
-                                "config logging trace level is empty, setting to `{}`",
-                                LoggingTraceLevel::default()
-                            );
-                        }
-                        LoggingTraceLevelError::UnknownTraceLevel(_) => {
-                            warn!(
-                                "config logging trace level of unknown type `{}`, setting value to `{}`",
-                                raw_trace_level,
-                                LoggingTraceLevel::default()
-                            );
-                        }
-                    }
+                if LoggingTraceLevel::new(raw_trace_level).is_err() {
+                    warn_config_invalid!(
+                        "logging.trace_level",
+                        raw_trace_level,
+                        LoggingTraceLevel::default(),
+                    );
                 }
             }
             None => {
-                warn!(
-                    "config logging trace level was not specified, setting value to `{}`",
-                    LoggingTraceLevel::default()
-                );
+                warn_config_not_specified!("logging.trace_level", LoggingTraceLevel::default());
             }
         }
     }
