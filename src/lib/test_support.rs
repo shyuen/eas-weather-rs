@@ -243,6 +243,84 @@ impl AlertPort for FailingDb {
     }
 }
 
+/// `DatabasePort + AlertPort` double whose `create_pool` fails with a
+/// configurable error a configurable number of times before succeeding.
+#[derive(Clone)]
+pub struct FlakyDb {
+    connect_failures_remaining: std::sync::Arc<std::sync::atomic::AtomicU32>,
+    connect_error: DatabaseConnectError,
+}
+
+impl FlakyDb {
+    /// A pool that fails `create_pool` `failures` times (with `error`) before succeeding.
+    pub fn new(failures: u32, error: DatabaseConnectError) -> Self {
+        FlakyDb {
+            connect_failures_remaining: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(
+                failures,
+            )),
+            connect_error: error,
+        }
+    }
+}
+
+impl DatabasePort for FlakyDb {
+    fn new(_conf: &Database) -> Self {
+        FlakyDb::new(0, DatabaseConnectError::Retryable("flaky".into()))
+    }
+    fn create_pool(&mut self) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
+        let remaining = self
+            .connect_failures_remaining
+            .load(std::sync::atomic::Ordering::SeqCst);
+        let result = if remaining > 0 {
+            self.connect_failures_remaining
+                .store(remaining - 1, std::sync::atomic::Ordering::SeqCst);
+            Err(self.connect_error.clone())
+        } else {
+            Ok(())
+        };
+        async move { result }
+    }
+    fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
+        async { Ok(()) }
+    }
+}
+
+impl AdaptorConfigRepr for FlakyDb {
+    fn adaptor_name(&self) -> &'static str {
+        "flaky_db"
+    }
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
+        vec![]
+    }
+}
+
+impl AlertPort for FlakyDb {
+    fn get_latest_alerts_data(
+        &self,
+        _l: u64,
+        _o: u64,
+    ) -> impl Future<Output = Result<GetLatestAlertsResponse, GetLatestAlertsError>> + Send {
+        async move {
+            Ok(GetLatestAlertsResponse {
+                alerts: vec![],
+                total: 42,
+            })
+        }
+    }
+    fn get_daily_alerts_data(
+        &self,
+        _l: u64,
+        _o: u64,
+    ) -> impl Future<Output = Result<GetDailyAlertsResponse, GetDailyAlertsError>> + Send {
+        async move {
+            Ok(GetDailyAlertsResponse {
+                alerts: vec![],
+                total: 42,
+            })
+        }
+    }
+}
+
 /// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
 /// `AlertService` over the supplied `D: DatabasePort + AlertPort` double.
 pub fn build_state<D>(meta: MockMeta) -> crate::adaptors::axum::app_state::AppState<MockMeta, D>
