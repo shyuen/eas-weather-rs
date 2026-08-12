@@ -1,8 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::signal;
-use tracing::info;
 
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
@@ -10,7 +10,7 @@ use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
-use crate::domain::webserver::model::Webserver;
+use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverRepo;
 
 #[derive(Debug, Clone)]
@@ -24,8 +24,54 @@ impl WebserverAxum {
             config: conf_webserv,
         }
     }
+}
 
-    async fn shutdown_signal(db_port: impl DatabasePort) {
+impl WebserverRepo for WebserverAxum {
+    /// Create a new instance of the webserver repository with the given configuration
+    fn new(conf_webserv: &Webserver) -> Self {
+        WebserverAxum::new(conf_webserv.clone())
+    }
+
+    async fn start_server<D>(
+        &self,
+        config: &Webserver,
+        alert_service: &AlertService<D>,
+        meta_port: &impl MetaPort,
+    ) -> Result<ShutdownReason, std::io::Error>
+    where
+        D: DatabasePort + AlertPort,
+    {
+        // Database port for graceful shutdown is sourced from the alert service.
+        let db_port = alert_service.get_db_port().clone();
+
+        // Create the application state with the necessary services
+        let state = AppState::new(meta_port.clone(), alert_service.clone());
+
+        // Create the Axum application with the defined routes and state
+        let app = create_routes().with_state(state);
+
+        let addr = format!("{}:{}", config.hostname.get(), config.port.get());
+
+        // Shared handle so shutdown_signal can record why we stopped.
+        let shutdown_reason = Arc::new(Mutex::new(ShutdownReason::Stopped));
+
+        // Start listening to the TCP port
+        let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+
+        // Start the Axum server
+        axum::serve(listener, app)
+            .with_graceful_shutdown(WebserverAxum::shutdown_signal(
+                db_port,
+                shutdown_reason.clone(),
+            ))
+            .await?;
+
+        Ok(*shutdown_reason.lock().unwrap())
+    }
+}
+
+impl WebserverAxum {
+    async fn shutdown_signal(db_port: impl DatabasePort, reason: Arc<Mutex<ShutdownReason>>) {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -45,54 +91,15 @@ impl WebserverAxum {
 
         tokio::select! {
             _ = ctrl_c => {
-                info!("ctrl_c received");
+                *reason.lock().unwrap() = ShutdownReason::CtrlC;
             },
             _ = terminate => {
-                info!("terminate signal received");
+                *reason.lock().unwrap() = ShutdownReason::Terminate;
             },
         }
 
         // Perform other tasks as necessary
         let _ = db_port.close_pool().await; // Close DB connection pool
-
-        info!("goodbye from axum");
-    }
-}
-
-impl WebserverRepo for WebserverAxum {
-    /// Create a new instance of the webserver repository with the given configuration
-    fn new(conf_webserv: &Webserver) -> Self {
-        WebserverAxum::new(conf_webserv.clone())
-    }
-
-    async fn start_server<D>(
-        &self,
-        config: &Webserver,
-        alert_service: &AlertService<D>,
-        meta_port: &impl MetaPort,
-    ) -> Result<(), std::io::Error>
-    where
-        D: DatabasePort + AlertPort,
-    {
-        // Database port for graceful shutdown is sourced from the alert service.
-        let db_port = alert_service.get_db_port().clone();
-
-        // Create the application state with the necessary services
-        let state = AppState::new(meta_port.clone(), alert_service.clone());
-
-        // Create the Axum application with the defined routes and state
-        let app = create_routes().with_state(state);
-
-        let addr = format!("{}:{}", config.hostname.get(), config.port.get());
-        info!("starting axum server at {}", addr);
-
-        // Start listening to the TCP port
-        let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-
-        // Start the Axum server
-        axum::serve(listener, app)
-            .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port))
-            .await
     }
 }
 
@@ -129,58 +136,3 @@ pub struct GetMetaHttpRequestBody {
 pub struct GetMetaResponseData {
     id: String,
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use axum::http::StatusCode;
-//     use axum::{body::Body, http::Request};
-//     use tower::util::ServiceExt;
-
-//     use axum::{Router, response::IntoResponse, routing::get};
-
-//     use super::*;
-
-//     #[tokio::test]
-//     async fn test_health_check() {
-//         //let app = create_app();
-//         let app = Router::new()
-//             //.route("/health", get(health_check))
-//             .route("/users", get(list_users))
-//             .route("/user/{:id}", get(get_user));
-
-//         let request = Request::builder()
-//             .uri("/health")
-//             .body(Body::empty())
-//             .unwrap();
-
-//         // Oneshot comes from the tower trait
-//         let response = app.oneshot(request).await.unwrap();
-
-//         assert_eq!(response.status(), StatusCode::OK);
-
-//         //let body = response.collect().await.unwrap();
-
-//         // let json: Value = serde_json::from_str(body).unwrap();
-
-//         // assert_eq!(json["status"], "ok");
-//         // assert_eq!(json["message"], "server is running");
-//     }
-
-//     #[tokio::test]
-//     async fn test_api_error_into_response() {
-//         let test_cases = vec![
-//             (ApiError::NotFound, StatusCode::NOT_FOUND),
-//             (
-//                 ApiError::InvalidInput("bad data".to_string()),
-//                 StatusCode::BAD_REQUEST,
-//             ),
-//             (ApiError::InternalError, StatusCode::INTERNAL_SERVER_ERROR),
-//         ];
-
-//         for (error, expected_status) in test_cases {
-//             let response = error.into_response();
-
-//             assert_eq!(response.status(), expected_status);
-//         }
-//     }
-// }

@@ -4,6 +4,7 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::service::MetaService;
+use crate::domain::webserver::model::ShutdownReason;
 use crate::domain::webserver::port::WebserverRepo;
 use tracing::{debug, error, info};
 
@@ -48,13 +49,27 @@ where
         let webserv_conf = conf_serv.get_webservicer_config();
 
         debug!("start_server: starting server");
+        info!(
+            "start_server: starting {} server at {}:{}",
+            self.repo.adaptor_name(),
+            webserv_conf.hostname.get(),
+            webserv_conf.port.get()
+        );
         match self
             .repo
             .start_server(webserv_conf, alert_serv, meta_serv)
             .await
         {
-            Ok(()) => {
-                info!("start_server: server started successfully");
+            Ok(reason) => {
+                match reason {
+                    ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),
+                    ShutdownReason::Terminate => {
+                        info!("start_server: received terminate signal, shutting down")
+                    }
+                    ShutdownReason::Stopped => {
+                        info!("start_server: server stopped")
+                    }
+                }
                 Ok(())
             }
             Err(err) => {
