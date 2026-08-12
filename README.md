@@ -39,10 +39,35 @@ cargo test
 ### Priority Configuration Order
 The configuration is loaded in the following order, with later values overriding earlier ones:
 1. Default toml Configuration file (e.g., `default.toml`)
-1. Configuration file specified by the `APP_CONFIG_FILE` environment variable (e.g. `config.toml`)
+1. Configuration file specified by the `EAS_WEATHER_RS__APP__CONFIG_FILE` environment variable (e.g. `config.toml`)
 1. Environment variable file (e.g., `.env`)
-1. Environment variables (e.g., `APP__LOG_FORMAT`)
+1. Environment variables (e.g., `EAS_WEATHER_RS__LOGGING__FORMAT`)
 1. Command line arguments (e.g., `--log-format`)
+
+### Environment Variables
+All environment variables share the `EAS_WEATHER_RS` base prefix (derived from the package name `eas-weather-rs`), followed by a section, then the key — each part separated by `__`. This is the same naming shown in `cargo run -- --help` next to each flag (e.g. `[env: EAS_WEATHER_RS__SERVER__PORT=]`). Any value may also be set via the `.env` file (see below).
+
+The prefixes are:
+- `EAS_WEATHER_RS__APP__` — application-level settings (e.g. `EAS_WEATHER_RS__APP__CONFIG_FILE`)
+- `EAS_WEATHER_RS__LOGGING__` — logging (`EAS_WEATHER_RS__LOGGING__FORMAT`, `EAS_WEATHER_RS__LOGGING__TRACE_LEVEL`)
+- `EAS_WEATHER_RS__SERVER__` — web server (`EAS_WEATHER_RS__SERVER__HOSTNAME`, `EAS_WEATHER_RS__SERVER__PORT`, ...)
+- `EAS_WEATHER_RS__DATABASE__` — database (`EAS_WEATHER_RS__DATABASE__CONN_URL_FILE`, `EAS_WEATHER_RS__DATABASE__CONN_MAX_RETRIES`, ...)
+
+Example:
+```bash
+export EAS_WEATHER_RS__SERVER__PORT=8080
+export EAS_WEATHER_RS__LOGGING__FORMAT="json"
+```
+
+**Secrets are paths, never inline values:** database connection string, API key, and JWT key come from the files referenced by their respective `*_file` env vars / config keys (e.g. `EAS_WEATHER_RS__DATABASE__CONN_URL_FILE`), and are masked in logs.
+
+**.env file:** a `.env` file in the project root can set any of these variables. It uses the same keys without the leading `export`:
+```
+EAS_WEATHER_RS__SERVER__HOSTNAME="localhost"
+EAS_WEATHER_RS__LOGGING__FORMAT="json"
+```
+
+The defaults for every key are defined in `config/default.toml`.
 
 ### Logging
 https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/

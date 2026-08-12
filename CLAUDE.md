@@ -59,9 +59,9 @@ Config is layered via `figment`, with **later sources overriding earlier** — i
 
 1. Code defaults (newtype `default()`)
 2. `config/default.toml`
-3. Selected config file (`config/config.toml`, or path from `--config-file` / `APP__CONFIG_FILE`)
+3. Selected config file (`config/config.toml`, or path from `--config-file` / `EAS_WEATHER_RS__APP__CONFIG_FILE`)
 4. `.env` file
-5. Environment variables — prefixes: `APP__` (general), `LOGGING__`, `SERVER__`, `DATABASE__`, split on `__` into nested keys (e.g. `SERVER__PORT`)
+5. Environment variables — base prefix `EAS_WEATHER_RS` (crate name, hyphens → underscores) + section, e.g. `EAS_WEATHER_RS__LOGGING__FORMAT`, `EAS_WEATHER_RS__SERVER__PORT`, `EAS_WEATHER_RS__DATABASE__CONN_MAX_RETRIES`, split on `__` into nested keys
 6. CLI arguments (highest priority)
 
 Secrets are loaded **from file paths**, not inline: the DB connection string comes from the file at `conn_url_file` (default `./config/mysql_conn_url`), and the API key / JWT key from their respective `*_file` paths. Config loading errors call `std::process::exit(1)` (planned exit) rather than panicking.
