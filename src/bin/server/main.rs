@@ -34,13 +34,12 @@ async fn main() -> Result<(), std::io::Error> {
     //conf_service.emit_raw_config(&logging_service);
 
     // Initialize database connection pool within the service
-    database_service.create_pool().await;
+    if let Err(err) = database_service.create_pool().await {
+        tracing::error!(error = %err, "create_pool: failed to establish database connection");
+        std::process::exit(1);
+    }
 
-    // TODO: Initialize other services (e.g., weather data service, API service, etc.)
-
-    // TODO: Start server to listen for incoming requests
-    // let webserver_service: WebserverService<WebserverPoem> =
-    //     WebserverService::new(&conf_service);
+    // Start server to listen for incoming requests
     let webserver_service: WebserverService<WebserverAxum> = WebserverService::new(&conf_service);
 
     // Output webserver adaptor configuration
