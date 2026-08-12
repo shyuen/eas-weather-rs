@@ -33,7 +33,7 @@ where
         &self.db_port
     }
 
-    pub async fn create_pool(&mut self) {
+    pub async fn create_pool(&mut self) -> Result<(), DatabaseConnectError> {
         let max_retries = self.conf.conn_max_retries.get();
         let mut current_backoff = self.conf.conn_retry_init_delay_secs.get();
 
@@ -49,11 +49,11 @@ where
                         attempt,
                         "create_pool: database connection pool created successfully"
                     );
-                    return;
+                    return Ok(());
                 }
                 Err(DatabaseConnectError::Fatal(msg)) => {
                     error!(attempt, error = %msg, "create_pool: fatal error; aborting");
-                    return;
+                    return Err(DatabaseConnectError::Fatal(msg));
                 }
                 Err(DatabaseConnectError::Retryable(msg)) => {
                     if attempt == max_retries {
@@ -63,7 +63,7 @@ where
                             error = %msg,
                             "create_pool: connection retries exhausted"
                         );
-                        return;
+                        return Err(DatabaseConnectError::Retryable(msg));
                     }
                     warn!(
                         attempt,
@@ -78,6 +78,11 @@ where
                 }
             }
         }
+
+        // max_retries == 0 means no connection attempt is made.
+        Err(DatabaseConnectError::Retryable(
+            "create_pool: conn_max_retries is 0; no connection attempted".to_string(),
+        ))
     }
 
     /// Close the database connection pool.
