@@ -32,3 +32,38 @@ impl WebserverBasePath {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_path() {
+        assert_eq!(
+            WebserverBasePath::new("/api").unwrap(),
+            WebserverBasePath(Some("/api".to_string()))
+        );
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        assert_eq!(
+            WebserverBasePath::new(" /api ").unwrap(),
+            WebserverBasePath(Some("/api".to_string()))
+        );
+    }
+
+    #[test]
+    fn empty_path_becomes_none() {
+        assert_eq!(WebserverBasePath::new("").unwrap(), WebserverBasePath(None));
+        assert_eq!(
+            WebserverBasePath::new("  ").unwrap(),
+            WebserverBasePath(None)
+        );
+    }
+
+    #[test]
+    fn defaults_to_none() {
+        assert_eq!(WebserverBasePath::default(), WebserverBasePath(None));
+    }
+}

@@ -460,6 +460,7 @@ dependencies = [
  "sqlx",
  "strum",
  "strum_macros",
+ "tempfile",
  "thiserror",
  "time",
  "tokio",
