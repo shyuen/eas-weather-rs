@@ -100,3 +100,96 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
+    use crate::domain::database::new_types::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
+    use crate::domain::database::new_types::db_conn_init_delay_secs::DbConnRetryInitDelaySecs;
+    use crate::domain::database::new_types::db_conn_max_lifetime_secs::DbConnMaxLifetimeSecs;
+    use crate::domain::database::new_types::db_conn_max_retries::DbConnMaxRetries;
+    use crate::domain::database::new_types::db_conn_string::DbConnectionString;
+    use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
+    use crate::domain::database::new_types::db_min_connections::DbMinConnections;
+    use crate::test_support::{FlakyDb, MockDb};
+
+    fn db_conf(max_retries: u8, retry_delay_secs: u16) -> Database {
+        Database {
+            conn_string: DbConnectionString::default(),
+            conn_max_retries: DbConnMaxRetries::new(&max_retries).unwrap(),
+            conn_retry_init_delay_secs: DbConnRetryInitDelaySecs::new(&retry_delay_secs).unwrap(),
+            conn_acquire_timeout_secs: DbConnAcquireTimeoutSecs::new(&1).unwrap(),
+            conn_idle_timeout_secs: DbConnIdleTimeoutSecs::new(&1).unwrap(),
+            conn_max_lifetime_secs: DbConnMaxLifetimeSecs::new(&1).unwrap(),
+            max_connections: DbMaxConnections::new(&1).unwrap(),
+            min_connections: DbMinConnections::new(&1).unwrap(),
+        }
+    }
+
+    #[tokio::test]
+    async fn create_pool_succeeds_on_first_attempt() {
+        let mut service = DatabaseService {
+            db_port: FlakyDb::new(0, DatabaseConnectError::Retryable("x".into())),
+            conf: db_conf(3, 0),
+        };
+        assert!(service.create_pool().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_pool_retries_then_succeeds() {
+        let mut service = DatabaseService {
+            db_port: FlakyDb::new(2, DatabaseConnectError::Retryable("x".into())),
+            conf: db_conf(3, 0),
+        };
+        assert!(service.create_pool().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_pool_returns_error_when_retries_exhausted() {
+        let mut service = DatabaseService {
+            db_port: FlakyDb::new(5, DatabaseConnectError::Retryable("x".into())),
+            conf: db_conf(3, 0),
+        };
+        match service.create_pool().await {
+            Err(DatabaseConnectError::Retryable(_)) => {}
+            other => panic!("expected Retryable error, got: {:?}", other.map(|_| ())),
+        }
+    }
+
+    #[tokio::test]
+    async fn create_pool_fatal_error_aborts_immediately() {
+        let mut service = DatabaseService {
+            db_port: FlakyDb::new(5, DatabaseConnectError::Fatal("boom".into())),
+            conf: db_conf(3, 0),
+        };
+        match service.create_pool().await {
+            Err(DatabaseConnectError::Fatal(msg)) => assert_eq!(msg, "boom"),
+            other => panic!("expected Fatal error, got: {:?}", other.map(|_| ())),
+        }
+    }
+
+    #[tokio::test]
+    async fn create_pool_with_max_retries_zero_never_attempts() {
+        let mut service = DatabaseService {
+            db_port: FlakyDb::new(0, DatabaseConnectError::Retryable("x".into())),
+            conf: db_conf(0, 0),
+        };
+        match service.create_pool().await {
+            Err(DatabaseConnectError::Retryable(msg)) => {
+                assert!(msg.contains("conn_max_retries is 0"))
+            }
+            other => panic!("expected Retryable error, got: {:?}", other.map(|_| ())),
+        }
+    }
+
+    #[tokio::test]
+    async fn close_pool_returns_ok() {
+        let mut service = DatabaseService {
+            db_port: MockDb,
+            conf: db_conf(3, 0),
+        };
+        service.create_pool().await.unwrap();
+        assert!(service.close_pool().await.is_ok());
+    }
+}
