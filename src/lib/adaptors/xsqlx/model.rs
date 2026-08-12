@@ -3,7 +3,7 @@ use std::time::Duration;
 use tracing::{error, info, warn};
 
 use crate::domain::database::model::Database;
-use crate::domain::database::port::{DatabaseConnectError, DatabasePort};
+use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseMySql {
@@ -113,15 +113,13 @@ impl DatabasePort for DatabaseMySql {
         }
     }
 
-    async fn close_pool(&self) {
+    async fn close_pool(&self) -> Result<(), DatabaseCloseError> {
         match &self.pool {
             Some(pool) => {
                 pool.close().await;
-                info!("database connection pool to MySQL closed successfully");
+                Ok(())
             }
-            None => {
-                warn!("database connection pool to MySQL was not initialized");
-            }
+            None => Err(DatabaseCloseError::PoolNotInitialized),
         }
     }
 }
