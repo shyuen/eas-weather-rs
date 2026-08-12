@@ -5,6 +5,7 @@ use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
+use crate::domain::logging::new_types::lg_format::LoggingFormatType;
 use crate::domain::logging::port::LoggingPort;
 use crate::domain::logging::service::LoggingService;
 use crate::domain::webserver::model::Webserver;
@@ -57,8 +58,14 @@ where
 
     /// Log configuration fields exposed by an adaptor through [`AdaptorConfigRepr`].
     ///
-    /// Emits one compact line per adaptor, so N adaptors produce N log lines at
-    /// startup. Non-sensitive fields are logged at `info`; sensitive fields
+    /// Emits one log line per adaptor, so N adaptors produce N lines at startup.
+    /// Rendering depends on the configured logging format:
+    /// - **text** → the fields are pretty-printed JSON, for convenient developer
+    ///   viewing.
+    /// - **json** → the fields are emitted as a compact JSON object, the
+    ///   machine-readable form suitable for log aggregators such as Splunk.
+    ///
+    /// Non-sensitive fields are logged at `info`; sensitive fields
     /// (secrets/credentials) are withheld from info and only emitted at `trace`,
     /// and even then in masked form (the adaptor supplies the masked
     /// representation via its `Display`). Real secret values never enter the
@@ -76,18 +83,33 @@ where
             }
         }
 
+        let pretty = matches!(
+            self.get_logging_config().format.get(),
+            LoggingFormatType::Text
+        );
+
         if !public.is_empty() {
-            info!(
-                adaptor = adaptor_name,
-                config = %serde_json::Value::Object(public)
-            );
+            let config = serde_json::Value::Object(public);
+            if pretty {
+                info!(
+                    adaptor = adaptor_name,
+                    config = %serde_json::to_string_pretty(&config).unwrap_or_else(|_| config.to_string())
+                );
+            } else {
+                info!(adaptor = adaptor_name, config = %config);
+            }
         }
         if !secrets.is_empty() {
-            trace!(
-                adaptor = adaptor_name,
-                config_secret = true,
-                config = %serde_json::Value::Object(secrets)
-            );
+            let config = serde_json::Value::Object(secrets);
+            if pretty {
+                trace!(
+                    adaptor = adaptor_name,
+                    config_secret = true,
+                    config = %serde_json::to_string_pretty(&config).unwrap_or_else(|_| config.to_string())
+                );
+            } else {
+                trace!(adaptor = adaptor_name, config_secret = true, config = %config);
+            }
         }
     }
 
