@@ -65,6 +65,7 @@
           openssl
           bacon
           cargo-nextest
+          cargo-tarpaulin
           mariadb
         ];
 
