@@ -59,14 +59,12 @@
       # Run `nix develop` in the directory containing this flake.nix
       devShell = pkgs.mkShell {
         buildInputs =
-          [ (rustVersion.override { extensions = [ "rust-src"]; }) ];
+          [ (rustVersion.override { extensions = [ "rust-src" "clippy" "rustfmt" ]; }) ];
         packages = with pkgs; [
           pkg-config
           openssl
           bacon
           cargo-nextest
-          clippy
-          rustfmt
           mariadb
         ];
 

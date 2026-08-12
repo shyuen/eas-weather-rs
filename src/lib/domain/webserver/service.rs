@@ -5,6 +5,7 @@ use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::port::WebserverRepo;
+use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
 pub struct WebserverService<WR>
@@ -55,8 +56,20 @@ where
     {
         let webserv_conf = conf_serv.get_webservicer_config();
 
-        self.repo
+        debug!("start_server: starting server");
+        match self
+            .repo
             .start_server(webserv_conf, alert_serv, meta_serv)
             .await
+        {
+            Ok(()) => {
+                info!("start_server: server started successfully");
+                Ok(())
+            }
+            Err(err) => {
+                error!("start_server: server failed to start: {}", err);
+                Err(err)
+            }
+        }
     }
 }

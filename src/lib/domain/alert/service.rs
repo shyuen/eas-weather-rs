@@ -4,7 +4,7 @@ use crate::domain::alert::port::{
 };
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
-use tracing::info;
+use tracing::{debug, error, info};
 
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
@@ -43,7 +43,21 @@ where
         limit: u64,
         offset: u64,
     ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
-        self.db_port.get_daily_alerts_data(limit, offset).await
+        debug!("get_daily_alerts(limit={}, offset={})", limit, offset);
+        match self.db_port.get_daily_alerts_data(limit, offset).await {
+            Ok(resp) => {
+                info!(
+                    "get_daily_alerts returned {} of {} alerts",
+                    resp.alerts.len(),
+                    resp.total
+                );
+                Ok(resp)
+            }
+            Err(err) => {
+                error!("get_daily_alerts failed: {}", err);
+                Err(err)
+            }
+        }
     }
 
     /// Retrieve the latest alerts from the database.
@@ -52,6 +66,20 @@ where
         limit: u64,
         offset: u64,
     ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
-        self.db_port.get_latest_alerts_data(limit, offset).await
+        debug!("get_latest_alerts(limit={}, offset={})", limit, offset);
+        match self.db_port.get_latest_alerts_data(limit, offset).await {
+            Ok(resp) => {
+                info!(
+                    "get_latest_alerts returned {} of {} alerts",
+                    resp.alerts.len(),
+                    resp.total
+                );
+                Ok(resp)
+            }
+            Err(err) => {
+                error!("get_latest_alerts failed: {}", err);
+                Err(err)
+            }
+        }
     }
 }

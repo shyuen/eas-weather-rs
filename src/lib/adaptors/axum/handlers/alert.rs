@@ -9,7 +9,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 use serde_json::json;
-use tracing::error;
 
 #[derive(Deserialize)]
 pub(crate) struct LatestAlertsParams {
@@ -50,14 +49,11 @@ where
             })),
         )
             .into_response(),
-        Err(err) => {
-            error!("failed to retrieve latest alerts: {}", err);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": err.to_string() })),
-            )
-                .into_response()
-        }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
     }
 }
 
@@ -94,14 +90,11 @@ where
             })),
         )
             .into_response(),
-        Err(err) => {
-            error!("failed to retrieve daily alerts: {}", err);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": err.to_string() })),
-            )
-                .into_response()
-        }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
     }
 }
 
