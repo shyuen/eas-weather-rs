@@ -13,6 +13,18 @@ use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
 use crate::domain::webserver::new_types::ws_page_limit_max::WebserverPageLimitMax;
 use crate::domain::webserver::new_types::ws_port::WebserverPort;
 use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
+
+/// Why the web server stopped, reported back to the caller so it can log the
+/// shutdown appropriately without the adaptor owning the logging.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShutdownReason {
+    /// Received SIGINT (Ctrl+C).
+    CtrlC,
+    /// Received a terminate signal (SIGTERM on Unix).
+    Terminate,
+    /// The server stopped without a signal being received.
+    Stopped,
+}
 use crate::warn_config_invalid;
 use crate::warn_config_load_failed;
 use crate::warn_config_not_specified;

@@ -4,13 +4,12 @@ use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
-use crate::domain::webserver::model::Webserver;
+use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverRepo;
-use tracing::info;
 
 use poem::{EndpointExt, Route, Server, listener::TcpListener};
 use poem_openapi::{OpenApiService, Tags};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -51,7 +50,7 @@ impl WebserverRepo for WebserverPoem {
         config: &Webserver,
         alert_service: &AlertService<D>,
         meta_serv: &impl MetaPort,
-    ) -> Result<(), std::io::Error>
+    ) -> Result<ShutdownReason, std::io::Error>
     where
         D: DatabasePort + AlertPort,
     {
@@ -75,8 +74,6 @@ impl WebserverRepo for WebserverPoem {
 
         // Construct base address for OpenAPI server
         let base_addr = format!("{}{}", &root_addr, &base_path);
-
-        info!("poem server path: http://{}", &base_addr);
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -104,6 +101,10 @@ impl WebserverRepo for WebserverPoem {
         // Database port for graceful shutdown is sourced from the alert service.
         let db_port = alert_service.get_db_port().clone();
 
+        // Shared handle so the shutdown future can record why we stopped.
+        let shutdown_reason = Arc::new(Mutex::new(ShutdownReason::Stopped));
+        let shutdown_reason_handle = shutdown_reason.clone();
+
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(
             "{}:{}",
@@ -114,9 +115,7 @@ impl WebserverRepo for WebserverPoem {
             routes,
             async move {
                 let _ = tokio::signal::ctrl_c().await;
-
-                info!("shutdown signal received");
-                info!("commencing graceful shutdown");
+                *shutdown_reason_handle.lock().unwrap() = ShutdownReason::CtrlC;
 
                 // Perform any necessary cleanup here
                 // e.g., close database connections, flush logs, etc.
@@ -125,7 +124,9 @@ impl WebserverRepo for WebserverPoem {
             // Graceful shutdown timeout
             Some(Duration::from_secs(*&config.shutdown_timeout_secs.get())),
         )
-        .await
+        .await?;
+
+        Ok(*shutdown_reason.lock().unwrap())
     }
 }
 
