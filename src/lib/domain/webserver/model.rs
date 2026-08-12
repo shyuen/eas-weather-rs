@@ -7,14 +7,14 @@ use crate::domain::utils::helpers::serialize_with_display;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKeyError;
 use crate::domain::webserver::new_types::ws_base_path::WebserverBasePath;
+use crate::domain::webserver::new_types::ws_default_page_limit::WebserverDefaultPageLimit;
 use crate::domain::webserver::new_types::ws_hostname::WebserverHostname;
 use crate::domain::webserver::new_types::ws_hostname::WebserverHostnameError;
 use crate::domain::webserver::new_types::ws_jwt_access_token_expiry_secs::WebserverJwtAccessTokenExpirySecs;
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKey;
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
-use crate::domain::webserver::new_types::ws_port::WebserverPort;
-use crate::domain::webserver::new_types::ws_default_page_limit::WebserverDefaultPageLimit;
 use crate::domain::webserver::new_types::ws_page_limit_max::WebserverPageLimitMax;
+use crate::domain::webserver::new_types::ws_port::WebserverPort;
 use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,26 +132,22 @@ impl Webserver {
         };
 
         let default_page_limit = match &conf.default_page_limit {
-            Some(raw) => {
-                WebserverDefaultPageLimit::new(raw).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught WebserverDefaultPageLimitError");
-                        std::process::exit(1);
-                    }
-                })
-            }
+            Some(raw) => WebserverDefaultPageLimit::new(raw).unwrap_or_else(|err| match &err {
+                _ => {
+                    eprintln!("uncaught WebserverDefaultPageLimitError");
+                    std::process::exit(1);
+                }
+            }),
             None => WebserverDefaultPageLimit::default(),
         };
 
         let page_limit_max = match &conf.page_limit_max {
-            Some(raw) => {
-                WebserverPageLimitMax::new(raw).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught WebserverPageLimitMaxError");
-                        std::process::exit(1);
-                    }
-                })
-            }
+            Some(raw) => WebserverPageLimitMax::new(raw).unwrap_or_else(|err| match &err {
+                _ => {
+                    eprintln!("uncaught WebserverPageLimitMaxError");
+                    std::process::exit(1);
+                }
+            }),
             None => WebserverPageLimitMax::default(),
         };
 
