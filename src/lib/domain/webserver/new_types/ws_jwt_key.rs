@@ -54,3 +54,60 @@ impl WebserverJwtKey {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn loads_key_from_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "jwt-signing-secret").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key.get().as_deref(), Some("jwt-signing-secret"));
+    }
+
+    #[test]
+    fn trims_file_contents() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "  secret123").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key.get().as_deref(), Some("secret123"));
+    }
+
+    #[test]
+    fn empty_path_becomes_none() {
+        assert_eq!(WebserverJwtKey::new("").unwrap(), WebserverJwtKey(None));
+        assert_eq!(WebserverJwtKey::new("   ").unwrap(), WebserverJwtKey(None));
+    }
+
+    #[test]
+    fn empty_file_becomes_none() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "  ").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key, WebserverJwtKey(None));
+    }
+
+    #[test]
+    fn rejects_missing_file() {
+        assert!(matches!(
+            WebserverJwtKey::new("/nonexistent/jwt.pem").err().unwrap(),
+            WebserverJwtKeyError::BadFileLoad(_)
+        ));
+    }
+
+    #[test]
+    fn display_masks_key() {
+        let key = WebserverJwtKey(Some("jwt-signing-secret".to_string()));
+        let shown = key.to_string();
+        assert!(!shown.contains("jwt-signing-secret"), "key leaked: {shown}");
+    }
+
+    #[test]
+    fn defaults_to_none() {
+        assert_eq!(WebserverJwtKey::default(), WebserverJwtKey(None));
+    }
+}

@@ -70,3 +70,68 @@ impl Default for LoggingTraceLevel {
         LoggingTraceLevel(LoggingTraceLevelType::Info)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_all_valid_levels() {
+        assert_eq!(
+            LoggingTraceLevel::new("error").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Error)
+        );
+        assert_eq!(
+            LoggingTraceLevel::new("warn").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Warn)
+        );
+        assert_eq!(
+            LoggingTraceLevel::new("info").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Info)
+        );
+        assert_eq!(
+            LoggingTraceLevel::new("debug").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Debug)
+        );
+        assert_eq!(
+            LoggingTraceLevel::new("trace").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Trace)
+        );
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        assert_eq!(
+            LoggingTraceLevel::new(" debug ").unwrap(),
+            LoggingTraceLevel(LoggingTraceLevelType::Debug)
+        );
+    }
+
+    #[test]
+    fn rejects_empty_level() {
+        assert!(matches!(
+            LoggingTraceLevel::new("").err().unwrap(),
+            LoggingTraceLevelError::EmptyTraceLevel(_)
+        ));
+        assert!(matches!(
+            LoggingTraceLevel::new("  ").err().unwrap(),
+            LoggingTraceLevelError::EmptyTraceLevel(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_level() {
+        assert!(matches!(
+            LoggingTraceLevel::new("verbose").err().unwrap(),
+            LoggingTraceLevelError::UnknownTraceLevel(_)
+        ));
+    }
+
+    #[test]
+    fn defaults_to_info() {
+        assert_eq!(
+            LoggingTraceLevel::default(),
+            LoggingTraceLevel(LoggingTraceLevelType::Info)
+        );
+    }
+}

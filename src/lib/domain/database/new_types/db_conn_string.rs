@@ -77,3 +77,81 @@ impl Default for DbConnectionString {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn loads_connection_string_from_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "mysql://user:pass@localhost/eas_weather").unwrap();
+        let conn = DbConnectionString::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(conn.get(), "mysql://user:pass@localhost/eas_weather");
+    }
+
+    #[test]
+    fn trims_file_contents() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "  mysql://root@localhost/eas_weather").unwrap();
+        let conn = DbConnectionString::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(conn.get(), "mysql://root@localhost/eas_weather");
+    }
+
+    #[test]
+    fn rejects_empty_file_path() {
+        assert!(matches!(
+            DbConnectionString::new("").err().unwrap(),
+            DbConnectionStringError::EmptyFilePath(_)
+        ));
+        assert!(matches!(
+            DbConnectionString::new("   ").err().unwrap(),
+            DbConnectionStringError::EmptyFilePath(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_missing_file() {
+        assert!(matches!(
+            DbConnectionString::new("/nonexistent/conn.txt")
+                .err()
+                .unwrap(),
+            DbConnectionStringError::BadFileLoad(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_empty_connection_string() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "   ").unwrap();
+        assert!(matches!(
+            DbConnectionString::new(file.path().to_str().unwrap())
+                .err()
+                .unwrap(),
+            DbConnectionStringError::EmptyConnectionString(_)
+        ));
+    }
+
+    #[test]
+    fn display_masks_credentials() {
+        let db = DbConnectionString("mysql://user:pass@localhost/eas_weather".to_string());
+        let shown = db.to_string();
+        // Everything before the '@' (user:pass) must be masked; host is preserved.
+        let cred_part = shown.split('@').next().unwrap();
+        assert!(!cred_part.contains("user"), "username leaked: {cred_part}");
+        assert!(!cred_part.contains("pass"), "password leaked: {cred_part}");
+        assert!(
+            shown.contains("localhost"),
+            "host should be preserved: {shown}"
+        );
+    }
+
+    #[test]
+    fn default_builds_packaged_mysql_url() {
+        let conn = DbConnectionString::default();
+        assert!(conn.get().starts_with("mysql://"));
+        assert!(conn.get().contains(env!("CARGO_PKG_NAME")));
+    }
+}

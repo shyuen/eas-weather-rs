@@ -4,7 +4,7 @@ use strum_macros::EnumString;
 use thiserror::Error;
 
 /// Logging output format newtype for application
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoggingFormat(LoggingFormatType);
 
 impl fmt::Display for LoggingFormat {
@@ -58,5 +58,62 @@ impl LoggingFormat {
 impl Default for LoggingFormat {
     fn default() -> Self {
         LoggingFormat(LoggingFormatType::Text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_valid_formats() {
+        assert_eq!(
+            LoggingFormat::new("text").unwrap(),
+            LoggingFormat(LoggingFormatType::Text)
+        );
+        assert_eq!(
+            LoggingFormat::new("json").unwrap(),
+            LoggingFormat(LoggingFormatType::Json)
+        );
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        assert_eq!(
+            LoggingFormat::new(" text ").unwrap(),
+            LoggingFormat(LoggingFormatType::Text)
+        );
+        assert_eq!(
+            LoggingFormat::new("\tjson\n").unwrap(),
+            LoggingFormat(LoggingFormatType::Json)
+        );
+    }
+
+    #[test]
+    fn rejects_empty_format() {
+        assert!(matches!(
+            LoggingFormat::new("").err().unwrap(),
+            LoggingFormatError::EmptyType(_)
+        ));
+        assert!(matches!(
+            LoggingFormat::new("   ").err().unwrap(),
+            LoggingFormatError::EmptyType(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_unknown_format() {
+        assert!(matches!(
+            LoggingFormat::new("xml").err().unwrap(),
+            LoggingFormatError::UnknownFormat(_)
+        ));
+    }
+
+    #[test]
+    fn defaults_to_text() {
+        assert_eq!(
+            LoggingFormat::default(),
+            LoggingFormat(LoggingFormatType::Text)
+        );
     }
 }
