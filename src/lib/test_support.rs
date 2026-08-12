@@ -350,3 +350,13 @@ where
         .route("/daily", get(get_daily_alerts::<MockMeta, D>))
         .with_state(state)
 }
+
+/// Convenience: the full router (all route groups) bound to `MockMeta`.
+pub fn build_full_app<D>(
+    state: crate::adaptors::axum::app_state::AppState<MockMeta, D>,
+) -> axum::Router
+where
+    D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
+{
+    crate::adaptors::axum::routes::create_routes::<MockMeta, D>().with_state(state)
+}

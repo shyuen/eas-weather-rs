@@ -63,3 +63,55 @@ where
         .route("/", get(get_alerts))
         .route("/daily", get(get_daily_alerts))
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_support::{
+        DEFAULT_PAGE_LIMIT, MockDb, MockMeta, PAGE_LIMIT_MAX, build_full_app, build_state,
+        build_webserver,
+    };
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    async fn get_status(uri: &str) -> u16 {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_full_app::<MockDb>(state);
+        let response = app
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        response.status().as_u16()
+    }
+
+    #[tokio::test]
+    async fn root_returns_hello_world() {
+        assert_eq!(get_status("/").await, 200);
+    }
+
+    #[tokio::test]
+    async fn health_routes_are_mounted() {
+        assert_eq!(get_status("/health/startup").await, 200);
+        assert_eq!(get_status("/health/readiness").await, 200);
+        assert_eq!(get_status("/health/liveness").await, 200);
+    }
+
+    #[tokio::test]
+    async fn meta_routes_are_mounted() {
+        assert_eq!(get_status("/meta/conf").await, 200);
+    }
+
+    #[tokio::test]
+    async fn alert_routes_are_mounted() {
+        assert_eq!(get_status("/alerts").await, 200);
+        assert_eq!(get_status("/alerts/daily").await, 200);
+    }
+
+    #[tokio::test]
+    async fn test_routes_are_mounted() {
+        assert_eq!(get_status("/test/user/1").await, 200);
+    }
+}
