@@ -78,3 +78,68 @@ impl Logging {
         issues
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn raw(format: Option<&str>, trace_level: Option<&str>) -> ConfigLogging {
+        ConfigLogging {
+            format: format.map(str::to_string),
+            trace_level: trace_level.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn validate_accepts_valid_values() {
+        let issues = Logging::new(&raw(Some("json"), Some("error")))
+            .validate_raw_config(&raw(Some("json"), Some("error")));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn validate_flags_invalid_format() {
+        let issues =
+            Logging::new(&raw(None, None)).validate_raw_config(&raw(Some("xml"), Some("info")));
+        assert_eq!(
+            issues,
+            vec![ConfigIssue::Invalid {
+                key: "logging.format",
+                value: "xml".into(),
+                default: "text".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_flags_invalid_trace_level() {
+        let issues =
+            Logging::new(&raw(None, None)).validate_raw_config(&raw(Some("text"), Some("noise")));
+        assert_eq!(
+            issues,
+            vec![ConfigIssue::Invalid {
+                key: "logging.trace_level",
+                value: "noise".into(),
+                default: "info".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_flags_missing_format_and_trace_level() {
+        let issues = Logging::new(&raw(None, None)).validate_raw_config(&raw(None, None));
+        assert_eq!(
+            issues,
+            vec![
+                ConfigIssue::NotSpecified {
+                    key: "logging.format",
+                    default: "text".into(),
+                },
+                ConfigIssue::NotSpecified {
+                    key: "logging.trace_level",
+                    default: "info".into(),
+                },
+            ]
+        );
+    }
+}

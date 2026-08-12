@@ -312,3 +312,161 @@ impl Webserver {
         issues
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[allow(clippy::too_many_arguments)]
+    fn raw(
+        hostname: Option<&str>,
+        port: Option<u16>,
+        base_path: Option<&str>,
+        shutdown_timeout_secs: Option<u64>,
+        api_key_file: Option<&str>,
+        jwt_key_file: Option<&str>,
+        jwt_access_token_expiry_secs: Option<u64>,
+        default_page_limit: Option<u64>,
+        page_limit_max: Option<u64>,
+    ) -> ConfigWebserver {
+        ConfigWebserver {
+            hostname: hostname.map(str::to_string),
+            port,
+            base_path: base_path.map(str::to_string),
+            shutdown_timeout_secs,
+            api_key_file: api_key_file.map(str::to_string),
+            jwt_key_file: jwt_key_file.map(str::to_string),
+            jwt_access_token_expiry_secs,
+            default_page_limit,
+            page_limit_max,
+        }
+    }
+
+    fn empty() -> ConfigWebserver {
+        raw(None, None, None, None, None, None, None, None, None)
+    }
+
+    fn loadable_secret_files() -> (tempfile::NamedTempFile, tempfile::NamedTempFile) {
+        use std::io::Write;
+        let mut api = tempfile::NamedTempFile::new().unwrap();
+        writeln!(api, "api-secret").unwrap();
+        let mut jwt = tempfile::NamedTempFile::new().unwrap();
+        writeln!(jwt, "jwt-secret").unwrap();
+        (api, jwt)
+    }
+
+    #[test]
+    fn validate_accepts_valid_values() {
+        let (api_key, jwt_key) = loadable_secret_files();
+        let issues = Webserver::new(&empty()).validate_raw_config(&raw(
+            Some("localhost"),
+            Some(8080),
+            Some("/api"),
+            Some(5),
+            Some(api_key.path().to_str().unwrap()),
+            Some(jwt_key.path().to_str().unwrap()),
+            Some(3600),
+            Some(10),
+            Some(50),
+        ));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn validate_flags_empty_hostname() {
+        let (api_key, jwt_key) = loadable_secret_files();
+        let issues = Webserver::new(&empty()).validate_raw_config(&raw(
+            Some("  "),
+            Some(8080),
+            Some("/api"),
+            Some(5),
+            Some(api_key.path().to_str().unwrap()),
+            Some(jwt_key.path().to_str().unwrap()),
+            Some(3600),
+            Some(10),
+            Some(50),
+        ));
+        assert_eq!(
+            issues,
+            vec![ConfigIssue::Invalid {
+                key: "webserver.hostname",
+                value: "  ".into(),
+                default: "\"localhost\"".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_flags_missing_settings() {
+        let issues = Webserver::new(&empty()).validate_raw_config(&empty());
+        let keys: Vec<_> = issues
+            .iter()
+            .map(|issue| match issue {
+                ConfigIssue::NotSpecified { key, .. } => *key,
+                _ => panic!("expected NotSpecified, got {:?}", issue),
+            })
+            .collect();
+        assert_eq!(
+            keys,
+            vec![
+                "webserver.hostname",
+                "webserver.port",
+                "webserver.base_path",
+                "webserver.shutdown_timeout_secs",
+                "webserver.api_key",
+                "webserver.jwt_key",
+                "webserver.jwt_access_token_expiry_secs",
+                "webserver.default_page_limit",
+                "webserver.page_limit_max",
+            ]
+        );
+    }
+
+    #[test]
+    fn validate_flags_unloadable_api_key_file() {
+        let (_, jwt_key) = loadable_secret_files();
+        let issues = Webserver::new(&empty()).validate_raw_config(&raw(
+            Some("localhost"),
+            Some(8080),
+            Some("/api"),
+            Some(5),
+            Some("/nonexistent/api.key"),
+            Some(jwt_key.path().to_str().unwrap()),
+            Some(3600),
+            Some(10),
+            Some(50),
+        ));
+        let load_failed: Vec<_> = issues
+            .iter()
+            .filter_map(|issue| match issue {
+                ConfigIssue::LoadFailed { key, .. } => Some(*key),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(load_failed, vec!["webserver.api_key"]);
+    }
+
+    #[test]
+    fn validate_flags_unloadable_jwt_key_file() {
+        let (api_key, _) = loadable_secret_files();
+        let issues = Webserver::new(&empty()).validate_raw_config(&raw(
+            Some("localhost"),
+            Some(8080),
+            Some("/api"),
+            Some(5),
+            Some(api_key.path().to_str().unwrap()),
+            Some("/nonexistent/jwt.key"),
+            Some(3600),
+            Some(10),
+            Some(50),
+        ));
+        let load_failed: Vec<_> = issues
+            .iter()
+            .filter_map(|issue| match issue {
+                ConfigIssue::LoadFailed { key, .. } => Some(*key),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(load_failed, vec!["webserver.jwt_key"]);
+    }
+}

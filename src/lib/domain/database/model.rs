@@ -298,3 +298,96 @@ impl Database {
         issues
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn raw(conn_url_file: Option<&str>) -> ConfigDatabase {
+        ConfigDatabase {
+            conn_url_file: conn_url_file.map(str::to_string),
+            conn_max_retries: Some(3),
+            conn_retry_init_delay_secs: Some(1),
+            conn_acquire_timeout_secs: Some(5),
+            conn_idle_timeout_secs: Some(60),
+            conn_max_lifetime_secs: Some(600),
+            max_connections: Some(10),
+            min_connections: Some(1),
+        }
+    }
+
+    fn empty() -> ConfigDatabase {
+        ConfigDatabase {
+            conn_url_file: None,
+            conn_max_retries: None,
+            conn_retry_init_delay_secs: None,
+            conn_acquire_timeout_secs: None,
+            conn_idle_timeout_secs: None,
+            conn_max_lifetime_secs: None,
+            max_connections: None,
+            min_connections: None,
+        }
+    }
+
+    #[test]
+    fn validate_accepts_valid_values() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(file, "mysql://user:pass@localhost/db").unwrap();
+        let issues =
+            Database::new(&empty()).validate_raw_config(&raw(Some(file.path().to_str().unwrap())));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn validate_flags_all_missing_settings() {
+        let issues = Database::new(&empty()).validate_raw_config(&empty());
+        let keys: Vec<_> = issues
+            .iter()
+            .map(|issue| match issue {
+                ConfigIssue::NotSpecified { key, .. } => *key,
+                other => panic!("expected NotSpecified, got {:?}", other),
+            })
+            .collect();
+        assert_eq!(
+            keys,
+            vec![
+                "database.conn_string_file",
+                "database.conn_max_retries",
+                "database.conn_retry_init_delay_secs",
+                "database.conn_acquire_timeout_secs",
+                "database.conn_idle_timeout_secs",
+                "database.conn_max_lifetime_secs",
+                "database.min_connections",
+                "database.max_connections",
+            ]
+        );
+    }
+
+    #[test]
+    fn validate_flags_unloadable_conn_url_file() {
+        let issues = Database::new(&raw(None)).validate_raw_config(&raw(Some("/nonexistent/url")));
+        let load_failed: Vec<_> = issues
+            .iter()
+            .filter_map(|issue| match issue {
+                ConfigIssue::LoadFailed { key, .. } => Some(*key),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(load_failed, vec!["database.conn_string"]);
+    }
+
+    #[test]
+    fn new_loads_conn_string_from_file() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(file, "mysql://user:pass@localhost/db").unwrap();
+        let db = Database::new(&raw(Some(file.path().to_str().unwrap())));
+        assert_eq!(db.conn_string.get(), "mysql://user:pass@localhost/db");
+    }
+
+    #[test]
+    fn new_falls_back_to_default_when_conn_url_file_unreadable() {
+        let db = Database::new(&raw(Some("/nonexistent/url")));
+        assert_eq!(db.conn_string.get(), DbConnectionString::default().get());
+    }
+}
