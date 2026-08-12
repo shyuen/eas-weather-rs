@@ -18,10 +18,13 @@ impl WebserverDefaultPageLimit {
     pub fn new(raw: &u64) -> Result<Self, WebserverDefaultPageLimitError> {
         Ok(WebserverDefaultPageLimit(*raw))
     }
-    pub fn default() -> Self {
-        WebserverDefaultPageLimit(100)
-    }
     pub fn get(&self) -> u64 {
         self.0
+    }
+}
+
+impl Default for WebserverDefaultPageLimit {
+    fn default() -> Self {
+        WebserverDefaultPageLimit(100)
     }
 }

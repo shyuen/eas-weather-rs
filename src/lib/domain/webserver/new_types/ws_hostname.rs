@@ -28,11 +28,13 @@ impl WebserverHostname {
         Ok(WebserverHostname(trimmed_hostname.to_string()))
     }
 
-    pub fn default() -> Self {
-        WebserverHostname("localhost".to_string())
-    }
-
     pub fn get(&self) -> &String {
         &self.0
+    }
+}
+
+impl Default for WebserverHostname {
+    fn default() -> Self {
+        WebserverHostname("localhost".to_string())
     }
 }

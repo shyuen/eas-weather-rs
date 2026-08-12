@@ -50,10 +50,13 @@ impl LoggingFormat {
             _ => Err(LoggingFormatError::UnknownFormat(trimmed.to_string())),
         }
     }
-    pub fn default() -> Self {
-        LoggingFormat(LoggingFormatType::Text)
-    }
     pub fn get(&self) -> &LoggingFormatType {
         &self.0
+    }
+}
+
+impl Default for LoggingFormat {
+    fn default() -> Self {
+        LoggingFormat(LoggingFormatType::Text)
     }
 }

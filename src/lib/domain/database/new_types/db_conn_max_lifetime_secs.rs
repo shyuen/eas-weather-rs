@@ -20,10 +20,13 @@ impl DbConnMaxLifetimeSecs {
         // Add validation logic here if needed
         Ok(DbConnMaxLifetimeSecs(*raw_db_conn_max_lifetime_secs))
     }
-    pub fn default() -> Self {
-        DbConnMaxLifetimeSecs(1800)
-    }
     pub fn get(&self) -> u32 {
         self.0
+    }
+}
+
+impl Default for DbConnMaxLifetimeSecs {
+    fn default() -> Self {
+        DbConnMaxLifetimeSecs(1800)
     }
 }

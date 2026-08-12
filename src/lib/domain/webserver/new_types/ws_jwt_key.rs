@@ -3,7 +3,7 @@ use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Deserialize, Serialize)]
 pub struct WebserverJwtKey(Option<String>);
 
 impl fmt::Display for WebserverJwtKey {
@@ -48,10 +48,6 @@ impl WebserverJwtKey {
         // TODO - Other validation of the connection string as neccessary
 
         Ok(WebserverJwtKey(Some(trimmed_file_contents.to_string())))
-    }
-
-    pub fn default() -> Self {
-        WebserverJwtKey(None)
     }
 
     pub fn get(&self) -> &Option<String> {

@@ -22,10 +22,13 @@ impl DbConnRetryInitDelaySecs {
         // Add validation logic here if needed
         Ok(DbConnRetryInitDelaySecs(*raw_db_conn_retry_init_delay_secs))
     }
-    pub fn default() -> Self {
-        DbConnRetryInitDelaySecs(1)
-    }
     pub fn get(&self) -> u16 {
         self.0
+    }
+}
+
+impl Default for DbConnRetryInitDelaySecs {
+    fn default() -> Self {
+        DbConnRetryInitDelaySecs(1)
     }
 }

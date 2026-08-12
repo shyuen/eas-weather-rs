@@ -65,13 +65,15 @@ impl DbConnectionString {
         Ok(DbConnectionString(trimmed_file_contents.to_string()))
     }
 
-    pub fn default() -> Self {
+    pub fn get(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for DbConnectionString {
+    fn default() -> Self {
         DbConnectionString(
             format!("mysql://root@localhost:3306/{}", env!("CARGO_PKG_NAME")).to_string(),
         )
-    }
-
-    pub fn get(&self) -> &str {
-        &self.0
     }
 }

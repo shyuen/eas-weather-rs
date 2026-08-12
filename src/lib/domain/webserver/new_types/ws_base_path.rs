@@ -2,7 +2,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Deserialize, Serialize)]
 pub struct WebserverBasePath(Option<String>);
 
 impl fmt::Display for WebserverBasePath {
@@ -26,10 +26,6 @@ impl WebserverBasePath {
         // Additional validation can be added here
 
         Ok(WebserverBasePath(Some(trimmed_hostname.to_string())))
-    }
-
-    pub fn default() -> Self {
-        WebserverBasePath(None)
     }
 
     pub fn get(&self) -> &Option<String> {

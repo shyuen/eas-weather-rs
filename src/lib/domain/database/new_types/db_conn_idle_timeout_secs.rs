@@ -20,10 +20,13 @@ impl DbConnIdleTimeoutSecs {
         // Add validation logic here if needed
         Ok(DbConnIdleTimeoutSecs(*raw_db_conn_idle_timeout_secs))
     }
-    pub fn default() -> Self {
-        DbConnIdleTimeoutSecs(300)
-    }
     pub fn get(&self) -> u32 {
         self.0
+    }
+}
+
+impl Default for DbConnIdleTimeoutSecs {
+    fn default() -> Self {
+        DbConnIdleTimeoutSecs(300)
     }
 }

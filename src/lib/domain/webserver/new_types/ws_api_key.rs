@@ -3,7 +3,7 @@ use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Deserialize, Serialize)]
 pub struct WebserverApiKey(Option<String>);
 
 impl fmt::Display for WebserverApiKey {
@@ -48,10 +48,6 @@ impl WebserverApiKey {
         // TODO - Other validation of the connection string as neccessary
 
         Ok(WebserverApiKey(Some(trimmed_file_contents.to_string())))
-    }
-
-    pub fn default() -> Self {
-        WebserverApiKey(None)
     }
 
     pub fn get(&self) -> &Option<String> {
