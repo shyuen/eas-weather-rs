@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::ConfigDatabase;
 use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
 use crate::domain::database::new_types::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
@@ -12,9 +13,6 @@ use crate::domain::database::new_types::db_conn_string::{
 use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
 use crate::domain::database::new_types::db_min_connections::DbMinConnections;
 use crate::domain::utils::helpers::serialize_with_display;
-use crate::warn_config_invalid;
-use crate::warn_config_load_failed;
-use crate::warn_config_not_specified;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
@@ -149,42 +147,44 @@ impl Database {
         }
     }
 
-    pub fn validate_raw_config(&self, raw_db_conf: &ConfigDatabase) {
+    pub fn validate_raw_config(&self, raw_db_conf: &ConfigDatabase) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+
         // Validate raw database connection string file input
         match &raw_db_conf.conn_url_file {
             Some(raw_conn_url_file) => {
                 if let Err(err) = DbConnectionString::new(raw_conn_url_file) {
                     match &err {
                         DbConnectionStringError::BadFileLoad(e) => {
-                            warn_config_load_failed!(
-                                "database.conn_string",
-                                raw_conn_url_file,
-                                &e.to_string(),
-                                DbConnectionString::default(),
-                            );
+                            issues.push(ConfigIssue::LoadFailed {
+                                key: "database.conn_string",
+                                path: raw_conn_url_file.clone(),
+                                reason: e.to_string(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                         DbConnectionStringError::EmptyConnectionString(_) => {
-                            warn_config_invalid!(
-                                "database.conn_string",
-                                "empty",
-                                DbConnectionString::default(),
-                            );
+                            issues.push(ConfigIssue::Invalid {
+                                key: "database.conn_string",
+                                value: "empty".to_string(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                         DbConnectionStringError::EmptyFilePath(_) => {
-                            warn_config_invalid!(
-                                "database.conn_string_file",
-                                raw_conn_url_file,
-                                DbConnectionString::default(),
-                            );
+                            issues.push(ConfigIssue::Invalid {
+                                key: "database.conn_string_file",
+                                value: raw_conn_url_file.clone(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                     }
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_string_file",
-                    DbConnectionString::default(),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_string_file",
+                    default: DbConnectionString::default().to_string(),
+                });
             }
         };
 
@@ -192,18 +192,18 @@ impl Database {
         match &raw_db_conf.conn_max_retries {
             Some(raw_conn_max_retries) => {
                 if DbConnMaxRetries::new(raw_conn_max_retries).is_err() {
-                    warn_config_invalid!(
-                        "database.conn_max_retries",
-                        raw_conn_max_retries,
-                        DbConnMaxRetries::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_max_retries",
+                        value: raw_conn_max_retries.to_string(),
+                        default: DbConnMaxRetries::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_max_retries",
-                    DbConnMaxRetries::default()
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_max_retries",
+                    default: DbConnMaxRetries::default().to_string(),
+                });
             }
         };
 
@@ -211,18 +211,18 @@ impl Database {
         match &raw_db_conf.conn_retry_init_delay_secs {
             Some(raw_conn_retry_init_delay_secs) => {
                 if DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs).is_err() {
-                    warn_config_invalid!(
-                        "database.conn_retry_init_delay_secs",
-                        raw_conn_retry_init_delay_secs,
-                        DbConnRetryInitDelaySecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_retry_init_delay_secs",
+                        value: raw_conn_retry_init_delay_secs.to_string(),
+                        default: DbConnRetryInitDelaySecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_retry_init_delay_secs",
-                    DbConnRetryInitDelaySecs::default(),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_retry_init_delay_secs",
+                    default: DbConnRetryInitDelaySecs::default().to_string(),
+                });
             }
         }
 
@@ -230,18 +230,18 @@ impl Database {
         match &raw_db_conf.conn_acquire_timeout_secs {
             Some(raw_conn_acquire_timeout_secs) => {
                 if DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).is_err() {
-                    warn_config_invalid!(
-                        "database.conn_acquire_timeout_secs",
-                        raw_conn_acquire_timeout_secs,
-                        DbConnAcquireTimeoutSecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_acquire_timeout_secs",
+                        value: raw_conn_acquire_timeout_secs.to_string(),
+                        default: DbConnAcquireTimeoutSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_acquire_timeout_secs",
-                    DbConnAcquireTimeoutSecs::default(),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_acquire_timeout_secs",
+                    default: DbConnAcquireTimeoutSecs::default().to_string(),
+                });
             }
         };
 
@@ -249,18 +249,18 @@ impl Database {
         match &raw_db_conf.conn_idle_timeout_secs {
             Some(raw_conn_idle_timeout_secs) => {
                 if DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).is_err() {
-                    warn_config_invalid!(
-                        "database.conn_idle_timeout_secs",
-                        raw_conn_idle_timeout_secs,
-                        DbConnIdleTimeoutSecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_idle_timeout_secs",
+                        value: raw_conn_idle_timeout_secs.to_string(),
+                        default: DbConnIdleTimeoutSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_idle_timeout_secs",
-                    DbConnIdleTimeoutSecs::default(),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_idle_timeout_secs",
+                    default: DbConnIdleTimeoutSecs::default().to_string(),
+                });
             }
         };
 
@@ -268,18 +268,18 @@ impl Database {
         match &raw_db_conf.conn_max_lifetime_secs {
             Some(raw_conn_max_lifetime_secs) => {
                 if DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).is_err() {
-                    warn_config_invalid!(
-                        "database.conn_max_lifetime_secs",
-                        raw_conn_max_lifetime_secs,
-                        DbConnMaxLifetimeSecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_max_lifetime_secs",
+                        value: raw_conn_max_lifetime_secs.to_string(),
+                        default: DbConnMaxLifetimeSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!(
-                    "database.conn_max_lifetime_secs",
-                    DbConnMaxLifetimeSecs::default(),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_max_lifetime_secs",
+                    default: DbConnMaxLifetimeSecs::default().to_string(),
+                });
             }
         };
 
@@ -287,15 +287,18 @@ impl Database {
         match &raw_db_conf.min_connections {
             Some(raw_min_connections) => {
                 if DbMinConnections::new(raw_min_connections).is_err() {
-                    warn_config_invalid!(
-                        "database.min_connections",
-                        raw_min_connections,
-                        DbMinConnections::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.min_connections",
+                        value: raw_min_connections.to_string(),
+                        default: DbMinConnections::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!("database.min_connections", DbMinConnections::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.min_connections",
+                    default: DbMinConnections::default().to_string(),
+                });
             }
         };
 
@@ -303,16 +306,21 @@ impl Database {
         match &raw_db_conf.max_connections {
             Some(raw_max_connections) => {
                 if DbMaxConnections::new(raw_max_connections).is_err() {
-                    warn_config_invalid!(
-                        "database.max_connections",
-                        raw_max_connections,
-                        DbMaxConnections::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.max_connections",
+                        value: raw_max_connections.to_string(),
+                        default: DbMaxConnections::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!("database.max_connections", DbMaxConnections::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.max_connections",
+                    default: DbMaxConnections::default().to_string(),
+                });
             }
         };
+
+        issues
     }
 }

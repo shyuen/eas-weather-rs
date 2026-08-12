@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::ConfigWebserver;
 use crate::domain::utils::helpers::serialize_with_display;
 use crate::domain::webserver::new_types::ws_api_key::WebserverApiKey;
@@ -25,9 +26,6 @@ pub enum ShutdownReason {
     /// The server stopped without a signal being received.
     Stopped,
 }
-use crate::warn_config_invalid;
-use crate::warn_config_load_failed;
-use crate::warn_config_not_specified;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Webserver {
@@ -176,62 +174,79 @@ impl Webserver {
         }
     }
 
-    pub fn validate_raw_config(&self, raw_ws_conf: &ConfigWebserver) {
+    pub fn validate_raw_config(&self, raw_ws_conf: &ConfigWebserver) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+
         match &raw_ws_conf.hostname {
             Some(raw_hostname) => {
                 if WebserverHostname::new(raw_hostname).is_err() {
-                    warn_config_invalid!(
-                        "webserver.hostname",
-                        raw_hostname,
-                        WebserverHostname::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.hostname",
+                        value: raw_hostname.clone(),
+                        default: WebserverHostname::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!("webserver.hostname", WebserverHostname::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.hostname",
+                    default: WebserverHostname::default().to_string(),
+                });
             }
         }
 
         match &raw_ws_conf.port {
             Some(raw_port) => {
                 if WebserverPort::new(raw_port).is_err() {
-                    warn_config_invalid!(
-                        "webserver.port",
-                        &raw_port.to_string(),
-                        WebserverPort::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.port",
+                        value: raw_port.to_string(),
+                        default: WebserverPort::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!("webserver.port", WebserverPort::default()),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.port",
+                    default: WebserverPort::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.base_path {
             Some(raw_base_path) => {
                 if WebserverBasePath::new(raw_base_path).is_err() {
-                    warn_config_invalid!(
-                        "webserver.base_path",
-                        raw_base_path,
-                        WebserverBasePath::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.base_path",
+                        value: raw_base_path.clone(),
+                        default: WebserverBasePath::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!("webserver.base_path", WebserverBasePath::default()),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.base_path",
+                    default: WebserverBasePath::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.shutdown_timeout_secs {
             Some(raw_shutdown_timeout_secs) => {
                 if WebserverShutdownTimeoutSecs::new(raw_shutdown_timeout_secs).is_err() {
-                    warn_config_invalid!(
-                        "webserver.shutdown_timeout_secs",
-                        &raw_shutdown_timeout_secs.to_string(),
-                        WebserverShutdownTimeoutSecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.shutdown_timeout_secs",
+                        value: raw_shutdown_timeout_secs.to_string(),
+                        default: WebserverShutdownTimeoutSecs::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!(
-                "webserver.shutdown_timeout_secs",
-                WebserverShutdownTimeoutSecs::default(),
-            ),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.shutdown_timeout_secs",
+                    default: WebserverShutdownTimeoutSecs::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.api_key_file {
@@ -239,18 +254,21 @@ impl Webserver {
                 if let Err(err) = WebserverApiKey::new(raw_api_key_file) {
                     match &err {
                         WebserverApiKeyError::BadFileLoad(e) => {
-                            warn_config_load_failed!(
-                                "webserver.api_key",
-                                raw_api_key_file,
-                                &e.to_string(),
-                                WebserverApiKey::default(),
-                            );
+                            issues.push(ConfigIssue::LoadFailed {
+                                key: "webserver.api_key",
+                                path: raw_api_key_file.clone(),
+                                reason: e.to_string(),
+                                default: WebserverApiKey::default().to_string(),
+                            });
                         }
                     }
                 }
             }
             None => {
-                warn_config_not_specified!("webserver.api_key", WebserverApiKey::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.api_key",
+                    default: WebserverApiKey::default().to_string(),
+                });
             }
         }
 
@@ -259,66 +277,79 @@ impl Webserver {
                 if let Err(err) = WebserverJwtKey::new(raw_jwt_key_file) {
                     match &err {
                         WebserverJwtKeyError::BadFileLoad(e) => {
-                            warn_config_load_failed!(
-                                "webserver.jwt_key",
-                                raw_jwt_key_file,
-                                &e.to_string(),
-                                WebserverJwtKey::default(),
-                            );
+                            issues.push(ConfigIssue::LoadFailed {
+                                key: "webserver.jwt_key",
+                                path: raw_jwt_key_file.clone(),
+                                reason: e.to_string(),
+                                default: WebserverJwtKey::default().to_string(),
+                            });
                         }
                     }
                 }
             }
-            None => warn_config_not_specified!("webserver.jwt_key", WebserverJwtKey::default()),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.jwt_key",
+                    default: WebserverJwtKey::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.jwt_access_token_expiry_secs {
             Some(raw_jwt_access_token_expiry_secs) => {
                 if WebserverJwtAccessTokenExpirySecs::new(raw_jwt_access_token_expiry_secs).is_err()
                 {
-                    warn_config_invalid!(
-                        "webserver.jwt_access_token_expiry_secs",
-                        &raw_jwt_access_token_expiry_secs.to_string(),
-                        WebserverJwtAccessTokenExpirySecs::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.jwt_access_token_expiry_secs",
+                        value: raw_jwt_access_token_expiry_secs.to_string(),
+                        default: WebserverJwtAccessTokenExpirySecs::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!(
-                "webserver.jwt_access_token_expiry_secs",
-                WebserverJwtAccessTokenExpirySecs::default(),
-            ),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.jwt_access_token_expiry_secs",
+                    default: WebserverJwtAccessTokenExpirySecs::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.default_page_limit {
             Some(raw) => {
                 if WebserverDefaultPageLimit::new(raw).is_err() {
-                    warn_config_invalid!(
-                        "webserver.default_page_limit",
-                        &raw.to_string(),
-                        WebserverDefaultPageLimit::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.default_page_limit",
+                        value: raw.to_string(),
+                        default: WebserverDefaultPageLimit::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!(
-                "webserver.default_page_limit",
-                WebserverDefaultPageLimit::default(),
-            ),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.default_page_limit",
+                    default: WebserverDefaultPageLimit::default().to_string(),
+                });
+            }
         }
 
         match &raw_ws_conf.page_limit_max {
             Some(raw) => {
                 if WebserverPageLimitMax::new(raw).is_err() {
-                    warn_config_invalid!(
-                        "webserver.page_limit_max",
-                        &raw.to_string(),
-                        WebserverPageLimitMax::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "webserver.page_limit_max",
+                        value: raw.to_string(),
+                        default: WebserverPageLimitMax::default().to_string(),
+                    });
                 }
             }
-            None => warn_config_not_specified!(
-                "webserver.page_limit_max",
-                WebserverPageLimitMax::default(),
-            ),
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "webserver.page_limit_max",
+                    default: WebserverPageLimitMax::default().to_string(),
+                });
+            }
         }
+
+        issues
     }
 }
