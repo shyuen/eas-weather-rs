@@ -7,7 +7,7 @@ use tracing::info;
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
+use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
@@ -97,18 +97,22 @@ impl WebserverRepo for WebserverAxum {
 }
 
 impl AdaptorConfigRepr for WebserverAxum {
-    fn config_fields(&self) -> Vec<(&'static str, String)> {
+    fn adaptor_name(&self) -> &'static str {
+        "axum"
+    }
+
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
         let c = &self.config;
         vec![
-            ("hostname", c.hostname.get().clone()),
-            ("port", c.port.get().to_string()),
-            ("base_path", c.base_path.to_string()),
-            (
+            AdaptorConfigField::new("hostname", c.hostname.get().clone()),
+            AdaptorConfigField::new("port", c.port.get().to_string()),
+            AdaptorConfigField::new("base_path", c.base_path.to_string()),
+            AdaptorConfigField::new(
                 "shutdown_timeout_secs",
                 c.shutdown_timeout_secs.get().to_string(),
             ),
-            ("api_key", c.api_key.to_string()),
-            ("jwt_key", c.jwt_key.to_string()),
+            AdaptorConfigField::secret("api_key", c.api_key.to_string()),
+            AdaptorConfigField::secret("jwt_key", c.jwt_key.to_string()),
         ]
     }
 }
