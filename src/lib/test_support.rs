@@ -2,6 +2,11 @@
 //!
 //! Only compiled under `#[cfg(test)]`. Mocks implement the domain port traits
 //! so generic services and axum handlers can be exercised without real adaptors.
+//!
+//! The mock port methods deliberately mirror the domain port traits' `impl
+//! Future + Send` signatures (static dispatch — see AGENTS.md), so the
+//! `manual_async_fn` lint is intentionally not applied here.
+#![allow(clippy::manual_async_fn)]
 
 use std::future::Future;
 

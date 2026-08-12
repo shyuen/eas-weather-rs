@@ -33,49 +33,35 @@ impl Database {
     /// Create a new instance of Database configuration
     pub fn new(conf: &ConfigDatabase) -> Self {
         let conn_string = match &conf.conn_url_file {
-            Some(raw_conn_url_file) => {
-                DbConnectionString::new(&raw_conn_url_file).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => DbConnectionString::default(),
-                })
-            }
+            Some(raw_conn_url_file) => DbConnectionString::new(raw_conn_url_file)
+                .unwrap_or_else(|_| DbConnectionString::default()),
             None => DbConnectionString::default(),
         };
 
         let conn_max_retries = match &conf.conn_max_retries {
             Some(raw_conn_max_retries) => DbConnMaxRetries::new(raw_conn_max_retries)
-                .unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbConnMaxRetriesError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                .unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnMaxRetriesError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 }),
             None => DbConnMaxRetries::default(),
         };
 
         let conn_retry_init_delay_secs = match &conf.conn_retry_init_delay_secs {
-            Some(raw_conn_retry_init_delay_secs) => DbConnRetryInitDelaySecs::new(
-                raw_conn_retry_init_delay_secs,
-            )
-            .unwrap_or_else(|err| match &err {
-                _ => {
+            Some(raw_conn_retry_init_delay_secs) => {
+                DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs).unwrap_or_else(|_| {
                     eprintln!("uncaught DbConnRetryInitDelaySecsError");
                     std::process::exit(1); // We use exit for planned exits instead of panics
-                }
-            }),
+                })
+            }
             None => DbConnRetryInitDelaySecs::default(),
         };
 
         let conn_acquire_timeout_secs = match &conf.conn_acquire_timeout_secs {
             Some(raw_conn_acquire_timeout_secs) => {
-                DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnAcquireTimeoutSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnAcquireTimeoutSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnAcquireTimeoutSecs::default(),
@@ -83,13 +69,9 @@ impl Database {
 
         let conn_idle_timeout_secs = match &conf.conn_idle_timeout_secs {
             Some(raw_conn_idle_timeout_secs) => {
-                DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnIdleTimeoutSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnIdleTimeoutSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnIdleTimeoutSecs::default(),
@@ -97,13 +79,9 @@ impl Database {
 
         let conn_max_lifetime_secs = match &conf.conn_max_lifetime_secs {
             Some(raw_conn_max_lifetime_secs) => {
-                DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnMaxLifetimeSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnMaxLifetimeSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnMaxLifetimeSecs::default(),
@@ -111,11 +89,9 @@ impl Database {
 
         let max_connections = match &conf.max_connections {
             Some(raw_max_connections) => {
-                DbMaxConnections::new(raw_max_connections).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbMaxConnectionsError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                DbMaxConnections::new(raw_max_connections).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbMaxConnectionsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbMaxConnections::default(),
@@ -123,11 +99,9 @@ impl Database {
 
         let min_connections = match &conf.min_connections {
             Some(raw_min_connections) => {
-                DbMinConnections::new(raw_min_connections).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbMinConnectionsError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                DbMinConnections::new(raw_min_connections).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbMinConnectionsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbMinConnections::default(),

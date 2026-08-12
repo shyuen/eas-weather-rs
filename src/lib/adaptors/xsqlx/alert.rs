@@ -38,7 +38,7 @@ const FORMAT: Iso8601<
     },
 > = Iso8601;
 
-///
+/// A database row representing an alert, mapped from the MySQL alerts table.
 #[derive(
     FromRow,
     Debug,
@@ -172,10 +172,8 @@ impl AlertPort for DatabaseMySql {
                     ))
                 })?;
 
-                let alerts: Result<Vec<_>, _> = alert_items
-                    .into_iter()
-                    .map(|mysql_alert| Alert::try_from(mysql_alert))
-                    .collect();
+                let alerts: Result<Vec<_>, _> =
+                    alert_items.into_iter().map(Alert::try_from).collect();
 
                 match alerts {
                     Ok(alerts) => Ok(GetDailyAlertsResponse {
@@ -295,10 +293,8 @@ impl AlertPort for DatabaseMySql {
                     ))
                 })?;
 
-                let alerts: Result<Vec<_>, _> = alert_items
-                    .into_iter()
-                    .map(|mysql_alert| Alert::try_from(mysql_alert))
-                    .collect();
+                let alerts: Result<Vec<_>, _> =
+                    alert_items.into_iter().map(Alert::try_from).collect();
 
                 match alerts {
                     Ok(alerts) => Ok(GetLatestAlertsResponse {
