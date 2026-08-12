@@ -131,7 +131,14 @@ impl ConfigPort for MockConfig {
     fn get_webserver_config(&self) -> &Webserver {
         &self.webserver
     }
-    fn log_raw_config_input(&self) {}
+    fn raw_config_input(&self) -> crate::domain::config::model::RawConfigInputs {
+        crate::domain::config::model::RawConfigInputs {
+            cli: serde_json::Value::Null,
+            env: serde_json::Value::Null,
+            files: serde_json::Value::Null,
+            final_config: serde_json::Value::Null,
+        }
+    }
     fn log_raw_config_validation(&self) {}
 }
 
