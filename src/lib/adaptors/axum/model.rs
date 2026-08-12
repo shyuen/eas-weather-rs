@@ -103,6 +103,7 @@ impl WebserverAxum {
     }
 }
 
+/// Implementation of the AdaptorConfigRepr trait for WebserverAxum
 impl AdaptorConfigRepr for WebserverAxum {
     fn adaptor_name(&self) -> &'static str {
         "axum"

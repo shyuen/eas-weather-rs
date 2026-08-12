@@ -1,6 +1,7 @@
 use tracing::{debug, info, trace, warn};
 
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
@@ -141,7 +142,7 @@ where
     pub fn log_raw_config_validation(&self) {
         for issue in self.port.validate_raw_config() {
             match issue {
-                crate::domain::config::issue::ConfigIssue::NotSpecified { key, default } => {
+                ConfigIssue::NotSpecified { key, default } => {
                     warn!(
                         target: module_path!(),
                         config = key,
@@ -151,7 +152,7 @@ where
                         default
                     );
                 }
-                crate::domain::config::issue::ConfigIssue::Invalid {
+                ConfigIssue::Invalid {
                     key,
                     value,
                     default,
@@ -167,7 +168,7 @@ where
                         default
                     );
                 }
-                crate::domain::config::issue::ConfigIssue::LoadFailed {
+                ConfigIssue::LoadFailed {
                     key,
                     path,
                     reason,
