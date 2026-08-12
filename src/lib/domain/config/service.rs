@@ -1,5 +1,6 @@
 use tracing::info;
 
+use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
@@ -52,6 +53,13 @@ where
     /// Returns the raw configuration.
     pub fn get_raw_config(&self) -> &Config {
         self.port.get_raw_config()
+    }
+
+    /// Log configuration fields exposed by an adaptor through [`AdaptorConfigRepr`].
+    pub fn log_adaptor_config(&self, adaptor: &impl AdaptorConfigRepr) {
+        for (key, value) in adaptor.config_fields() {
+            info!(adaptor_config = key, config_value = value.as_str());
+        }
     }
 
     /// Validate the raw logging configuration.

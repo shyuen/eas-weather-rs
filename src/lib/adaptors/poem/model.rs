@@ -1,6 +1,7 @@
 use crate::adaptors::poem::handlers::meta::MetaHandler;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
+use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
@@ -13,11 +14,15 @@ use std::sync::Arc;
 use tokio::time::Duration;
 
 #[derive(Debug, Clone)]
-pub struct WebserverPoem {}
+pub struct WebserverPoem {
+    config: Webserver,
+}
 
 impl WebserverPoem {
-    pub fn new() -> Self {
-        WebserverPoem {}
+    pub fn new(conf_webserv: Webserver) -> Self {
+        WebserverPoem {
+            config: conf_webserv,
+        }
     }
 }
 
@@ -36,25 +41,8 @@ pub enum OperationalTags {
 
 impl WebserverRepo for WebserverPoem {
     /// Create a new instance of the webserver repository with the given configuration
-    fn new(_conf_webserv: &Webserver) -> Self {
-        WebserverPoem::new()
-    }
-
-    fn log_adaptor_config(&self, conf_webserv: &Webserver) {
-        info!("poem_hostname={}", conf_webserv.hostname.get());
-        info!("poem_port={}", conf_webserv.port.get());
-        info!("poem_base_path={}", conf_webserv.base_path.to_string());
-        info!(
-            "poem_shutdown_timeout_secs={}",
-            conf_webserv.shutdown_timeout_secs.get()
-        );
-
-        info!("poem_api_key={}", conf_webserv.api_key);
-        info!("poem_jwt_key={}", conf_webserv.jwt_key);
-        info!(
-            "poem_jwt_access_token_expiry_secs={}",
-            conf_webserv.jwt_access_token_expiry_secs.get()
-        );
+    fn new(conf_webserv: &Webserver) -> Self {
+        WebserverPoem::new(conf_webserv.clone())
     }
 
     //async fn start_server<'a>(
@@ -138,5 +126,26 @@ impl WebserverRepo for WebserverPoem {
             Some(Duration::from_secs(*&config.shutdown_timeout_secs.get())),
         )
         .await
+    }
+}
+
+impl AdaptorConfigRepr for WebserverPoem {
+    fn config_fields(&self) -> Vec<(&'static str, String)> {
+        let c = &self.config;
+        vec![
+            ("hostname", c.hostname.get().clone()),
+            ("port", c.port.get().to_string()),
+            ("base_path", c.base_path.to_string()),
+            (
+                "shutdown_timeout_secs",
+                c.shutdown_timeout_secs.get().to_string(),
+            ),
+            ("api_key", c.api_key.to_string()),
+            ("jwt_key", c.jwt_key.to_string()),
+            (
+                "jwt_access_token_expiry_secs",
+                c.jwt_access_token_expiry_secs.get().to_string(),
+            ),
+        ]
     }
 }

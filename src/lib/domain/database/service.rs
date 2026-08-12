@@ -1,6 +1,7 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
+use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 use tracing::{debug, error, info, warn};
 
@@ -10,6 +11,7 @@ where
     D: DatabasePort + AlertPort,
 {
     db_port: D,
+    conf: Database,
 }
 
 impl<D> DatabaseService<D>
@@ -21,10 +23,9 @@ where
     where
         C: ConfigPort,
     {
-        let conf_db = conf_serv.get_database_config();
-
-        let db_port = D::new(conf_db);
-        Self { db_port }
+        let conf = conf_serv.get_database_config().clone();
+        let db_port = D::new(&conf);
+        Self { db_port, conf }
     }
 
     /// Get the Database port
@@ -32,23 +33,9 @@ where
         &self.db_port
     }
 
-    /// Log configuration that's currently set
-    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
-    where
-        C: ConfigPort,
-    {
-        let conf_db = conf_serv.get_database_config();
-
-        self.db_port.log_adaptor_config(conf_db);
-    }
-
-    pub async fn create_pool<C>(&mut self, conf_serv: &ConfigService<C>)
-    where
-        C: ConfigPort,
-    {
-        let conf_db = conf_serv.get_database_config();
-        let max_retries = conf_db.conn_max_retries.get();
-        let mut current_backoff = conf_db.conn_retry_init_delay_secs.get();
+    pub async fn create_pool(&mut self) {
+        let max_retries = self.conf.conn_max_retries.get();
+        let mut current_backoff = self.conf.conn_retry_init_delay_secs.get();
 
         debug!(
             "create_pool: creating database connection pool (max_retries={})",
@@ -56,7 +43,7 @@ where
         );
 
         for attempt in 1..=max_retries {
-            match self.db_port.create_pool(conf_db).await {
+            match self.db_port.create_pool().await {
                 Ok(()) => {
                     info!(
                         attempt,
