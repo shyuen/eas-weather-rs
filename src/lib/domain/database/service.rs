@@ -1,7 +1,7 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
-use crate::domain::database::port::{DatabaseConnectError, DatabasePort};
+use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
@@ -89,6 +89,21 @@ where
                         .await;
                     current_backoff *= 2;
                 }
+            }
+        }
+    }
+
+    /// Close the database connection pool.
+    pub async fn close_pool(&self) -> Result<(), DatabaseCloseError> {
+        debug!("close_pool: closing database connection pool");
+        match self.db_port.close_pool().await {
+            Ok(()) => {
+                info!("close_pool: database connection pool closed successfully");
+                Ok(())
+            }
+            Err(err) => {
+                warn!("close_pool: {}", err);
+                Err(err)
             }
         }
     }

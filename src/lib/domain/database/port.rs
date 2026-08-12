@@ -13,6 +13,14 @@ pub enum DatabaseConnectError {
     Fatal(String),
 }
 
+/// Errors that can occur while closing a database connection pool.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum DatabaseCloseError {
+    /// The pool was never initialized, so there is nothing to close.
+    #[error("database pool was not initialized; nothing to close")]
+    PoolNotInitialized,
+}
+
 //#[async_trait]
 pub trait DatabasePort: Clone + Send + Sync + 'static {
     /// Create a new instance of the database repository with the given configuration
@@ -28,5 +36,5 @@ pub trait DatabasePort: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send;
 
     /// Close the database connection pool
-    fn close_pool(&self) -> impl Future<Output = ()> + Send;
+    fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send;
 }

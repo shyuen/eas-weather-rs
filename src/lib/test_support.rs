@@ -11,7 +11,7 @@ use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
-use crate::domain::database::port::{DatabaseConnectError, DatabasePort};
+use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 use crate::domain::database::service::DatabaseService;
 use crate::domain::logging::model::Logging;
 use crate::domain::meta::port::{MetaPort, ValidatedConfig};
@@ -149,8 +149,8 @@ impl DatabasePort for MockDb {
     ) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
         async { Ok(()) }
     }
-    fn close_pool(&self) -> impl Future<Output = ()> + Send {
-        async {}
+    fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
+        async { Ok(()) }
     }
 }
 
@@ -196,8 +196,8 @@ impl DatabasePort for FailingDb {
     ) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
         async { Ok(()) }
     }
-    fn close_pool(&self) -> impl Future<Output = ()> + Send {
-        async {}
+    fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
+        async { Ok(()) }
     }
 }
 
