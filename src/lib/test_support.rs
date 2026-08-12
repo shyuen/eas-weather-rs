@@ -7,7 +7,7 @@ use std::future::Future;
 
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
+use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
@@ -152,7 +152,10 @@ impl DatabasePort for MockDb {
 }
 
 impl AdaptorConfigRepr for MockDb {
-    fn config_fields(&self) -> Vec<(&'static str, String)> {
+    fn adaptor_name(&self) -> &'static str {
+        "mock_db"
+    }
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
         vec![]
     }
 }
@@ -201,7 +204,10 @@ impl DatabasePort for FailingDb {
 }
 
 impl AdaptorConfigRepr for FailingDb {
-    fn config_fields(&self) -> Vec<(&'static str, String)> {
+    fn adaptor_name(&self) -> &'static str {
+        "failing_db"
+    }
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
         vec![]
     }
 }

@@ -1,7 +1,7 @@
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
+use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormat;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
@@ -28,10 +28,14 @@ impl LoggingTracing {
 }
 
 impl AdaptorConfigRepr for LoggingTracing {
-    fn config_fields(&self) -> Vec<(&'static str, String)> {
+    fn adaptor_name(&self) -> &'static str {
+        "tracing"
+    }
+
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
         vec![
-            ("format", self.format.to_string()),
-            ("trace_level", self.trace_level.to_string()),
+            AdaptorConfigField::new("format", self.format.to_string()),
+            AdaptorConfigField::new("trace_level", self.trace_level.to_string()),
         ]
     }
 }

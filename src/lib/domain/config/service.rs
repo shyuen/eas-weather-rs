@@ -1,4 +1,4 @@
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::model::Config;
@@ -56,9 +56,38 @@ where
     }
 
     /// Log configuration fields exposed by an adaptor through [`AdaptorConfigRepr`].
+    ///
+    /// Emits one compact line per adaptor, so N adaptors produce N log lines at
+    /// startup. Non-sensitive fields are logged at `info`; sensitive fields
+    /// (secrets/credentials) are withheld from info and only emitted at `trace`,
+    /// and even then in masked form (the adaptor supplies the masked
+    /// representation via its `Display`). Real secret values never enter the
+    /// logs.
     pub fn log_adaptor_config(&self, adaptor: &impl AdaptorConfigRepr) {
-        for (key, value) in adaptor.config_fields() {
-            info!(adaptor_config = key, config_value = value.as_str());
+        let adaptor_name = adaptor.adaptor_name();
+        let mut public = serde_json::Map::new();
+        let mut secrets = serde_json::Map::new();
+        for field in adaptor.config_fields() {
+            let json = serde_json::Value::String(field.value);
+            if field.sensitive {
+                secrets.insert(field.key.to_string(), json);
+            } else {
+                public.insert(field.key.to_string(), json);
+            }
+        }
+
+        if !public.is_empty() {
+            info!(
+                adaptor = adaptor_name,
+                config = %serde_json::Value::Object(public)
+            );
+        }
+        if !secrets.is_empty() {
+            trace!(
+                adaptor = adaptor_name,
+                config_secret = true,
+                config = %serde_json::Value::Object(secrets)
+            );
         }
     }
 
