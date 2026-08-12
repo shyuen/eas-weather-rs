@@ -19,6 +19,15 @@ where
     pub port: C,
 }
 
+impl<C> Default for ConfigService<C>
+where
+    C: ConfigPort,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<C> ConfigService<C>
 where
     C: ConfigPort,

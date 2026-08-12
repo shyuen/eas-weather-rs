@@ -50,113 +50,72 @@ impl Webserver {
     // Creates a new instance of Webserver configuration.
     pub fn new(conf: &ConfigWebserver) -> Self {
         let hostname = match &conf.hostname {
-            Some(raw_hostname) => {
-                WebserverHostname::new(raw_hostname).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => WebserverHostname::default(),
-                })
-            }
+            Some(raw_hostname) => WebserverHostname::new(raw_hostname)
+                .unwrap_or_else(|_| WebserverHostname::default()),
             None => WebserverHostname::default(),
         };
 
         let port = match &conf.port {
-            Some(raw_port) => {
-                WebserverPort::new(raw_port).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => {
-                        eprintln!("uncaught WebPortError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
-                })
-            }
+            Some(raw_port) => WebserverPort::new(raw_port).unwrap_or_else(|_| {
+                eprintln!("uncaught WebPortError");
+                std::process::exit(1); // We use exit for planned exits instead of panics
+            }),
             None => WebserverPort::default(),
         };
 
         let base_path = match &conf.base_path {
-            Some(raw_base_path) => {
-                WebserverBasePath::new(raw_base_path).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => {
-                        eprintln!("uncaught WebserverBasePathError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
-                })
-            }
+            Some(raw_base_path) => WebserverBasePath::new(raw_base_path).unwrap_or_else(|_| {
+                eprintln!("uncaught WebserverBasePathError");
+                std::process::exit(1); // We use exit for planned exits instead of panics
+            }),
             None => WebserverBasePath::default(),
         };
 
         let shutdown_timeout_secs = match &conf.shutdown_timeout_secs {
             Some(raw_shutdown_timeout_secs) => {
-                WebserverShutdownTimeoutSecs::new(raw_shutdown_timeout_secs).unwrap_or_else(|err| {
-                    match &err {
-                        // Set to default the default option on errors
-                        // We don't handle logging here as the logger is not yet initialized
-                        _ => {
-                            eprintln!("uncaught WebserverShutdownTimeoutSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                WebserverShutdownTimeoutSecs::new(raw_shutdown_timeout_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught WebserverShutdownTimeoutSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => WebserverShutdownTimeoutSecs::default(),
         };
 
         let api_key = match &conf.api_key_file {
-            Some(raw_api_key_file) => {
-                WebserverApiKey::new(raw_api_key_file).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => WebserverApiKey::default(),
-                })
-            }
+            Some(raw_api_key_file) => WebserverApiKey::new(raw_api_key_file)
+                .unwrap_or_else(|_| WebserverApiKey::default()),
             None => WebserverApiKey::default(),
         };
 
         let jwt_key = match &conf.jwt_key_file {
-            Some(raw_jwt_key_file) => {
-                WebserverJwtKey::new(raw_jwt_key_file).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => WebserverJwtKey::default(),
-                })
-            }
+            Some(raw_jwt_key_file) => WebserverJwtKey::new(raw_jwt_key_file)
+                .unwrap_or_else(|_| WebserverJwtKey::default()),
             None => WebserverJwtKey::default(),
         };
 
         let jwt_access_token_expiry_secs = match &conf.jwt_access_token_expiry_secs {
             Some(raw_jwt_access_token_expiry_secs) => {
                 WebserverJwtAccessTokenExpirySecs::new(raw_jwt_access_token_expiry_secs)
-                    .unwrap_or_else(|err| match &err {
-                        // Set to default the default option on errors
-                        // We don't handle logging here as the logger is not yet initialized
-                        _ => {
-                            eprintln!("uncaught WebserverJwtAccessTokenExpirySecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
+                    .unwrap_or_else(|_| {
+                        eprintln!("uncaught WebserverJwtAccessTokenExpirySecsError");
+                        std::process::exit(1); // We use exit for planned exits instead of panics
                     })
             }
             None => WebserverJwtAccessTokenExpirySecs::default(),
         };
 
         let default_page_limit = match &conf.default_page_limit {
-            Some(raw) => WebserverDefaultPageLimit::new(raw).unwrap_or_else(|err| match &err {
-                _ => {
-                    eprintln!("uncaught WebserverDefaultPageLimitError");
-                    std::process::exit(1);
-                }
+            Some(raw) => WebserverDefaultPageLimit::new(raw).unwrap_or_else(|_| {
+                eprintln!("uncaught WebserverDefaultPageLimitError");
+                std::process::exit(1);
             }),
             None => WebserverDefaultPageLimit::default(),
         };
 
         let page_limit_max = match &conf.page_limit_max {
-            Some(raw) => WebserverPageLimitMax::new(raw).unwrap_or_else(|err| match &err {
-                _ => {
-                    eprintln!("uncaught WebserverPageLimitMaxError");
-                    std::process::exit(1);
-                }
+            Some(raw) => WebserverPageLimitMax::new(raw).unwrap_or_else(|_| {
+                eprintln!("uncaught WebserverPageLimitMaxError");
+                std::process::exit(1);
             }),
             None => WebserverPageLimitMax::default(),
         };

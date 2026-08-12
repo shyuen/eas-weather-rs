@@ -56,7 +56,7 @@ impl WebserverRepo for WebserverPoem {
         D: DatabasePort + AlertPort,
     {
         // Construct root address
-        let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
+        let root_addr = format!("{}:{}", config.hostname.get(), config.port.get());
 
         // Check the base_path value
         let base_path: &str = match &config.base_path.get() {
@@ -74,7 +74,7 @@ impl WebserverRepo for WebserverPoem {
         };
 
         // Construct base address for OpenAPI server
-        let base_addr = format!("{}{}", &root_addr, &base_path);
+        let base_addr = format!("{}{}", root_addr, base_path);
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -82,7 +82,7 @@ impl WebserverRepo for WebserverPoem {
             env!("CARGO_PKG_NAME").to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         )
-        .server(format!("http://{}", &base_addr));
+        .server(format!("http://{}", base_addr));
 
         // Create Swagger UI
         let ui = main_paths.swagger_ui();
@@ -96,7 +96,7 @@ impl WebserverRepo for WebserverPoem {
         // Create routes
         let routes = Route::new()
             .nest("/", main_paths)
-            .nest(format!("{}/docs", &base_path), ui)
+            .nest(format!("{}/docs", base_path), ui)
             .data(app_state.clone()); // Pass meta_service to the routes, requires EndpointExt
 
         // Database port for graceful shutdown is sourced from the alert service.
@@ -108,8 +108,8 @@ impl WebserverRepo for WebserverPoem {
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(
             "{}:{}",
-            &config.hostname.get(),
-            &config.port.get()
+            config.hostname.get(),
+            config.port.get()
         )))
         .run_with_graceful_shutdown(
             routes,
@@ -122,7 +122,7 @@ impl WebserverRepo for WebserverPoem {
                 let _ = db_port.close_pool().await;
             },
             // Graceful shutdown timeout
-            Some(Duration::from_secs(*&config.shutdown_timeout_secs.get())),
+            Some(Duration::from_secs(config.shutdown_timeout_secs.get())),
         )
         .await?;
 

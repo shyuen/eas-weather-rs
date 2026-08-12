@@ -17,23 +17,14 @@ impl Logging {
     pub fn new(conf: &ConfigLogging) -> Self {
         let format = match &conf.format {
             Some(raw_log_format) => {
-                LoggingFormat::new(&raw_log_format).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => LoggingFormat::default(),
-                })
+                LoggingFormat::new(raw_log_format).unwrap_or_else(|_| LoggingFormat::default())
             }
             None => LoggingFormat::default(),
         };
 
         let trace_level = match &conf.trace_level {
-            Some(raw_trace_level) => {
-                LoggingTraceLevel::new(&raw_trace_level).unwrap_or_else(|err| match &err {
-                    // Set value based on raw input or to its default errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => LoggingTraceLevel::default(),
-                })
-            }
+            Some(raw_trace_level) => LoggingTraceLevel::new(raw_trace_level)
+                .unwrap_or_else(|_| LoggingTraceLevel::default()),
             None => LoggingTraceLevel::default(),
         };
 
