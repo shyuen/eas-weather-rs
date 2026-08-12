@@ -20,10 +20,13 @@ impl WebserverShutdownTimeoutSecs {
         // Add validation logic here if needed
         Ok(WebserverShutdownTimeoutSecs(*raw_shutdown_timeout_secs))
     }
-    pub fn default() -> Self {
-        WebserverShutdownTimeoutSecs(300)
-    }
     pub fn get(&self) -> u64 {
         self.0
+    }
+}
+
+impl Default for WebserverShutdownTimeoutSecs {
+    fn default() -> Self {
+        WebserverShutdownTimeoutSecs(300)
     }
 }

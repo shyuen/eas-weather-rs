@@ -60,10 +60,13 @@ impl LoggingTraceLevel {
             )),
         }
     }
-    pub fn default() -> Self {
-        LoggingTraceLevel(LoggingTraceLevelType::Info)
-    }
     pub fn get(&self) -> &LoggingTraceLevelType {
         &self.0
+    }
+}
+
+impl Default for LoggingTraceLevel {
+    fn default() -> Self {
+        LoggingTraceLevel(LoggingTraceLevelType::Info)
     }
 }

@@ -24,10 +24,13 @@ impl WebserverJwtAccessTokenExpirySecs {
             *raw_jwt_access_token_expiry_secs,
         ))
     }
-    pub fn default() -> Self {
-        WebserverJwtAccessTokenExpirySecs(900)
-    }
     pub fn get(&self) -> u64 {
         self.0
+    }
+}
+
+impl Default for WebserverJwtAccessTokenExpirySecs {
+    fn default() -> Self {
+        WebserverJwtAccessTokenExpirySecs(900)
     }
 }

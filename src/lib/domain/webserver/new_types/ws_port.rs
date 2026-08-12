@@ -20,10 +20,13 @@ impl WebserverPort {
         // Add validation logic here if needed
         Ok(WebserverPort(*raw_ws_port))
     }
-    pub fn default() -> Self {
-        WebserverPort(8080)
-    }
     pub fn get(&self) -> u16 {
         self.0
+    }
+}
+
+impl Default for WebserverPort {
+    fn default() -> Self {
+        WebserverPort(8080)
     }
 }
