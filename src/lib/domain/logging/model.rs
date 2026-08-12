@@ -1,10 +1,9 @@
 use serde_derive::{Deserialize, Serialize};
 
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::ConfigLogging;
 use crate::domain::logging::new_types::lg_format::LoggingFormat;
 use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevel;
-use crate::warn_config_invalid;
-use crate::warn_config_not_specified;
 
 /// Configuration for logging.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,36 +43,47 @@ impl Logging {
         }
     }
 
-    /// Validates the raw logging configuration and logs warnings for any issues found.
-    pub fn validate_raw_config(&self, raw_log_conf: &ConfigLogging) {
+    /// Validates the raw logging configuration, collecting any auto-correction
+    /// issues. No logging is performed here; the caller renders the issues.
+    pub fn validate_raw_config(&self, raw_log_conf: &ConfigLogging) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+
         match &raw_log_conf.format {
             Some(raw_log_format) => {
                 if LoggingFormat::new(raw_log_format).is_err() {
-                    warn_config_invalid!(
-                        "logging.format",
-                        raw_log_format,
-                        LoggingFormat::default()
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.format",
+                        value: raw_log_format.to_string(),
+                        default: LoggingFormat::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!("logging.format", LoggingFormat::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.format",
+                    default: LoggingFormat::default().to_string(),
+                });
             }
         }
 
         match &raw_log_conf.trace_level {
             Some(raw_trace_level) => {
                 if LoggingTraceLevel::new(raw_trace_level).is_err() {
-                    warn_config_invalid!(
-                        "logging.trace_level",
-                        raw_trace_level,
-                        LoggingTraceLevel::default(),
-                    );
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.trace_level",
+                        value: raw_trace_level.to_string(),
+                        default: LoggingTraceLevel::default().to_string(),
+                    });
                 }
             }
             None => {
-                warn_config_not_specified!("logging.trace_level", LoggingTraceLevel::default());
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.trace_level",
+                    default: LoggingTraceLevel::default().to_string(),
+                });
             }
         }
+
+        issues
     }
 }

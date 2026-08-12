@@ -1,4 +1,4 @@
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::model::Config;
@@ -134,9 +134,59 @@ where
         }
     }
 
-    /// Validate the raw logging configuration.
+    /// Validate the raw configuration and log any auto-correction issues.
+    ///
+    /// Collection happens in the domain models; this service renders each
+    /// collected issue as a `warn!` event with structured fields.
     pub fn log_raw_config_validation(&self) {
-        self.port.log_raw_config_validation();
+        for issue in self.port.validate_raw_config() {
+            match issue {
+                crate::domain::config::issue::ConfigIssue::NotSpecified { key, default } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        default = %default,
+                        "{} was not specified; defaulting to `{}`",
+                        key,
+                        default
+                    );
+                }
+                crate::domain::config::issue::ConfigIssue::Invalid {
+                    key,
+                    value,
+                    default,
+                } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        invalid = %value,
+                        default = %default,
+                        "{} has invalid value `{}`; defaulting to `{}`",
+                        key,
+                        value,
+                        default
+                    );
+                }
+                crate::domain::config::issue::ConfigIssue::LoadFailed {
+                    key,
+                    path,
+                    reason,
+                    default,
+                } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        path = %path,
+                        default = %default,
+                        "{} failed to load `{}`: {}; defaulting to `{}`",
+                        key,
+                        path,
+                        reason,
+                        default
+                    );
+                }
+            }
+        }
     }
 
     /// Returns the logging configuration.

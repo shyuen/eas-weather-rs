@@ -1,3 +1,4 @@
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::{Config, RawConfigInputs};
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
@@ -26,8 +27,8 @@ pub trait ConfigPort: Clone + Send + Sync + 'static {
     /// left to the caller so it can respect the configured output format.
     fn raw_config_input(&self) -> RawConfigInputs;
 
-    /// Log any validation messages regarding the configuration to stdout
-    /// This is needed to be triggered after the logging subsystem is initialized
-    /// so that configutation log messages can be captured correctly.
-    fn log_raw_config_validation(&self);
+    /// Run validation over the effective configuration, collecting the issues
+    /// detected during any auto-correction. Emission into the logs is left to
+    /// the caller (the config service) so the domain models stay logging-free.
+    fn validate_raw_config(&self) -> Vec<ConfigIssue>;
 }

@@ -139,7 +139,9 @@ impl ConfigPort for MockConfig {
             final_config: serde_json::Value::Null,
         }
     }
-    fn log_raw_config_validation(&self) {}
+    fn validate_raw_config(&self) -> Vec<crate::domain::config::issue::ConfigIssue> {
+        Vec::new()
+    }
 }
 
 /// `DatabasePort + AlertPort` double that always returns successful results.

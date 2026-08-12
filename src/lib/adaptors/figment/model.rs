@@ -7,6 +7,7 @@ use figment::{
 use std::env;
 
 use crate::adaptors::clap::model::Cli;
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::{Config, RawConfigInputs};
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
@@ -146,13 +147,21 @@ impl ConfigPort for ConfigFigment {
         }
     }
 
-    /// Validate raw logging configuration
-    fn log_raw_config_validation(&self) {
-        self.conf_logging
-            .validate_raw_config(&self.conf_raw.logging);
-        self.conf_database
-            .validate_raw_config(&self.conf_raw.database);
-        self.conf_webserver
-            .validate_raw_config(&self.conf_raw.webserver);
+    /// Run validation over the effective configuration, collecting detected issues
+    fn validate_raw_config(&self) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+        issues.extend(
+            self.conf_logging
+                .validate_raw_config(&self.conf_raw.logging),
+        );
+        issues.extend(
+            self.conf_database
+                .validate_raw_config(&self.conf_raw.database),
+        );
+        issues.extend(
+            self.conf_webserver
+                .validate_raw_config(&self.conf_raw.webserver),
+        );
+        issues
     }
 }
