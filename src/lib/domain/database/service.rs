@@ -1,7 +1,8 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
-use crate::domain::database::port::DatabasePort;
+use crate::domain::database::port::{DatabaseConnectError, DatabasePort};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseService<D>
@@ -46,8 +47,49 @@ where
         C: ConfigPort,
     {
         let conf_db = conf_serv.get_database_config();
-        // Implementation for creating database pool goes here
+        let max_retries = conf_db.conn_max_retries.get();
+        let mut current_backoff = conf_db.conn_retry_init_delay_secs.get();
 
-        self.db_port.create_pool(conf_db).await;
+        debug!(
+            "create_pool: creating database connection pool (max_retries={})",
+            max_retries
+        );
+
+        for attempt in 1..=max_retries {
+            match self.db_port.create_pool(conf_db).await {
+                Ok(()) => {
+                    info!(
+                        attempt,
+                        "create_pool: database connection pool created successfully"
+                    );
+                    return;
+                }
+                Err(DatabaseConnectError::Fatal(msg)) => {
+                    error!(attempt, error = %msg, "create_pool: fatal error; aborting");
+                    return;
+                }
+                Err(DatabaseConnectError::Retryable(msg)) => {
+                    if attempt == max_retries {
+                        error!(
+                            attempt,
+                            max_retries,
+                            error = %msg,
+                            "create_pool: connection retries exhausted"
+                        );
+                        return;
+                    }
+                    warn!(
+                        attempt,
+                        max_retries,
+                        backoff_secs = current_backoff,
+                        error = %msg,
+                        "create_pool: connection failed; retrying"
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(current_backoff as u64))
+                        .await;
+                    current_backoff *= 2;
+                }
+            }
+        }
     }
 }

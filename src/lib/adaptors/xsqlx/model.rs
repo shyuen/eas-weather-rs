@@ -3,7 +3,7 @@ use std::time::Duration;
 use tracing::{error, info, warn};
 
 use crate::domain::database::model::Database;
-use crate::domain::database::port::DatabasePort;
+use crate::domain::database::port::{DatabaseConnectError, DatabasePort};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseMySql {
@@ -45,22 +45,6 @@ impl DatabasePort for DatabaseMySql {
     fn log_adaptor_config(&self, conf_db: &Database) {
         match &self.conn_opt {
             Some(_) => {
-                // let db_name = match options.get_database() {
-                //     Some(db_name) => &format!("/{}", db_name),
-                //     None => "",
-                // };
-
-                // log_port.info(
-                //     module_path!(),
-                //     &format!(
-                //         "xsqlx_conn_opt={username}@{host}:{port}{name}",
-                //         host = options.get_host(),
-                //         port = options.get_port(),
-                //         name = db_name,
-                //         username = options.get_username(),
-                //     ),
-                // );
-
                 info!("xsqlx_conn_opt=\"{}\"", conf_db.conn_string.to_string());
             }
             None => {
@@ -95,63 +79,37 @@ impl DatabasePort for DatabaseMySql {
         info!("xsqlx_max_connections={}", &conf_db.max_connections);
     }
 
-    async fn create_pool(&mut self, conf_db: &Database) {
-        let mut current_backoff = *(&conf_db.conn_retry_init_delay_secs.get());
-
+    async fn create_pool(&mut self, conf_db: &Database) -> Result<(), DatabaseConnectError> {
         match &self.conn_opt {
             Some(conn_opt) => {
-                for i in 0..conf_db.conn_max_retries.get() {
-                    // Attempt to create the connection pool with configured options
-                    match MySqlPoolOptions::new()
-                        .acquire_timeout(Duration::from_secs(
-                            conf_db.conn_acquire_timeout_secs.get() as u64,
-                        ))
-                        .idle_timeout(Duration::from_secs(
-                            conf_db.conn_idle_timeout_secs.get() as u64
-                        ))
-                        .max_lifetime(Duration::from_secs(
-                            conf_db.conn_max_lifetime_secs.get() as u64
-                        ))
-                        .min_connections(conf_db.min_connections.get())
-                        .max_connections(conf_db.max_connections.get())
-                        .connect_with(conn_opt.clone())
-                        .await
-                    {
-                        Ok(pool) => {
-                            info!("database pool created successfully");
-                            self.pool = Some(pool);
-                            return;
-                        }
-                        Err(e) => {
-                            warn!(
-                                "failed to connect to database (attempt {}/{}): {}",
-                                i + 1,
-                                conf_db.conn_max_retries.get(),
-                                e
-                            );
-                            if i + 1 == conf_db.conn_max_retries.get() {
-                                error!("database connection retries exhausted all attempts");
-                                self.pool = None;
-                                return;
-                            } else {
-                                warn!(
-                                    "database retrying connection in {} seconds",
-                                    current_backoff
-                                );
-
-                                tokio::time::sleep(std::time::Duration::from_secs(
-                                    current_backoff as u64,
-                                ))
-                                .await;
-                                current_backoff *= 2; // Exponential backoff
-                            }
-                        }
+                match MySqlPoolOptions::new()
+                    .acquire_timeout(Duration::from_secs(
+                        conf_db.conn_acquire_timeout_secs.get() as u64
+                    ))
+                    .idle_timeout(Duration::from_secs(
+                        conf_db.conn_idle_timeout_secs.get() as u64
+                    ))
+                    .max_lifetime(Duration::from_secs(
+                        conf_db.conn_max_lifetime_secs.get() as u64
+                    ))
+                    .min_connections(conf_db.min_connections.get())
+                    .max_connections(conf_db.max_connections.get())
+                    .connect_with(conn_opt.clone())
+                    .await
+                {
+                    Ok(pool) => {
+                        self.pool = Some(pool);
+                        Ok(())
                     }
+                    Err(e) => Err(DatabaseConnectError::Retryable(format!(
+                        "failed to connect to database: {}",
+                        e
+                    ))),
                 }
             }
-            None => {
-                error!("database MySQL connection options were not initialized successfully");
-            }
+            None => Err(DatabaseConnectError::Fatal(
+                "database MySQL connection options were not initialized successfully".to_string(),
+            )),
         }
     }
 
