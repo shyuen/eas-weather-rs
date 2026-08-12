@@ -9,7 +9,8 @@ use crate::domain::webserver::port::WebserverRepo;
 
 use poem::{EndpointExt, Route, Server, listener::TcpListener};
 use poem_openapi::{OpenApiService, Tags};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::time::Duration;
 
 #[derive(Debug, Clone)]
@@ -101,9 +102,8 @@ impl WebserverRepo for WebserverPoem {
         // Database port for graceful shutdown is sourced from the alert service.
         let db_port = alert_service.get_db_port().clone();
 
-        // Shared handle so the shutdown future can record why we stopped.
-        let shutdown_reason = Arc::new(Mutex::new(ShutdownReason::Stopped));
-        let shutdown_reason_handle = shutdown_reason.clone();
+        // Channel so the shutdown future can report why we stopped.
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<ShutdownReason>();
 
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(
@@ -115,7 +115,7 @@ impl WebserverRepo for WebserverPoem {
             routes,
             async move {
                 let _ = tokio::signal::ctrl_c().await;
-                *shutdown_reason_handle.lock().unwrap() = ShutdownReason::CtrlC;
+                let _ = shutdown_tx.send(ShutdownReason::CtrlC);
 
                 // Perform any necessary cleanup here
                 // e.g., close database connections, flush logs, etc.
@@ -126,7 +126,7 @@ impl WebserverRepo for WebserverPoem {
         )
         .await?;
 
-        Ok(*shutdown_reason.lock().unwrap())
+        Ok(shutdown_rx.await.unwrap_or(ShutdownReason::Stopped))
     }
 }
 

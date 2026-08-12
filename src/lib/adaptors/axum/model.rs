@@ -1,8 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::signal;
+use tokio::sync::oneshot;
 
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
@@ -52,26 +52,26 @@ impl WebserverRepo for WebserverAxum {
 
         let addr = format!("{}:{}", config.hostname.get(), config.port.get());
 
-        // Shared handle so shutdown_signal can record why we stopped.
-        let shutdown_reason = Arc::new(Mutex::new(ShutdownReason::Stopped));
+        // Channel so shutdown_signal can report why we stopped.
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<ShutdownReason>();
 
         // Start listening to the TCP port
         let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
         // Start the Axum server
         axum::serve(listener, app)
-            .with_graceful_shutdown(WebserverAxum::shutdown_signal(
-                db_port,
-                shutdown_reason.clone(),
-            ))
+            .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port, shutdown_tx))
             .await?;
 
-        Ok(*shutdown_reason.lock().unwrap())
+        Ok(shutdown_rx.await.unwrap_or(ShutdownReason::Stopped))
     }
 }
 
 impl WebserverAxum {
-    async fn shutdown_signal(db_port: impl DatabasePort, reason: Arc<Mutex<ShutdownReason>>) {
+    async fn shutdown_signal(
+        db_port: impl DatabasePort,
+        shutdown_tx: oneshot::Sender<ShutdownReason>,
+    ) {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -91,10 +91,10 @@ impl WebserverAxum {
 
         tokio::select! {
             _ = ctrl_c => {
-                *reason.lock().unwrap() = ShutdownReason::CtrlC;
+                let _ = shutdown_tx.send(ShutdownReason::CtrlC);
             },
             _ = terminate => {
-                *reason.lock().unwrap() = ShutdownReason::Terminate;
+                let _ = shutdown_tx.send(ShutdownReason::Terminate);
             },
         }
 
