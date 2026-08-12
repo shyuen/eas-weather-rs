@@ -46,3 +46,9 @@ The configuration is loaded in the following order, with later values overriding
 
 ### Logging
 https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/
+
+### Coverage Report
+Run the following command to generate an html report
+```
+cargo tarpaulin --out Html
+```
