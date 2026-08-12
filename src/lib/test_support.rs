@@ -7,6 +7,7 @@ use std::future::Future;
 
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
+use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
@@ -142,15 +143,17 @@ impl DatabasePort for MockDb {
     fn new(_conf: &Database) -> Self {
         MockDb
     }
-    fn log_adaptor_config(&self, _conf: &Database) {}
-    fn create_pool(
-        &mut self,
-        _conf: &Database,
-    ) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
+    fn create_pool(&mut self) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
         async { Ok(()) }
     }
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
+    }
+}
+
+impl AdaptorConfigRepr for MockDb {
+    fn config_fields(&self) -> Vec<(&'static str, String)> {
+        vec![]
     }
 }
 
@@ -189,15 +192,17 @@ impl DatabasePort for FailingDb {
     fn new(_conf: &Database) -> Self {
         FailingDb
     }
-    fn log_adaptor_config(&self, _conf: &Database) {}
-    fn create_pool(
-        &mut self,
-        _conf: &Database,
-    ) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
+    fn create_pool(&mut self) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
         async { Ok(()) }
     }
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
+    }
+}
+
+impl AdaptorConfigRepr for FailingDb {
+    fn config_fields(&self) -> Vec<(&'static str, String)> {
+        vec![]
     }
 }
 

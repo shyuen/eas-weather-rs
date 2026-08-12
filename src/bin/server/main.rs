@@ -22,19 +22,19 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_raw_config_validation(); // Validate raw configurations
 
     // Output logging adaptor configuration
-    logging_service.log_adaptor_config(&conf_service);
+    conf_service.log_adaptor_config(logging_service.get_port());
 
     // Initialize the database service
     let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(&conf_service);
 
-    // Output dataase adaptor configuration
-    database_service.log_adaptor_config(&conf_service);
+    // Output database adaptor configuration
+    conf_service.log_adaptor_config(database_service.get_port());
 
     // Show the raw configuration in the logs after logging service is initialized
     //conf_service.emit_raw_config(&logging_service);
 
     // Initialize database connection pool within the service
-    database_service.create_pool(&conf_service).await;
+    database_service.create_pool().await;
 
     // TODO: Initialize other services (e.g., weather data service, API service, etc.)
 
@@ -43,8 +43,8 @@ async fn main() -> Result<(), std::io::Error> {
     //     WebserverService::new(&conf_service);
     let webserver_service: WebserverService<WebserverAxum> = WebserverService::new(&conf_service);
 
-    // Output dataase adaptor configuration
-    webserver_service.log_adaptor_config(&conf_service);
+    // Output webserver adaptor configuration
+    conf_service.log_adaptor_config(webserver_service.get_port());
 
     // Initialize meta service
     let meta_service = MetaService::new(conf_service.clone());

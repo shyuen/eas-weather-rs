@@ -35,15 +35,6 @@ where
         &self.repo
     }
 
-    /// Log configuration that's currently set
-    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
-    where
-        C: ConfigPort,
-    {
-        let conf_webserver = conf_serv.get_webservicer_config();
-        self.repo.log_adaptor_config(conf_webserver);
-    }
-
     pub async fn start_server<C, D>(
         &self,
         conf_serv: &ConfigService<C>,

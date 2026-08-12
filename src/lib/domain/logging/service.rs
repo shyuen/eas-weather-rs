@@ -24,12 +24,8 @@ where
         Self { log_port }
     }
 
-    /// Log configuration that's currently set
-    pub fn log_adaptor_config<C>(&self, conf_serv: &ConfigService<C>)
-    where
-        C: ConfigPort,
-    {
-        let conf_log = conf_serv.get_logging_config();
-        self.log_port.log_adaptor_config(conf_log);
+    /// Return a reference to the underlying logging port.
+    pub fn get_port(&self) -> &L {
+        &self.log_port
     }
 }

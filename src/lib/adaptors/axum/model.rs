@@ -7,17 +7,22 @@ use tracing::info;
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
+use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::Webserver;
 use crate::domain::webserver::port::WebserverRepo;
 
 #[derive(Debug, Clone)]
-pub struct WebserverAxum {}
+pub struct WebserverAxum {
+    config: Webserver,
+}
 
 impl WebserverAxum {
-    pub fn new() -> Self {
-        WebserverAxum {}
+    pub fn new(conf_webserv: Webserver) -> Self {
+        WebserverAxum {
+            config: conf_webserv,
+        }
     }
 
     async fn shutdown_signal(db_port: impl DatabasePort) {
@@ -56,21 +61,8 @@ impl WebserverAxum {
 
 impl WebserverRepo for WebserverAxum {
     /// Create a new instance of the webserver repository with the given configuration
-    fn new(_conf_webserv: &Webserver) -> Self {
-        WebserverAxum::new()
-    }
-
-    fn log_adaptor_config(&self, conf_webserv: &Webserver) {
-        info!("axum_hostname={}", conf_webserv.hostname.to_string());
-        info!("axum_port={}", conf_webserv.port.get());
-        info!("axum_base_path={}", conf_webserv.base_path.to_string());
-        info!(
-            "axum_shutdown_timeout_secs={}",
-            conf_webserv.shutdown_timeout_secs.get()
-        );
-
-        info!("axum_api_key={}", conf_webserv.api_key.to_string());
-        info!("axum_jwt_key={}", conf_webserv.jwt_key.to_string());
+    fn new(conf_webserv: &Webserver) -> Self {
+        WebserverAxum::new(conf_webserv.clone())
     }
 
     async fn start_server<D>(
@@ -101,6 +93,23 @@ impl WebserverRepo for WebserverAxum {
         axum::serve(listener, app)
             .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port))
             .await
+    }
+}
+
+impl AdaptorConfigRepr for WebserverAxum {
+    fn config_fields(&self) -> Vec<(&'static str, String)> {
+        let c = &self.config;
+        vec![
+            ("hostname", c.hostname.get().clone()),
+            ("port", c.port.get().to_string()),
+            ("base_path", c.base_path.to_string()),
+            (
+                "shutdown_timeout_secs",
+                c.shutdown_timeout_secs.get().to_string(),
+            ),
+            ("api_key", c.api_key.to_string()),
+            ("jwt_key", c.jwt_key.to_string()),
+        ]
     }
 }
 
