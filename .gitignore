@@ -1,6 +1,6 @@
 .direnv
 /target
-conf/config.toml
+config/config.toml
 result
 db_password*
 mysql_conn_url
