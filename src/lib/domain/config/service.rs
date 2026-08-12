@@ -1,4 +1,4 @@
-use tracing::{info, trace};
+use tracing::{debug, info, trace};
 
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::model::Config;
@@ -33,9 +33,30 @@ where
         &self.port
     }
 
-    /// Log the raw configuration inputs.
+    /// Log the raw configuration inputs gathered from each source.
+    ///
+    /// Rendering depends on the configured logging format (pretty for text,
+    /// compact JSON for the json format). Emitted at `debug` since the raw,
+    /// pre-correction inputs are only of interest when troubleshooting config
+    /// auto-correction.
     pub fn log_raw_config_input(&self) {
-        self.port.log_raw_config_input();
+        let inputs = self.port.raw_config_input();
+        let pretty = matches!(
+            self.get_logging_config().format.get(),
+            LoggingFormatType::Text
+        );
+        let render = |value: &serde_json::Value| -> String {
+            if pretty {
+                serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+            } else {
+                value.to_string()
+            }
+        };
+
+        debug!(source = "cli", config = %render(&inputs.cli));
+        debug!(source = "env", config = %render(&inputs.env));
+        debug!(source = "files", config = %render(&inputs.files));
+        debug!(source = "final_config", config = %render(&inputs.final_config));
     }
 
     /// Emit the raw configuration through the initialized logging service.

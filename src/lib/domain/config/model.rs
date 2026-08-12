@@ -9,6 +9,23 @@ pub struct Config {
     pub config_file: Option<String>,
 }
 
+/// The gathered, pre-validation configuration inputs, split by source.
+///
+/// Serialized to JSON values so the domain port stays decoupled from the
+/// adaptor-specific source types (e.g. the figment `Cli`). The config service
+/// decides how to render them (text vs JSON, masking).
+#[derive(Debug, Clone)]
+pub struct RawConfigInputs {
+    /// Configuration sourced from CLI arguments.
+    pub cli: serde_json::Value,
+    /// Configuration sourced from environment variables.
+    pub env: serde_json::Value,
+    /// Configuration sourced from config files.
+    pub files: serde_json::Value,
+    /// The final merged raw configuration before validation.
+    pub final_config: serde_json::Value,
+}
+
 /// The raw configuration for logging.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfigLogging {

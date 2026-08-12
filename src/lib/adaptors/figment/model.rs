@@ -5,10 +5,9 @@ use figment::{
     providers::{Env, Format, Serialized, Toml},
 };
 use std::env;
-use tracing::debug;
 
 use crate::adaptors::clap::model::Cli;
-use crate::domain::config::model::Config;
+use crate::domain::config::model::{Config, RawConfigInputs};
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
@@ -99,26 +98,28 @@ impl ConfigPort for ConfigFigment {
         &self.conf_webserver
     }
 
-    // Log debug information regarding config inputs
-    fn log_raw_config_input(&self) {
-        // Log config from CLI
-        debug!("configuration from {:?}", Cli::parse());
+    // Gather raw config input from each source without validation
+    fn raw_config_input(&self) -> RawConfigInputs {
+        // Gather config from CLI
+        let cli = serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null);
 
-        // Log config from ENV
-        debug!(
-            "configuration from Env {:?}",
+        // Gather config from ENV
+        let env = serde_json::to_value(
             env::vars()
-                .filter(|(k, _)| k.starts_with("LOGGING__")
-                    || k.starts_with("SERVER__")
-                    || k.starts_with("DATABASE__"))
+                .filter(|(k, _)| {
+                    k.starts_with("LOGGING__")
+                        || k.starts_with("SERVER__")
+                        || k.starts_with("DATABASE__")
+                })
                 .map(|(k, v)| (k.replace("__", "."), v))
-                .collect::<Vec<_>>()
-        );
+                .collect::<Vec<_>>(),
+        )
+        .unwrap_or(serde_json::Value::Null);
 
-        let conf_files: Config = match Figment::new()
+        // Gather config from files
+        let files: Config = match Figment::new()
             .join(Toml::file(
-                &self
-                    .conf_raw
+                self.conf_raw
                     .config_file
                     .clone()
                     .unwrap_or("config/config.toml".to_string()),
@@ -132,10 +133,17 @@ impl ConfigPort for ConfigFigment {
                 std::process::exit(1);
             }
         };
-        debug!("configuration from Files {:?}", conf_files);
+        let files = serde_json::to_value(files).unwrap_or(serde_json::Value::Null);
 
-        // Log final raw config
-        debug!("final Raw Config {:?}", &self.conf_raw);
+        // Final merged raw config before validation
+        let final_config = serde_json::to_value(&self.conf_raw).unwrap_or(serde_json::Value::Null);
+
+        RawConfigInputs {
+            cli,
+            env,
+            files,
+            final_config,
+        }
     }
 
     /// Validate raw logging configuration
