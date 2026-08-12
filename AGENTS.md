@@ -23,7 +23,7 @@ Each domain context: `port.rs` (trait), `service.rs` (generic struct), `model.rs
 
 Priority (later overrides): code defaults → `config/default.toml` → selected config file (`--config-file`) → `.env` → env vars → CLI args.
 
-Env prefixes: `APP__`, `LOGGING__`, `SERVER__`, `DATABASE__` (split on `__` → nested keys).
+Env prefixes: `EAS_WEATHER_RS__APP__`, `EAS_WEATHER_RS__LOGGING__`, `EAS_WEATHER_RS__SERVER__`, `EAS_WEATHER_RS__DATABASE__`. The base prefix `EAS_WEATHER_RS` is derived from the crate name (hyphens → underscores) and verified at compile time in `src/lib/adaptors/figment/model.rs`. Env vars split on `__` → nested keys (e.g. `EAS_WEATHER_RS__SERVER__PORT` → `server.port`). clap's `#[arg(env = "...")]` attributes are written as literals (clap can't take a const).
 
 **Two-phase load:** figment loads config twice — first to extract `config_file` path, second with all sources.
 

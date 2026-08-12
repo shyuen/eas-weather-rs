@@ -14,6 +14,82 @@ use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
 use crate::domain::webserver::model::Webserver;
 
+/// The app-name component of the env-var namespace, matching the crate name
+/// with hyphens replaced by underscores (`eas-weather-rs` → `EAS_WEATHER_RS`).
+/// Used to build the section-scoped prefixes below.
+///
+/// `concat!` requires a literal (not a const reference), so prefixes are built
+/// via the `env_prefix!` macro, which supplies the `APP_NAME` literal and
+/// appends a section suffix. figment's `Env` provider can consume these
+/// `&'static str` prefixes directly, but clap's `#[arg(env = "...")]` attributes
+/// cannot reference a const or macro — they must be written as string literals.
+/// The compile-time guard near the bottom keeps those clap literals in sync with
+/// the crate name.
+macro_rules! env_prefix {
+    ($section:literal) => {
+        concat!("EAS_WEATHER_RS__", $section)
+    };
+}
+
+/// Section-scoped prefixes used for the per-section figment joins and the
+/// `raw_config_input` env filter.
+const APP_SECTION_ENV_PREFIX: &str = env_prefix!("APP__");
+const LOGGING_ENV_PREFIX: &str = env_prefix!("LOGGING__");
+const SERVER_ENV_PREFIX: &str = env_prefix!("SERVER__");
+const DATABASE_ENV_PREFIX: &str = env_prefix!("DATABASE__");
+
+/// Const-equality of the crate name and a prefix, treating `-` in the name and
+/// `_` in the prefix as skip characters, so `eas-weather-rs` matches
+/// `eas_weather_rs`. Free of any allocation, so it is evaluable at compile
+/// time.
+const fn crate_name_matches(name: &str, prefix: &str) -> bool {
+    let name = name.as_bytes();
+    let prefix = prefix.as_bytes();
+    let (mut i, mut j) = (0, 0);
+    while i < name.len() && j < prefix.len() {
+        if name[i] == b'-' {
+            i += 1;
+            continue;
+        }
+        if prefix[j] == b'_' {
+            j += 1;
+            continue;
+        }
+        if name[i] != prefix[j] {
+            return false;
+        }
+        i += 1;
+        j += 1;
+    }
+    // Remaining name bytes must all be `-` (skipped); prefix must be exhausted.
+    while i < name.len() {
+        if name[i] != b'-' {
+            return false;
+        }
+        i += 1;
+    }
+    while j < prefix.len() {
+        if prefix[j] != b'_' {
+            return false;
+        }
+        j += 1;
+    }
+    true
+}
+
+/// Fail the build if the crate name (underscored) drifts from `APP_NAME`.
+///
+/// `APP_NAME` cannot be compared to `env!("CARGO_PKG_NAME")` case-insensitively
+/// at compile time (no const `to_ascii_lowercase`), so the lowercase form is
+/// spelled explicitly here.
+const _: () = {
+    const APP_NAME_LOWERCASED: &str = "eas_weather_rs";
+    assert!(crate_name_matches(
+        env!("CARGO_PKG_NAME"),
+        APP_NAME_LOWERCASED
+    ));
+};
+
 #[derive(Debug, Clone)]
 pub struct ConfigFigment {
     conf_raw: Config,
@@ -31,7 +107,7 @@ fn collect_raw_input() -> Config {
     // different configuration file to load when dictated by the CLI or ENV.
     let conf: Config = match Figment::new()
         .join(Serialized::defaults(Cli::parse()))
-        .join(Env::prefixed("APP__").split("__"))
+        .join(Env::prefixed(APP_SECTION_ENV_PREFIX).split("__"))
         .extract()
     {
         Ok(c) => c,
@@ -51,9 +127,9 @@ fn collect_raw_input() -> Config {
     // CLI > ENV > FILE > DEFAULT FILE > CODE
     let conf: Config = match Figment::new()
         .join(Serialized::defaults(Cli::parse()))
-        .join(Env::prefixed("LOGGING__").split("__"))
-        .join(Env::prefixed("SERVER__").split("__"))
-        .join(Env::prefixed("DATABASE__").split("__"))
+        .join(Env::prefixed(LOGGING_ENV_PREFIX).split("__"))
+        .join(Env::prefixed(SERVER_ENV_PREFIX).split("__"))
+        .join(Env::prefixed(DATABASE_ENV_PREFIX).split("__"))
         .join(Toml::file(config_file))
         .join(Toml::file("./config/default.toml"))
         .extract()
@@ -108,9 +184,9 @@ impl ConfigPort for ConfigFigment {
         let env = serde_json::to_value(
             env::vars()
                 .filter(|(k, _)| {
-                    k.starts_with("LOGGING__")
-                        || k.starts_with("SERVER__")
-                        || k.starts_with("DATABASE__")
+                    k.starts_with(LOGGING_ENV_PREFIX)
+                        || k.starts_with(SERVER_ENV_PREFIX)
+                        || k.starts_with(DATABASE_ENV_PREFIX)
                 })
                 .map(|(k, v)| (k.replace("__", "."), v))
                 .collect::<Vec<_>>(),
