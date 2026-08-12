@@ -83,3 +83,58 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::database::service::DatabaseService;
+    use crate::test_support::{FailingDb, MockConfig, MockDb};
+
+    /// Build an `AlertService<D>` over the supplied `DatabasePort + AlertPort` double.
+    fn build_service<D>() -> AlertService<D>
+    where
+        D: AlertPort + DatabasePort,
+    {
+        let conf_service = crate::domain::config::service::ConfigService {
+            port: MockConfig::new(),
+        };
+        let db_service = DatabaseService::<D>::new(&conf_service);
+        AlertService::new(db_service)
+    }
+
+    #[tokio::test]
+    async fn get_latest_alerts_returns_port_data() {
+        let service = build_service::<MockDb>();
+        let resp = service.get_latest_alerts(10, 5).await.unwrap();
+        assert_eq!(resp.total, 42);
+        assert!(resp.alerts.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_latest_alerts_propagates_error() {
+        let service = build_service::<FailingDb>();
+        let result = service.get_latest_alerts(10, 5).await;
+        assert!(matches!(
+            result,
+            Err(GetLatestAlertsError::DatabaseError(msg)) if msg == "test error"
+        ));
+    }
+
+    #[tokio::test]
+    async fn get_daily_alerts_returns_port_data() {
+        let service = build_service::<MockDb>();
+        let resp = service.get_daily_alerts(10, 5).await.unwrap();
+        assert_eq!(resp.total, 42);
+        assert!(resp.alerts.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_daily_alerts_propagates_error() {
+        let service = build_service::<FailingDb>();
+        let result = service.get_daily_alerts(10, 5).await;
+        assert!(matches!(
+            result,
+            Err(GetDailyAlertsError::DatabaseError(msg)) if msg == "test error"
+        ));
+    }
+}
