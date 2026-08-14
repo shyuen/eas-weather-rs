@@ -2,7 +2,7 @@ use clap::Parser;
 use serde_derive::Serialize;
 
 /// CLI Configuration for the application. Please refer to `config/default.toml` for default values.
-/// Should closly follow the structure of the `Config` struct in `core::domain::config::raw`.
+/// Should closely follow the structure of the `Config` struct in `core::domain::config::raw`.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
 pub(crate) struct Cli {

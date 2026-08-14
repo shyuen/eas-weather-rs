@@ -1,5 +1,6 @@
 .direnv
 /target
+.env
 config/config.toml
 result
 db_password*
