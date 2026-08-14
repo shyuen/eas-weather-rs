@@ -26,6 +26,10 @@ impl AlertIdentifier {
         }
         Ok(AlertIdentifier(identifier))
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[cfg(test)]

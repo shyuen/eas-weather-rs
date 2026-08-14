@@ -10,6 +10,7 @@
 
 use std::future::Future;
 
+use crate::domain::alert::model::Alert;
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
@@ -199,6 +200,12 @@ impl AlertPort for MockDb {
             })
         }
     }
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Ok(CreateAlertResponse { alert }) }
+    }
 }
 
 /// `DatabasePort + AlertPort` double that always fails with a database error.
@@ -240,6 +247,12 @@ impl AlertPort for FailingDb {
         _o: u64,
     ) -> impl Future<Output = Result<GetDailyAlertsResponse, GetDailyAlertsError>> + Send {
         async move { Err(GetDailyAlertsError::DatabaseError("test error".into())) }
+    }
+    fn create_alert_data(
+        &self,
+        _alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Err(CreateAlertError::DatabaseError("test error".into())) }
     }
 }
 
@@ -319,6 +332,12 @@ impl AlertPort for FlakyDb {
             })
         }
     }
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Ok(CreateAlertResponse { alert }) }
+    }
 }
 
 /// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
@@ -342,11 +361,12 @@ pub fn build_alert_app<D>(
 where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
 {
-    use crate::adaptors::axum::handlers::alert::{get_alerts, get_daily_alerts};
-    use axum::routing::get;
+    use crate::adaptors::axum::handlers::alert::{create_alert, get_alerts, get_daily_alerts};
+    use axum::routing::{get, post};
 
     axum::Router::new()
         .route("/", get(get_alerts::<MockMeta, D>))
+        .route("/", post(create_alert::<MockMeta, D>))
         .route("/daily", get(get_daily_alerts::<MockMeta, D>))
         .with_state(state)
 }
