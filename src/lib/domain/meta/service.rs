@@ -50,12 +50,34 @@ where
             self.conf_port.get_webserver_config().clone(),
         )
     }
+}
 
-    // fn get_conf(&self) -> ValidatedConfig<'c> {
-    //     ValidatedConfig::new(
-    //         self.conf_port.get_logging_config(),
-    //         self.conf_port.get_database_config(),
-    //         self.conf_port.get_webserver_config(),
-    //     )
-    // }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::config::service::ConfigService;
+    use crate::test_support::MockConfig;
+
+    #[tokio::test]
+    async fn get_conf_assembles_validated_config_from_port() {
+        type MockConfigService = ConfigService<MockConfig>;
+        let conf_serv: MockConfigService = ConfigService::new();
+        let meta = MetaService::new(conf_serv);
+        let conf = meta.get_conf();
+        assert_eq!(
+            serde_json::to_value(conf.get_logging_config()).unwrap(),
+            serde_json::to_value(meta.get_port().get_logging_config()).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(conf.get_database_config()).unwrap(),
+            serde_json::to_value(meta.get_port().get_database_config()).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(conf.get_webserver_config()).unwrap(),
+            serde_json::to_value(meta.get_port().get_webserver_config()).unwrap()
+        );
+    }
+
+    // `get_raw_config_data` requires MockConfig::get_raw_config, which is
+    // intentionally unimplemented, so it is not unit-tested here.
 }

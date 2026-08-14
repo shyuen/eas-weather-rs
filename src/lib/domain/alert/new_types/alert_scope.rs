@@ -3,14 +3,14 @@ use crate::domain::utils::helpers::capitalize_first_lowercase_rest;
 use thiserror::Error;
 
 /// The code denoting the intended distribution of the alert message (REQUIRED)
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertScope(AlertScopeValue);
 
 /// Valid Code Values:
 ///     “Public” - For general dissemination to unrestricted audiences
 ///     “Restricted” - For dissemination only to users with a known operational requirement (see <restriction>, below)
 ///     “Private” - For dissemination only to specified addresses (see <addresses>, below)
-#[derive(Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, serde::Serialize)]
 pub enum AlertScopeValue {
     Public,
     Restricted,

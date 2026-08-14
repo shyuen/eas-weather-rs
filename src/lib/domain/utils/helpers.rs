@@ -34,6 +34,29 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    struct Wrapper<'a> {
+        #[serde(serialize_with = "serialize_with_display")]
+        value: &'a Wrapped,
+    }
+
+    #[derive(Debug)]
+    enum Wrapped {
+        Some(String),
+        None,
+    }
+
+    impl std::fmt::Display for Wrapped {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Wrapped::Some(s) => write!(f, "{}", s),
+                Wrapped::None => write!(f, "None"),
+            }
+        }
+    }
+
     #[test]
     fn test_capitalize_first_lowercase_rest() {
         assert_eq!(
@@ -44,5 +67,19 @@ mod tests {
         assert_eq!(capitalize_first_lowercase_rest("rust"), "Rust");
         assert_eq!(capitalize_first_lowercase_rest("r"), "R");
         assert_eq!(capitalize_first_lowercase_rest(""), "");
+    }
+
+    #[test]
+    fn serialize_with_display_writes_display_string() {
+        let wrapped = Wrapped::Some("mysql://user@db/app".to_string());
+        let json = serde_json::to_string(&Wrapper { value: &wrapped }).unwrap();
+        assert_eq!(json, r#"{"value":"mysql://user@db/app"}"#);
+    }
+
+    #[test]
+    fn serialize_with_display_maps_none_to_null() {
+        let wrapped = Wrapped::None;
+        let json = serde_json::to_string(&Wrapper { value: &wrapped }).unwrap();
+        assert_eq!(json, r#"{"value":null}"#);
     }
 }

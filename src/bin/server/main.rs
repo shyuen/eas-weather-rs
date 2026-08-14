@@ -18,49 +18,42 @@ async fn main() -> Result<(), std::io::Error> {
     let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
 
     // Output raw configuration information after logging service is initialized
-    conf_service.log_raw_config_input(&logging_service); // Output raw config inputs with debug level set
-    conf_service.log_raw_config_validation(&logging_service); // Validate raw configurations
+    conf_service.log_raw_config_input(); // Output raw config inputs with debug level set
+    conf_service.log_raw_config_validation(); // Validate raw configurations
 
     // Output logging adaptor configuration
-    logging_service.log_adaptor_config(&conf_service);
+    conf_service.log_adaptor_config(logging_service.get_port());
 
     // Initialize the database service
-    let mut database_service: DatabaseService<DatabaseMySql> =
-        DatabaseService::new(&conf_service, &logging_service);
+    let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(&conf_service);
 
-    // Output dataase adaptor configuration
-    database_service.log_adaptor_config(&logging_service, &conf_service);
+    // Output database adaptor configuration
+    conf_service.log_adaptor_config(database_service.get_port());
+
+    // Show the raw configuration in the logs after logging service is initialized
+    //conf_service.emit_raw_config(&logging_service);
 
     // Initialize database connection pool within the service
-    database_service
-        .create_pool(&conf_service, &logging_service)
-        .await;
+    if let Err(err) = database_service.create_pool().await {
+        tracing::error!(error = %err, "create_pool: failed to establish database connection");
+        std::process::exit(1);
+    }
 
-    // TODO: Initialize other services (e.g., weather data service, API service, etc.)
+    // Start server to listen for incoming requests
+    let webserver_service: WebserverService<WebserverAxum> = WebserverService::new(&conf_service);
 
-    // TODO: Start server to listen for incoming requests
-    // let webserver_service: WebserverService<WebserverPoem> =
-    //     WebserverService::new(&conf_service, &logging_service);
-    let webserver_service: WebserverService<WebserverAxum> =
-        WebserverService::new(&conf_service, &logging_service);
-
-    // Output dataase adaptor configuration
-    webserver_service.log_adaptor_config(&logging_service, &conf_service);
+    // Output webserver adaptor configuration
+    conf_service.log_adaptor_config(webserver_service.get_port());
 
     // Initialize meta service
     let meta_service = MetaService::new(conf_service.clone());
     //let meta_service = MetaService::new(&conf_service);
 
     // Initalize alert service
-    let alert_service = AlertService::new(&logging_service, database_service.clone());
+    let alert_service = AlertService::new(database_service.clone());
 
     // Start Web Server
     webserver_service
-        .start_server(
-            &conf_service,
-            &database_service,
-            &logging_service,
-            &meta_service,
-        )
+        .start_server(&conf_service, &alert_service, &meta_service)
         .await
 }

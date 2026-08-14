@@ -1,12 +1,12 @@
-use crate::domain::alert::port::DatabasePortAlert;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::database::service::DatabaseService;
-use crate::domain::logging::port::LoggingPort;
-use crate::domain::logging::service::LoggingService;
 use crate::domain::meta::service::MetaService;
+use crate::domain::webserver::model::ShutdownReason;
 use crate::domain::webserver::port::WebserverRepo;
+use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
 pub struct WebserverService<WR>
@@ -21,15 +21,13 @@ where
     WR: WebserverRepo,
 {
     /// Creates a new instance of WebserverService.
-    pub fn new<C, L>(conf_serv: &ConfigService<C>, log_serv: &LoggingService<L>) -> Self
+    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
     where
         C: ConfigPort,
-        L: LoggingPort,
     {
-        let log_port = log_serv.get_port();
         let conf_webserv = conf_serv.get_webservicer_config();
 
-        let repo = WR::new(log_port, conf_webserv);
+        let repo = WR::new(conf_webserv);
         Self { repo }
     }
 
@@ -38,38 +36,46 @@ where
         &self.repo
     }
 
-    /// Log configuration that's currently set
-    pub fn log_adaptor_config<L, C>(
-        &self,
-        log_serv: &LoggingService<L>,
-        conf_serv: &ConfigService<C>,
-    ) where
-        C: ConfigPort,
-        L: LoggingPort,
-    {
-        let log_port = log_serv.get_port();
-        let conf_webserver = conf_serv.get_webservicer_config();
-        self.repo.log_adaptor_config(log_port, conf_webserver);
-    }
-
-    pub async fn start_server<C, D, L>(
+    pub async fn start_server<C, D>(
         &self,
         conf_serv: &ConfigService<C>,
-        db_serv: &DatabaseService<D>,
-        log_serv: &LoggingService<L>,
+        alert_serv: &AlertService<D>,
         meta_serv: &MetaService<C>,
     ) -> Result<(), std::io::Error>
     where
-        L: LoggingPort,
-        D: DatabasePort + DatabasePortAlert,
+        D: DatabasePort + AlertPort,
         C: ConfigPort,
     {
         let webserv_conf = conf_serv.get_webservicer_config();
-        let db_port = db_serv.get_port();
-        let log_port = log_serv.get_port();
 
-        self.repo
-            .start_server(webserv_conf, log_port, db_port, meta_serv)
+        debug!("start_server: starting server");
+        info!(
+            "start_server: starting {} server at {}:{}",
+            self.repo.adaptor_name(),
+            webserv_conf.hostname.get(),
+            webserv_conf.port.get()
+        );
+        match self
+            .repo
+            .start_server(webserv_conf, alert_serv, meta_serv)
             .await
+        {
+            Ok(reason) => {
+                match reason {
+                    ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),
+                    ShutdownReason::Terminate => {
+                        info!("start_server: received terminate signal, shutting down")
+                    }
+                    ShutdownReason::Stopped => {
+                        info!("start_server: server stopped")
+                    }
+                }
+                Ok(())
+            }
+            Err(err) => {
+                error!("start_server: server failed to start: {}", err);
+                Err(err)
+            }
+        }
     }
 }

@@ -2,23 +2,76 @@ use crate::adaptors::axum::app_state::AppState;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::signal;
+use tokio::sync::oneshot;
 
 use crate::adaptors::axum::routes::create_routes;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
+use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingPort;
 use crate::domain::meta::port::MetaPort;
-use crate::domain::webserver::model::Webserver;
+use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverRepo;
 
 #[derive(Debug, Clone)]
-pub struct WebserverAxum {}
+pub struct WebserverAxum {
+    config: Webserver,
+}
 
 impl WebserverAxum {
-    pub fn new() -> Self {
-        WebserverAxum {}
+    pub fn new(conf_webserv: Webserver) -> Self {
+        WebserverAxum {
+            config: conf_webserv,
+        }
+    }
+}
+
+impl WebserverRepo for WebserverAxum {
+    /// Create a new instance of the webserver repository with the given configuration
+    fn new(conf_webserv: &Webserver) -> Self {
+        WebserverAxum::new(conf_webserv.clone())
     }
 
-    async fn shutdown_signal(log_port: impl LoggingPort, db_port: impl DatabasePort) {
+    async fn start_server<D>(
+        &self,
+        config: &Webserver,
+        alert_service: &AlertService<D>,
+        meta_port: &impl MetaPort,
+    ) -> Result<ShutdownReason, std::io::Error>
+    where
+        D: DatabasePort + AlertPort,
+    {
+        // Database port for graceful shutdown is sourced from the alert service.
+        let db_port = alert_service.get_db_port().clone();
+
+        // Create the application state with the necessary services
+        let state = AppState::new(meta_port.clone(), alert_service.clone());
+
+        // Create the Axum application with the defined routes and state
+        let app = create_routes().with_state(state);
+
+        let addr = format!("{}:{}", config.hostname.get(), config.port.get());
+
+        // Channel so shutdown_signal can report why we stopped.
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<ShutdownReason>();
+
+        // Start listening to the TCP port
+        let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+
+        // Start the Axum server
+        axum::serve(listener, app)
+            .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port, shutdown_tx))
+            .await?;
+
+        Ok(shutdown_rx.await.unwrap_or(ShutdownReason::Stopped))
+    }
+}
+
+impl WebserverAxum {
+    async fn shutdown_signal(
+        db_port: impl DatabasePort,
+        shutdown_tx: oneshot::Sender<ShutdownReason>,
+    ) {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -38,83 +91,37 @@ impl WebserverAxum {
 
         tokio::select! {
             _ = ctrl_c => {
-                log_port.info(module_path!(), &format!("ctrl_c received"));
+                let _ = shutdown_tx.send(ShutdownReason::CtrlC);
             },
             _ = terminate => {
-                log_port.info(module_path!(), &format!("terminate signal received"));
+                let _ = shutdown_tx.send(ShutdownReason::Terminate);
             },
         }
 
         // Perform other tasks as necessary
-        let _ = db_port.close_pool(&log_port).await; // Close DB connection pool
-
-        log_port.info(module_path!(), &format!("goodbye from axum"));
+        let _ = db_port.close_pool().await; // Close DB connection pool
     }
 }
 
-impl WebserverRepo for WebserverAxum {
-    /// Create a new instance of the webserver repository with the given configuration
-    fn new(_log_port: &impl LoggingPort, _conf_webserv: &Webserver) -> Self {
-        WebserverAxum::new()
+/// Implementation of the AdaptorConfigRepr trait for WebserverAxum
+impl AdaptorConfigRepr for WebserverAxum {
+    fn adaptor_name(&self) -> &'static str {
+        "axum"
     }
 
-    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_webserv: &Webserver) {
-        log_port.info(
-            module_path!(),
-            &format!("axum_hostname={}", conf_webserv.hostname.to_string()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("axum_port={}", conf_webserv.port.get()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("axum_base_path={}", conf_webserv.base_path.to_string()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!(
-                "axum_shutdown_timeout_secs={}",
-                conf_webserv.shutdown_timeout_secs.get()
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
+        let c = &self.config;
+        vec![
+            AdaptorConfigField::new("hostname", c.hostname.get().clone()),
+            AdaptorConfigField::new("port", c.port.get().to_string()),
+            AdaptorConfigField::new("base_path", c.base_path.to_string()),
+            AdaptorConfigField::new(
+                "shutdown_timeout_secs",
+                c.shutdown_timeout_secs.get().to_string(),
             ),
-        );
-
-        log_port.info(
-            module_path!(),
-            &format!("axum_api_key={}", conf_webserv.api_key.to_string()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("axum_jwt_key={}", conf_webserv.jwt_key.to_string()),
-        );
-    }
-
-    async fn start_server(
-        &self,
-        config: &Webserver,
-        log_port: &impl LoggingPort,
-        db_port: &impl DatabasePort,
-        meta_port: &impl MetaPort,
-    ) -> Result<(), std::io::Error> {
-        // Create the application state with the necessary services
-        let state = AppState::new(meta_port.clone(), db_port.clone());
-
-        // Create the Axum application with the defined routes and state
-        let app = create_routes().with_state(state);
-
-        let addr = format!("{}:{}", config.hostname.get(), config.port.get());
-        log_port.info(module_path!(), &format!("starting axum server at {}", addr));
-
-        // Start listening to the TCP port
-        let listener: TcpListener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-
-        // Start the Axum server
-        axum::serve(listener, app)
-            .with_graceful_shutdown(WebserverAxum::shutdown_signal(
-                log_port.clone(),
-                db_port.clone(),
-            ))
-            .await
+            AdaptorConfigField::secret("api_key", c.api_key.to_string()),
+            AdaptorConfigField::secret("jwt_key", c.jwt_key.to_string()),
+        ]
     }
 }
 
@@ -130,58 +137,3 @@ pub struct GetMetaHttpRequestBody {
 pub struct GetMetaResponseData {
     id: String,
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use axum::http::StatusCode;
-//     use axum::{body::Body, http::Request};
-//     use tower::util::ServiceExt;
-
-//     use axum::{Router, response::IntoResponse, routing::get};
-
-//     use super::*;
-
-//     #[tokio::test]
-//     async fn test_health_check() {
-//         //let app = create_app();
-//         let app = Router::new()
-//             //.route("/health", get(health_check))
-//             .route("/users", get(list_users))
-//             .route("/user/{:id}", get(get_user));
-
-//         let request = Request::builder()
-//             .uri("/health")
-//             .body(Body::empty())
-//             .unwrap();
-
-//         // Oneshot comes from the tower trait
-//         let response = app.oneshot(request).await.unwrap();
-
-//         assert_eq!(response.status(), StatusCode::OK);
-
-//         //let body = response.collect().await.unwrap();
-
-//         // let json: Value = serde_json::from_str(body).unwrap();
-
-//         // assert_eq!(json["status"], "ok");
-//         // assert_eq!(json["message"], "server is running");
-//     }
-
-//     #[tokio::test]
-//     async fn test_api_error_into_response() {
-//         let test_cases = vec![
-//             (ApiError::NotFound, StatusCode::NOT_FOUND),
-//             (
-//                 ApiError::InvalidInput("bad data".to_string()),
-//                 StatusCode::BAD_REQUEST,
-//             ),
-//             (ApiError::InternalError, StatusCode::INTERNAL_SERVER_ERROR),
-//         ];
-
-//         for (error, expected_status) in test_cases {
-//             let response = error.into_response();
-
-//             assert_eq!(response.status(), expected_status);
-//         }
-//     }
-// }

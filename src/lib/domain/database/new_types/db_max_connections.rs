@@ -20,10 +20,13 @@ impl DbMaxConnections {
         // Add validation logic here if needed
         Ok(DbMaxConnections(*raw_db_max_connections))
     }
-    pub fn default() -> Self {
-        DbMaxConnections(151)
-    }
     pub fn get(&self) -> u32 {
         self.0
+    }
+}
+
+impl Default for DbMaxConnections {
+    fn default() -> Self {
+        DbMaxConnections(151)
     }
 }

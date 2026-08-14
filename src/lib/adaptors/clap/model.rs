@@ -2,7 +2,7 @@ use clap::Parser;
 use serde_derive::Serialize;
 
 /// CLI Configuration for the application. Please refer to `config/default.toml` for default values.
-/// Should closly follow the structure of the `Config` struct in `core::domain::config::raw`.
+/// Should closely follow the structure of the `Config` struct in `core::domain::config::raw`.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
 pub(crate) struct Cli {
@@ -14,7 +14,7 @@ pub(crate) struct Cli {
     database: Database,
 
     /// Config file path location to be used by the server.
-    #[arg(short = 'c', long, env = "APP__CONFIG_FILE")]
+    #[arg(short = 'c', long, env = "EAS_WEATHER_RS__APP__CONFIG_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) config_file: Option<String>,
 }
@@ -22,12 +22,12 @@ pub(crate) struct Cli {
 #[derive(Debug, Parser, Serialize)]
 struct Logging {
     /// Log format to be used by the server
-    #[arg(short = 'l', long, env = "APP__LOG_FORMAT")]
+    #[arg(short = 'l', long, env = "EAS_WEATHER_RS__LOGGING__FORMAT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) format: Option<String>,
 
     /// Log trace level to be used by the server
-    #[arg(short = 't', long, env = "APP__LOG_TRACE_LEVEL")]
+    #[arg(short = 't', long, env = "EAS_WEATHER_RS__LOGGING__TRACE_LEVEL")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) trace_level: Option<String>,
 }
@@ -35,70 +35,100 @@ struct Logging {
 #[derive(Debug, Parser, Serialize)]
 struct Webserver {
     /// Host name for the server
-    #[arg(short = 'n', long = "hostname", env = "SERVER__HOSTNAME")]
+    #[arg(
+        short = 'n',
+        long = "hostname",
+        env = "EAS_WEATHER_RS__SERVER__HOSTNAME"
+    )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) hostname: Option<String>,
 
     /// Port number to be used by the server
-    #[arg(short = 'p', long, env = "SERVER__PORT")]
+    #[arg(short = 'p', long, env = "EAS_WEATHER_RS__SERVER__PORT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) port: Option<u16>,
 
     /// Subdir path to be used by the server
-    #[arg(short = 'b', long, env = "SERVER__BASE_PATH")]
+    #[arg(short = 'b', long, env = "EAS_WEATHER_RS__SERVER__BASE_PATH")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) base_path: Option<String>,
 
     /// Path to the API key file
-    #[arg(short = 'k', long, env = "SERVER__API_KEY_FILE")]
+    #[arg(short = 'k', long, env = "EAS_WEATHER_RS__SERVER__API_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) api_key_file: Option<String>,
 
     /// Path to the JWK key file
-    #[arg(short = 'j', long, env = "SERVER__JWK_KEY_FILE")]
+    #[arg(short = 'j', long, env = "EAS_WEATHER_RS__SERVER__JWK_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwk_key_file: Option<String>,
+
+    /// Default page limit for paginated endpoints
+    #[arg(long, env = "EAS_WEATHER_RS__SERVER__DEFAULT_PAGE_LIMIT")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) default_page_limit: Option<u64>,
+
+    /// Maximum page limit for paginated endpoints
+    #[arg(long, env = "EAS_WEATHER_RS__SERVER__PAGE_LIMIT_MAX")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) page_limit_max: Option<u64>,
 }
 
 #[derive(Debug, Parser, Serialize)]
 struct Database {
     /// Database connection string file path
-    #[arg(short = 'D', long, env = "DATABASE__CONN_URL_FILE")]
+    #[arg(short = 'D', long, env = "EAS_WEATHER_RS__DATABASE__CONN_URL_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_url_file: Option<String>,
 
     /// Maximum number of database connection retries
-    #[arg(short = 'R', long, env = "DATABASE__CONN_MAX_RETRIES")]
+    #[arg(short = 'R', long, env = "EAS_WEATHER_RS__DATABASE__CONN_MAX_RETRIES")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_max_retries: Option<u8>,
 
     /// Initial delay in seconds before retrying database connection
-    #[arg(short = 'I', long, env = "DATABASE__CONN_RETRY_INIT_DELAY_SECS")]
+    #[arg(
+        short = 'I',
+        long,
+        env = "EAS_WEATHER_RS__DATABASE__CONN_RETRY_INIT_DELAY_SECS"
+    )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_retry_init_delay_secs: Option<u16>,
 
     /// Maximum number of database connections
-    #[arg(short = 'M', long, env = "DATABASE__MAX_CONNECTIONS")]
+    #[arg(short = 'M', long, env = "EAS_WEATHER_RS__DATABASE__MAX_CONNECTIONS")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) max_connections: Option<u32>,
 
     /// Minimum number of database connections
-    #[arg(short = 'm', long, env = "DATABASE__MIN_CONNECTIONS")]
+    #[arg(short = 'm', long, env = "EAS_WEATHER_RS__DATABASE__MIN_CONNECTIONS")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) min_connections: Option<u32>,
 
     /// Database connection acquire timeout in seconds
-    #[arg(short = 'A', long, env = "DATABASE__CONN_ACQUIRE_TIMEOUT_SECS")]
+    #[arg(
+        short = 'A',
+        long,
+        env = "EAS_WEATHER_RS__DATABASE__CONN_ACQUIRE_TIMEOUT_SECS"
+    )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_acquire_timeout_secs: Option<u16>,
 
     /// Database connection idle timeout in seconds
-    #[arg(short = 'E', long, env = "DATABASE__CONN_IDLE_TIMEOUT_SECS")]
+    #[arg(
+        short = 'E',
+        long,
+        env = "EAS_WEATHER_RS__DATABASE__CONN_IDLE_TIMEOUT_SECS"
+    )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_idle_timeout_secs: Option<u32>,
 
     /// Database connection maximum lifetime in seconds
-    #[arg(short = 'L', long, env = "DATABASE__CONN_MAX_LIFETIME_SECS")]
+    #[arg(
+        short = 'L',
+        long,
+        env = "EAS_WEATHER_RS__DATABASE__CONN_MAX_LIFETIME_SECS"
+    )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) conn_max_lifetime_secs: Option<u32>,
 }

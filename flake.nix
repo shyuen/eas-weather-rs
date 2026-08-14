@@ -59,20 +59,36 @@
       # Run `nix develop` in the directory containing this flake.nix
       devShell = pkgs.mkShell {
         buildInputs =
-          [ (rustVersion.override { extensions = [ "rust-src"]; }) ];
+          [ (rustVersion.override { extensions = [ "rust-src" "clippy" "rustfmt" ]; }) ];
         packages = with pkgs; [
           pkg-config
           openssl
           bacon
           cargo-nextest
-          clippy
-          rustfmt
+          cargo-tarpaulin
+          mariadb
         ];
-        # Set environment variables
-        # env.LD_LIBRARY_PATH = with pkgs; lib.makeLibraryPath [ # Shared library path on Linux
-        #   stdenv.cc.cc.lib
-        #   pkgs.libz
-        # ];
+
+        shellHook = ''
+          MYSQL_DATA_DIR="$PWD/.mysql_data"
+          MYSQL_SOCKET="$MYSQL_DATA_DIR/mysql.sock"
+          if [ ! -d "$MYSQL_DATA_DIR" ]; then
+            echo "Initialising MySQL data directory at $MYSQL_DATA_DIR..."
+            mysql_install_db --datadir="$MYSQL_DATA_DIR" --auth-root-authentication-method=socket > /dev/null 2>&1
+          fi
+          echo ""
+          echo "Start MySQL:"
+          echo "  mysqld --datadir=$MYSQL_DATA_DIR --skip-grant-tables --socket=$MYSQL_SOCKET &"
+          echo ""
+          echo "Connect:"
+          echo "  mysql -u root --socket=$MYSQL_SOCKET"
+          echo ""
+          echo "Create DB and configure connection URL:"
+          echo "  mysql -u root --socket=$MYSQL_SOCKET -e \"CREATE DATABASE IF NOT EXISTS eas_weather;\""
+          echo "  echo \"mysql://root@localhost/eas_weather\" > config/mysql_conn_url"
+          echo ""
+          echo "Connection URL: mysql://root@localhost/eas_weather"
+        '';
       };
   });
 }

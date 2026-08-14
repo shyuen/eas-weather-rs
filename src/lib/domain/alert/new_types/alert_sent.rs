@@ -19,6 +19,22 @@ impl AlertSent {
     }
 }
 
+/// Serialize as an RFC 3339 timestamp string (e.g. "2002-05-24T16:49:00-07:00").
+/// `OffsetDateTime` has no plain derive support without the `serde-well-known`
+/// feature, so the format is applied explicitly here.
+impl serde::Serialize for AlertSent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let formatted = self
+            .0
+            .format(&time::format_description::well_known::Rfc3339)
+            .map_err(serde::ser::Error::custom)?;
+        serializer.serialize_str(&formatted)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

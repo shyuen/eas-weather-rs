@@ -9,6 +9,7 @@ use crate::domain::alert::new_types::alert_status::AlertStatus;
 
 /// Complete alert structure.
 /// See https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2.html for reference.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Alert {
     identifier: AlertIdentifier,
     sender: AlertSender,
@@ -21,6 +22,12 @@ pub struct Alert {
 }
 
 impl Alert {
+    /// Constructs an [`Alert`] from its eight required CAP fields.
+    ///
+    /// These form the fixed CAP 1.2 alert structure; each field is a distinct
+    /// validated newtype, so a builder or params struct would add indirection
+    /// without reducing real complexity.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         identifier: AlertIdentifier,
         sender: AlertSender,
@@ -64,18 +71,17 @@ mod tests {
             ExtendedMessageIdentifier::new("Sender1,Alert123,2024-06-01T12:00:00-00:00").unwrap();
         let references = AlertReferences::new(vec![reference.clone()]).unwrap();
 
-        Alert::new(
+        let alert = Alert::new(
             identifier, sender, sent, status, msg_type, source, scope, references,
         );
 
-        // Basic assertions to ensure fields are set (more detailed tests can be added)
-        // Here we just check that the alert is created successfully.
-        // In a real test, you would likely want to check each field individually.
-        // For brevity, we are not doing that here.
-        // println!("{:?}", alert);
-        // You can add more assertions as needed.
-        // For now, we just ensure that the alert is created without panicking.
-        // No panic means success in this context.
-        assert!(true);
+        // Verify the constructed alert carries the expected fields via its Debug
+        // representation (no public getters exist yet).
+        let debug = format!("{:?}", alert);
+        assert!(debug.contains("alert-123"));
+        assert!(debug.contains("Sender123"));
+        assert!(debug.contains("Actual"));
+        assert!(debug.contains("Weather Station 1"));
+        assert!(debug.contains("Public"));
     }
 }
