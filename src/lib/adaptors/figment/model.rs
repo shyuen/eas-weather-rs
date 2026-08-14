@@ -184,7 +184,8 @@ impl ConfigPort for ConfigFigment {
         let env = serde_json::to_value(
             env::vars()
                 .filter(|(k, _)| {
-                    k.starts_with(LOGGING_ENV_PREFIX)
+                    k.starts_with(APP_SECTION_ENV_PREFIX)
+                        || k.starts_with(LOGGING_ENV_PREFIX)
                         || k.starts_with(SERVER_ENV_PREFIX)
                         || k.starts_with(DATABASE_ENV_PREFIX)
                 })
