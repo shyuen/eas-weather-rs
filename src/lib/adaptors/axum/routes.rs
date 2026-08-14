@@ -146,6 +146,13 @@ mod tests {
         assert!(doc["paths"].get("/meta/raw_conf").is_some());
         assert!(doc["paths"].get("/test/error").is_some());
         assert!(doc["paths"].get("/test/user/{id}").is_some());
+        assert!(
+            doc["components"]["schemas"]
+                .get("AlertsListResponse")
+                .is_some()
+        );
+        assert!(doc["components"]["schemas"].get("AlertSchema").is_some());
+        assert!(doc["components"]["schemas"].get("ErrorResponse").is_some());
     }
 
     #[tokio::test]
