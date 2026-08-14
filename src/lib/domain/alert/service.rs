@@ -1,4 +1,4 @@
-use crate::domain::alert::model::{Alert, CreateAlertInput};
+use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::new_types::alert_msg_type::AlertMsgType;
 use crate::domain::alert::new_types::alert_references::AlertReferences;
@@ -10,7 +10,7 @@ use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::{
     AlertPort, CreateAlertError, CreateAlertResponse, GetDailyAlertsError, GetDailyAlertsResponse,
-    GetLatestAlertsError, GetLatestAlertsResponse,
+    GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError, UpdateAlertResponse,
 };
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
@@ -120,12 +120,70 @@ where
             }
         }
     }
+
+    /// Validate and replace an existing alert (identified by `identifier`).
+    pub async fn update_alert(
+        &self,
+        identifier: AlertIdentifier,
+        input: UpdateAlertInput,
+    ) -> Result<UpdateAlertResponse, UpdateAlertError> {
+        let alert = match build_alert_for_update(identifier, input) {
+            Ok(alert) => alert,
+            Err(err) => {
+                warn!("update_alert rejected invalid input: {}", err);
+                return Err(UpdateAlertError::ValidationError(err));
+            }
+        };
+
+        debug!("update_alert(alert={:?})", alert);
+        let alert_identifier = alert.identifier().clone();
+        match self
+            .db_port
+            .update_alert_data(&alert_identifier, alert)
+            .await
+        {
+            Ok(resp) => {
+                info!("update_alert persisted successfully");
+                Ok(resp)
+            }
+            Err(err) => {
+                error!("update_alert failed: {}", err);
+                Err(err)
+            }
+        }
+    }
 }
 
 /// Build a validated [`Alert`] from raw input, returning the first validation
 /// error message on failure.
 fn build_alert(input: CreateAlertInput) -> Result<Alert, String> {
     let identifier = AlertIdentifier::new(input.identifier).map_err(|e| e.to_string())?;
+    let sender = AlertSender::new(input.sender).map_err(|e| e.to_string())?;
+    let sent_ts = OffsetDateTime::parse(&input.sent, &Rfc3339)
+        .map_err(|e| format!("invalid `sent` timestamp: {}", e))?;
+    let sent = AlertSent::new(sent_ts).map_err(|e| e.to_string())?;
+    let status = AlertStatus::new(input.status).map_err(|e| e.to_string())?;
+    let msg_type = AlertMsgType::new(input.msg_type).map_err(|e| e.to_string())?;
+    let source = AlertSource::new(&input.source.unwrap_or_default()).map_err(|e| e.to_string())?;
+    let scope = AlertScope::new(input.scope).map_err(|e| e.to_string())?;
+
+    let mut refs = Vec::new();
+    for r in input.references {
+        refs.push(ExtendedMessageIdentifier::new(&r).map_err(|e| e.to_string())?);
+    }
+    let references = AlertReferences::new(refs).map_err(|e| e.to_string())?;
+
+    Ok(Alert::new(
+        identifier, sender, sent, status, msg_type, source, scope, references,
+    ))
+}
+
+/// Build a validated [`Alert`] for an update, applying the path-supplied
+/// `identifier` authoritatively (the body carries no identifier).
+fn build_alert_for_update(
+    identifier: AlertIdentifier,
+    input: UpdateAlertInput,
+) -> Result<Alert, String> {
     let sender = AlertSender::new(input.sender).map_err(|e| e.to_string())?;
     let sent_ts = OffsetDateTime::parse(&input.sent, &Rfc3339)
         .map_err(|e| format!("invalid `sent` timestamp: {}", e))?;
@@ -228,6 +286,38 @@ mod tests {
         assert!(matches!(result, Err(CreateAlertError::ValidationError(_))));
     }
 
+    #[tokio::test]
+    async fn update_alert_returns_port_data() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = build_test_update_input();
+        let resp = service.update_alert(identifier, input).await.unwrap();
+        assert_eq!(resp.alert.identifier().as_str(), "alert-123");
+        assert_eq!(resp.alert.sender().as_str(), "Sender456");
+    }
+
+    #[tokio::test]
+    async fn update_alert_rejects_invalid_input() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let mut input = build_test_update_input();
+        input.sender = "Invalid Sender".to_string();
+        let result = service.update_alert(identifier, input).await;
+        assert!(matches!(result, Err(UpdateAlertError::ValidationError(_))));
+    }
+
+    #[tokio::test]
+    async fn update_alert_propagates_error() {
+        let service = build_service::<FailingDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = build_test_update_input();
+        let result = service.update_alert(identifier, input).await;
+        assert!(matches!(
+            result,
+            Err(UpdateAlertError::DatabaseError(msg)) if msg == "test error"
+        ));
+    }
+
     fn build_test_input() -> CreateAlertInput {
         CreateAlertInput {
             identifier: "alert-123".to_string(),
@@ -238,6 +328,18 @@ mod tests {
             source: Some("Weather Station 1".to_string()),
             scope: "Public".to_string(),
             references: vec!["Sender1,Alert123,2024-06-01T12:00:00-00:00".to_string()],
+        }
+    }
+
+    fn build_test_update_input() -> UpdateAlertInput {
+        UpdateAlertInput {
+            sender: "Sender456".to_string(),
+            sent: "2003-01-01T12:00:00-00:00".to_string(),
+            status: "Test".to_string(),
+            msg_type: "Alert".to_string(),
+            source: Some("Weather Station 2".to_string()),
+            scope: "Public".to_string(),
+            references: vec!["Sender2,Alert456,2024-06-02T12:00:00-00:00".to_string()],
         }
     }
 }

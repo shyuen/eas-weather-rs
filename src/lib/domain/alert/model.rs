@@ -22,6 +22,20 @@ pub struct CreateAlertInput {
     pub references: Vec<String>,
 }
 
+/// Raw, unvalidated fields for replacing an existing alert. The identifier is
+/// omitted — it is supplied by the URL path and applied authoritatively by the
+/// service.
+#[derive(Debug, Clone)]
+pub struct UpdateAlertInput {
+    pub sender: String,
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: Option<String>,
+    pub scope: String,
+    pub references: Vec<String>,
+}
+
 /// Complete alert structure.
 /// See https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2.html for reference.
 #[derive(Debug, Clone, serde::Serialize)]

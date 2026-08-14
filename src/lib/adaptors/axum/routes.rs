@@ -1,10 +1,12 @@
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::adaptors::axum::app_state::AppState;
-use crate::adaptors::axum::handlers::alert::{create_alert, get_alerts, get_daily_alerts};
+use crate::adaptors::axum::handlers::alert::{
+    create_alert, get_alerts, get_daily_alerts, update_alert,
+};
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::handlers::test::{get_user, list_error};
@@ -66,6 +68,7 @@ where
     Router::new()
         .route("/", get(get_alerts))
         .route("/", post(create_alert))
+        .route("/{identifier}", put(update_alert))
         .route("/daily", get(get_daily_alerts))
 }
 
