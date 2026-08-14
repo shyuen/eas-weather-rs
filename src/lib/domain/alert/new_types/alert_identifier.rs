@@ -3,7 +3,7 @@ use thiserror::Error;
 /// The identifier of the alert message (REQUIRED)
 /// (1) A number or string uniquely identifying this message, assigned by the sender.
 /// (2) MUST NOT include spaces, commas or restricted characters (< and &).
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertIdentifier(String);
 
 #[derive(Error, Debug)]

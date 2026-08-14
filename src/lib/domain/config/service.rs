@@ -1,7 +1,12 @@
+use tracing::{debug, info, trace, warn};
+
+use crate::domain::config::adaptor_config::AdaptorConfigRepr;
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
+use crate::domain::logging::new_types::lg_format::LoggingFormatType;
 use crate::domain::logging::port::LoggingPort;
 use crate::domain::logging::service::LoggingService;
 use crate::domain::webserver::model::Webserver;
@@ -12,6 +17,15 @@ where
     C: ConfigPort,
 {
     pub port: C,
+}
+
+impl<C> Default for ConfigService<C>
+where
+    C: ConfigPort,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<C> ConfigService<C>
@@ -29,13 +43,43 @@ where
         &self.port
     }
 
-    /// Log the raw configuration inputs.
-    pub fn log_raw_config_input<L>(&self, logging_serv: &LoggingService<L>)
+    /// Log the raw configuration inputs gathered from each source.
+    ///
+    /// Rendering depends on the configured logging format (pretty for text,
+    /// compact JSON for the json format). Emitted at `debug` since the raw,
+    /// pre-correction inputs are only of interest when troubleshooting config
+    /// auto-correction.
+    pub fn log_raw_config_input(&self) {
+        let inputs = self.port.raw_config_input();
+        let pretty = matches!(
+            self.get_logging_config().format.get(),
+            LoggingFormatType::Text
+        );
+        let render = |value: &serde_json::Value| -> String {
+            if pretty {
+                serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+            } else {
+                value.to_string()
+            }
+        };
+
+        debug!(source = "cli", config = %render(&inputs.cli));
+        debug!(source = "env", config = %render(&inputs.env));
+        debug!(source = "files", config = %render(&inputs.files));
+        debug!(source = "final_config", config = %render(&inputs.final_config));
+    }
+
+    /// Emit the raw configuration through the initialized logging service.
+    ///
+    /// Must be called after [`LoggingService::new`] so tracing is active.
+    /// The `&LoggingService` parameter enforces this ordering at compile time.
+    pub fn emit_raw_config<L>(&self, _logging_service: &LoggingService<L>)
     where
         L: LoggingPort,
     {
-        let log_port = logging_serv.get_port();
-        self.port.log_raw_config_input(log_port);
+        let raw = serde_json::to_string_pretty(self.get_raw_config())
+            .unwrap_or_else(|_| "failed to serialize config".to_string());
+        info!("application configuration:\n{raw}");
     }
 
     /// Returns the raw configuration.
@@ -43,13 +87,116 @@ where
         self.port.get_raw_config()
     }
 
-    /// Validate the raw logging configuration.
-    pub fn log_raw_config_validation<L>(&self, logging_serv: &LoggingService<L>)
-    where
-        L: LoggingPort,
-    {
-        let log_port = logging_serv.get_port();
-        self.port.log_raw_config_validation(log_port);
+    /// Log configuration fields exposed by an adaptor through [`AdaptorConfigRepr`].
+    ///
+    /// Emits one log line per adaptor, so N adaptors produce N lines at startup.
+    /// Rendering depends on the configured logging format:
+    /// - **text** → the fields are pretty-printed JSON, for convenient developer
+    ///   viewing.
+    /// - **json** → the fields are emitted as a compact JSON object, the
+    ///   machine-readable form suitable for log aggregators such as Splunk.
+    ///
+    /// Non-sensitive fields are logged at `info`; sensitive fields
+    /// (secrets/credentials) are withheld from info and only emitted at `trace`,
+    /// and even then in masked form (the adaptor supplies the masked
+    /// representation via its `Display`). Real secret values never enter the
+    /// logs.
+    pub fn log_adaptor_config(&self, adaptor: &impl AdaptorConfigRepr) {
+        let adaptor_name = adaptor.adaptor_name();
+        let mut public = serde_json::Map::new();
+        let mut secrets = serde_json::Map::new();
+        for field in adaptor.config_fields() {
+            let json = serde_json::Value::String(field.value);
+            if field.sensitive {
+                secrets.insert(field.key.to_string(), json);
+            } else {
+                public.insert(field.key.to_string(), json);
+            }
+        }
+
+        let pretty = matches!(
+            self.get_logging_config().format.get(),
+            LoggingFormatType::Text
+        );
+
+        if !public.is_empty() {
+            let config = serde_json::Value::Object(public);
+            if pretty {
+                info!(
+                    adaptor = adaptor_name,
+                    config = %serde_json::to_string_pretty(&config).unwrap_or_else(|_| config.to_string())
+                );
+            } else {
+                info!(adaptor = adaptor_name, config = %config);
+            }
+        }
+        if !secrets.is_empty() {
+            let config = serde_json::Value::Object(secrets);
+            if pretty {
+                trace!(
+                    adaptor = adaptor_name,
+                    config_secret = true,
+                    config = %serde_json::to_string_pretty(&config).unwrap_or_else(|_| config.to_string())
+                );
+            } else {
+                trace!(adaptor = adaptor_name, config_secret = true, config = %config);
+            }
+        }
+    }
+
+    /// Validate the raw configuration and log any auto-correction issues.
+    ///
+    /// Collection happens in the domain models; this service renders each
+    /// collected issue as a `warn!` event with structured fields.
+    pub fn log_raw_config_validation(&self) {
+        for issue in self.port.validate_raw_config() {
+            match issue {
+                ConfigIssue::NotSpecified { key, default } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        default = %default,
+                        "{} was not specified; defaulting to `{}`",
+                        key,
+                        default
+                    );
+                }
+                ConfigIssue::Invalid {
+                    key,
+                    value,
+                    default,
+                } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        invalid = %value,
+                        default = %default,
+                        "{} has invalid value `{}`; defaulting to `{}`",
+                        key,
+                        value,
+                        default
+                    );
+                }
+                ConfigIssue::LoadFailed {
+                    key,
+                    path,
+                    reason,
+                    default,
+                } => {
+                    warn!(
+                        target: module_path!(),
+                        config = key,
+                        path = %path,
+                        default = %default,
+                        "{} failed to load `{}`: {}; defaulting to `{}`",
+                        key,
+                        path,
+                        reason,
+                        default
+                    );
+                }
+            }
+        }
     }
 
     /// Returns the logging configuration.

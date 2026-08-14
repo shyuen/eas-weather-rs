@@ -20,10 +20,13 @@ impl DbConnMaxRetries {
         // Add validation logic here if needed
         Ok(DbConnMaxRetries(*raw_db_conn_max_retries))
     }
-    pub fn default() -> Self {
-        DbConnMaxRetries(5)
-    }
     pub fn get(&self) -> u8 {
         self.0
+    }
+}
+
+impl Default for DbConnMaxRetries {
+    fn default() -> Self {
+        DbConnMaxRetries(5)
     }
 }

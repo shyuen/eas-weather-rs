@@ -1,11 +1,9 @@
 use serde_derive::{Deserialize, Serialize};
 
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::ConfigLogging;
-use crate::domain::logging::new_types::lg_format::{LoggingFormat, LoggingFormatError};
-use crate::domain::logging::new_types::lg_trace_level::{
-    LoggingTraceLevel, LoggingTraceLevelError,
-};
-use crate::domain::logging::port::LoggingPort;
+use crate::domain::logging::new_types::lg_format::LoggingFormat;
+use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevel;
 
 /// Configuration for logging.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,23 +17,14 @@ impl Logging {
     pub fn new(conf: &ConfigLogging) -> Self {
         let format = match &conf.format {
             Some(raw_log_format) => {
-                LoggingFormat::new(&raw_log_format).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => LoggingFormat::default(),
-                })
+                LoggingFormat::new(raw_log_format).unwrap_or_else(|_| LoggingFormat::default())
             }
             None => LoggingFormat::default(),
         };
 
         let trace_level = match &conf.trace_level {
-            Some(raw_trace_level) => {
-                LoggingTraceLevel::new(&raw_trace_level).unwrap_or_else(|err| match &err {
-                    // Set value based on raw input or to its default errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => LoggingTraceLevel::default(),
-                })
-            }
+            Some(raw_trace_level) => LoggingTraceLevel::new(raw_trace_level)
+                .unwrap_or_else(|_| LoggingTraceLevel::default()),
             None => LoggingTraceLevel::default(),
         };
 
@@ -45,80 +34,112 @@ impl Logging {
         }
     }
 
-    /// Validates the raw logging configuration and logs warnings for any issues found.
-    pub fn validate_raw_config(&self, log_serv: &impl LoggingPort, raw_log_conf: &ConfigLogging) {
+    /// Validates the raw logging configuration, collecting any auto-correction
+    /// issues. No logging is performed here; the caller renders the issues.
+    pub fn validate_raw_config(&self, raw_log_conf: &ConfigLogging) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+
         match &raw_log_conf.format {
             Some(raw_log_format) => {
-                if let Err(err) = LoggingFormat::new(&raw_log_format) {
-                    match &err {
-                        LoggingFormatError::EmptyType(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config logging format type is empty, setting to `{}`",
-                                    LoggingFormat::default()
-                                ),
-                            );
-                        }
-                        LoggingFormatError::UnknownFormat(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config logging format of unknown type `{}`, setting value to `{}`",
-                                    raw_log_format,
-                                    LoggingFormat::default(),
-                                ),
-                            );
-                        }
-                    }
+                if LoggingFormat::new(raw_log_format).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.format",
+                        value: raw_log_format.to_string(),
+                        default: LoggingFormat::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config logging format was not specified, setting value to `{}`",
-                        LoggingFormat::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.format",
+                    default: LoggingFormat::default().to_string(),
+                });
             }
         }
 
         match &raw_log_conf.trace_level {
             Some(raw_trace_level) => {
-                if let Err(err) = LoggingTraceLevel::new(&raw_trace_level) {
-                    match &err {
-                        LoggingTraceLevelError::EmptyTraceLevel(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config logging trace level is empty, setting to `{}`",
-                                    LoggingTraceLevel::default()
-                                ),
-                            );
-                        }
-                        LoggingTraceLevelError::UnknownTraceLevel(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config logging trace level of unknown type `{}`, setting value to `{}`",
-                                    raw_trace_level,
-                                    LoggingTraceLevel::default(),
-                                ),
-                            );
-                        }
-                    }
+                if LoggingTraceLevel::new(raw_trace_level).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.trace_level",
+                        value: raw_trace_level.to_string(),
+                        default: LoggingTraceLevel::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config logging trace level was not specified, setting value to `{}`",
-                        LoggingTraceLevel::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.trace_level",
+                    default: LoggingTraceLevel::default().to_string(),
+                });
             }
         }
+
+        issues
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn raw(format: Option<&str>, trace_level: Option<&str>) -> ConfigLogging {
+        ConfigLogging {
+            format: format.map(str::to_string),
+            trace_level: trace_level.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn validate_accepts_valid_values() {
+        let issues = Logging::new(&raw(Some("json"), Some("error")))
+            .validate_raw_config(&raw(Some("json"), Some("error")));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn validate_flags_invalid_format() {
+        let issues =
+            Logging::new(&raw(None, None)).validate_raw_config(&raw(Some("xml"), Some("info")));
+        assert_eq!(
+            issues,
+            vec![ConfigIssue::Invalid {
+                key: "logging.format",
+                value: "xml".into(),
+                default: "text".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_flags_invalid_trace_level() {
+        let issues =
+            Logging::new(&raw(None, None)).validate_raw_config(&raw(Some("text"), Some("noise")));
+        assert_eq!(
+            issues,
+            vec![ConfigIssue::Invalid {
+                key: "logging.trace_level",
+                value: "noise".into(),
+                default: "info".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn validate_flags_missing_format_and_trace_level() {
+        let issues = Logging::new(&raw(None, None)).validate_raw_config(&raw(None, None));
+        assert_eq!(
+            issues,
+            vec![
+                ConfigIssue::NotSpecified {
+                    key: "logging.format",
+                    default: "text".into(),
+                },
+                ConfigIssue::NotSpecified {
+                    key: "logging.trace_level",
+                    default: "info".into(),
+                },
+            ]
+        );
     }
 }

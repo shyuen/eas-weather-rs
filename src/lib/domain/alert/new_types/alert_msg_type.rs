@@ -3,7 +3,7 @@ use crate::domain::utils::helpers::capitalize_first_lowercase_rest;
 use thiserror::Error;
 
 /// The code denoting the nature of the alert message (REQUIRED)
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertMsgType(AlertMsgTypeValue);
 
 /// Valid Code Values:
@@ -12,7 +12,7 @@ pub struct AlertMsgType(AlertMsgTypeValue);
 ///     “Cancel” - Cancels the earlier message(s) identified in <references>
 ///     “Ack” - Acknowledges receipt and acceptance of the message(s) identified in <references>
 ///     “Error” - Indicates rejection of the message(s) identified in <references>; explanation SHOULD appear in <note>
-#[derive(Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Hash, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, serde::Serialize)]
 pub enum AlertMsgTypeValue {
     Alert,
     Update,

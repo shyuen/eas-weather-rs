@@ -1,7 +1,7 @@
 # Configuration file that shows default settings
 # By default, a `config.toml` file in the same directory will be merged with this file and override the default settings.
 # You can override this location by either using the `--config-file` parameter
-# or setting the `EAS_WEATHER__CONFIG_FILE` environment variable.
+# or setting the `EAS_WEATHER_RS__APP__CONFIG_FILE` environment variable.
 
 [logging]
 format = "text"               # Log formatting ["text", "json"]
@@ -13,6 +13,9 @@ hostname = "localhost"      # Server host
 port = 8080                 # Server port
 
 shutdown_timeout_secs = 5   # Graceful shutdown timeout in seconds
+
+default_page_limit = 10    # Default page size for paginated endpoints
+page_limit_max = 100       # Maximum page size for paginated endpoints
 
 [database]
 # If the conn_url_file is not found, then the program will use the following value for

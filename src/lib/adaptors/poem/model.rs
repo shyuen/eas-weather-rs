@@ -1,21 +1,28 @@
 use crate::adaptors::poem::handlers::meta::MetaHandler;
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
+use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::port::DatabasePort;
-use crate::domain::logging::port::LoggingPort;
 use crate::domain::meta::port::MetaPort;
-use crate::domain::webserver::model::Webserver;
+use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverRepo;
 
 use poem::{EndpointExt, Route, Server, listener::TcpListener};
 use poem_openapi::{OpenApiService, Tags};
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::time::Duration;
 
 #[derive(Debug, Clone)]
-pub struct WebserverPoem {}
+pub struct WebserverPoem {
+    config: Webserver,
+}
 
 impl WebserverPoem {
-    pub fn new() -> Self {
-        WebserverPoem {}
+    pub fn new(conf_webserv: Webserver) -> Self {
+        WebserverPoem {
+            config: conf_webserv,
+        }
     }
 }
 
@@ -34,58 +41,22 @@ pub enum OperationalTags {
 
 impl WebserverRepo for WebserverPoem {
     /// Create a new instance of the webserver repository with the given configuration
-    fn new(_log_port: &impl LoggingPort, _conf_webserv: &Webserver) -> Self {
-        WebserverPoem::new()
-    }
-
-    fn log_adaptor_config(&self, log_port: &impl LoggingPort, conf_webserv: &Webserver) {
-        log_port.info(
-            module_path!(),
-            &format!("poem_hostname={}", conf_webserv.hostname.get()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_port={}", conf_webserv.port.get()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_base_path={}", conf_webserv.base_path.to_string()),
-        );
-        log_port.info(
-            module_path!(),
-            &format!(
-                "poem_shutdown_timeout_secs={}",
-                conf_webserv.shutdown_timeout_secs.get()
-            ),
-        );
-
-        log_port.info(
-            module_path!(),
-            &format!("poem_api_key={}", conf_webserv.api_key),
-        );
-        log_port.info(
-            module_path!(),
-            &format!("poem_jwt_key={}", conf_webserv.jwt_key),
-        );
-        log_port.info(
-            module_path!(),
-            &format!(
-                "poem_jwt_access_token_expiry_secs={}",
-                conf_webserv.jwt_access_token_expiry_secs.get()
-            ),
-        );
+    fn new(conf_webserv: &Webserver) -> Self {
+        WebserverPoem::new(conf_webserv.clone())
     }
 
     //async fn start_server<'a>(
-    async fn start_server(
+    async fn start_server<D>(
         &self,
         config: &Webserver,
-        log_port: &impl LoggingPort,
-        db_port: &impl DatabasePort,
+        alert_service: &AlertService<D>,
         meta_serv: &impl MetaPort,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<ShutdownReason, std::io::Error>
+    where
+        D: DatabasePort + AlertPort,
+    {
         // Construct root address
-        let root_addr = format!("{}:{}", &config.hostname.get(), &config.port.get());
+        let root_addr = format!("{}:{}", config.hostname.get(), config.port.get());
 
         // Check the base_path value
         let base_path: &str = match &config.base_path.get() {
@@ -103,12 +74,7 @@ impl WebserverRepo for WebserverPoem {
         };
 
         // Construct base address for OpenAPI server
-        let base_addr = format!("{}{}", &root_addr, &base_path);
-
-        log_port.info(
-            module_path!(),
-            &format!("poem server path: http://{}", &base_addr),
-        );
+        let base_addr = format!("{}{}", root_addr, base_path);
 
         // Configure OpenAPI service
         let main_paths = OpenApiService::new(
@@ -116,7 +82,7 @@ impl WebserverRepo for WebserverPoem {
             env!("CARGO_PKG_NAME").to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         )
-        .server(format!("http://{}", &base_addr));
+        .server(format!("http://{}", base_addr));
 
         // Create Swagger UI
         let ui = main_paths.swagger_ui();
@@ -130,30 +96,61 @@ impl WebserverRepo for WebserverPoem {
         // Create routes
         let routes = Route::new()
             .nest("/", main_paths)
-            .nest(format!("{}/docs", &base_path), ui)
+            .nest(format!("{}/docs", base_path), ui)
             .data(app_state.clone()); // Pass meta_service to the routes, requires EndpointExt
+
+        // Database port for graceful shutdown is sourced from the alert service.
+        let db_port = alert_service.get_db_port().clone();
+
+        // Channel so the shutdown future can report why we stopped.
+        let (shutdown_tx, shutdown_rx) = oneshot::channel::<ShutdownReason>();
 
         // Start the server with graceful shutdown
         Server::new(TcpListener::bind(format!(
             "{}:{}",
-            &config.hostname.get(),
-            &config.port.get()
+            config.hostname.get(),
+            config.port.get()
         )))
         .run_with_graceful_shutdown(
             routes,
             async move {
                 let _ = tokio::signal::ctrl_c().await;
-
-                log_port.info(module_path!(), "shutdown signal received");
-                log_port.info(module_path!(), "commencing graceful shutdown");
+                let _ = shutdown_tx.send(ShutdownReason::CtrlC);
 
                 // Perform any necessary cleanup here
                 // e.g., close database connections, flush logs, etc.
-                let _ = db_port.close_pool(*&log_port).await;
+                let _ = db_port.close_pool().await;
             },
             // Graceful shutdown timeout
-            Some(Duration::from_secs(*&config.shutdown_timeout_secs.get())),
+            Some(Duration::from_secs(config.shutdown_timeout_secs.get())),
         )
-        .await
+        .await?;
+
+        Ok(shutdown_rx.await.unwrap_or(ShutdownReason::Stopped))
+    }
+}
+
+impl AdaptorConfigRepr for WebserverPoem {
+    fn adaptor_name(&self) -> &'static str {
+        "poem"
+    }
+
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
+        let c = &self.config;
+        vec![
+            AdaptorConfigField::new("hostname", c.hostname.get().clone()),
+            AdaptorConfigField::new("port", c.port.get().to_string()),
+            AdaptorConfigField::new("base_path", c.base_path.to_string()),
+            AdaptorConfigField::new(
+                "shutdown_timeout_secs",
+                c.shutdown_timeout_secs.get().to_string(),
+            ),
+            AdaptorConfigField::secret("api_key", c.api_key.to_string()),
+            AdaptorConfigField::secret("jwt_key", c.jwt_key.to_string()),
+            AdaptorConfigField::new(
+                "jwt_access_token_expiry_secs",
+                c.jwt_access_token_expiry_secs.get().to_string(),
+            ),
+        ]
     }
 }

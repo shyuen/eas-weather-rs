@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::ConfigDatabase;
 use crate::domain::database::new_types::db_conn_acquire_timeout_secs::DbConnAcquireTimeoutSecs;
 use crate::domain::database::new_types::db_conn_idle_timeout_secs::DbConnIdleTimeoutSecs;
@@ -11,7 +12,6 @@ use crate::domain::database::new_types::db_conn_string::{
 };
 use crate::domain::database::new_types::db_max_connections::DbMaxConnections;
 use crate::domain::database::new_types::db_min_connections::DbMinConnections;
-use crate::domain::logging::port::LoggingPort;
 use crate::domain::utils::helpers::serialize_with_display;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,49 +33,35 @@ impl Database {
     /// Create a new instance of Database configuration
     pub fn new(conf: &ConfigDatabase) -> Self {
         let conn_string = match &conf.conn_url_file {
-            Some(raw_conn_url_file) => {
-                DbConnectionString::new(&raw_conn_url_file).unwrap_or_else(|err| match &err {
-                    // Set to default the default option on errors
-                    // We don't handle logging here as the logger is not yet initialized
-                    _ => DbConnectionString::default(),
-                })
-            }
+            Some(raw_conn_url_file) => DbConnectionString::new(raw_conn_url_file)
+                .unwrap_or_else(|_| DbConnectionString::default()),
             None => DbConnectionString::default(),
         };
 
         let conn_max_retries = match &conf.conn_max_retries {
             Some(raw_conn_max_retries) => DbConnMaxRetries::new(raw_conn_max_retries)
-                .unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbConnMaxRetriesError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                .unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnMaxRetriesError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 }),
             None => DbConnMaxRetries::default(),
         };
 
         let conn_retry_init_delay_secs = match &conf.conn_retry_init_delay_secs {
-            Some(raw_conn_retry_init_delay_secs) => DbConnRetryInitDelaySecs::new(
-                raw_conn_retry_init_delay_secs,
-            )
-            .unwrap_or_else(|err| match &err {
-                _ => {
+            Some(raw_conn_retry_init_delay_secs) => {
+                DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs).unwrap_or_else(|_| {
                     eprintln!("uncaught DbConnRetryInitDelaySecsError");
                     std::process::exit(1); // We use exit for planned exits instead of panics
-                }
-            }),
+                })
+            }
             None => DbConnRetryInitDelaySecs::default(),
         };
 
         let conn_acquire_timeout_secs = match &conf.conn_acquire_timeout_secs {
             Some(raw_conn_acquire_timeout_secs) => {
-                DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnAcquireTimeoutSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnAcquireTimeoutSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnAcquireTimeoutSecs::default(),
@@ -83,13 +69,9 @@ impl Database {
 
         let conn_idle_timeout_secs = match &conf.conn_idle_timeout_secs {
             Some(raw_conn_idle_timeout_secs) => {
-                DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnIdleTimeoutSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnIdleTimeoutSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnIdleTimeoutSecs::default(),
@@ -97,13 +79,9 @@ impl Database {
 
         let conn_max_lifetime_secs = match &conf.conn_max_lifetime_secs {
             Some(raw_conn_max_lifetime_secs) => {
-                DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).unwrap_or_else(|err| {
-                    match &err {
-                        _ => {
-                            eprintln!("uncaught DbConnMaxLifetimeSecsError");
-                            std::process::exit(1); // We use exit for planned exits instead of panics
-                        }
-                    }
+                DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbConnMaxLifetimeSecsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbConnMaxLifetimeSecs::default(),
@@ -111,11 +89,9 @@ impl Database {
 
         let max_connections = match &conf.max_connections {
             Some(raw_max_connections) => {
-                DbMaxConnections::new(raw_max_connections).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbMaxConnectionsError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                DbMaxConnections::new(raw_max_connections).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbMaxConnectionsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbMaxConnections::default(),
@@ -123,11 +99,9 @@ impl Database {
 
         let min_connections = match &conf.min_connections {
             Some(raw_min_connections) => {
-                DbMinConnections::new(raw_min_connections).unwrap_or_else(|err| match &err {
-                    _ => {
-                        eprintln!("uncaught DbMinConnectionsError");
-                        std::process::exit(1); // We use exit for planned exits instead of panics
-                    }
+                DbMinConnections::new(raw_min_connections).unwrap_or_else(|_| {
+                    eprintln!("uncaught DbMinConnectionsError");
+                    std::process::exit(1); // We use exit for planned exits instead of panics
                 })
             }
             None => DbMinConnections::default(),
@@ -147,274 +121,273 @@ impl Database {
         }
     }
 
-    pub fn validate_raw_config(&self, log_serv: &impl LoggingPort, raw_db_conf: &ConfigDatabase) {
+    pub fn validate_raw_config(&self, raw_db_conf: &ConfigDatabase) -> Vec<ConfigIssue> {
+        let mut issues = Vec::new();
+
         // Validate raw database connection string file input
         match &raw_db_conf.conn_url_file {
             Some(raw_conn_url_file) => {
                 if let Err(err) = DbConnectionString::new(raw_conn_url_file) {
                     match &err {
                         DbConnectionStringError::BadFileLoad(e) => {
-                            log_serv.error(
-                                module_path!(),
-                                &format!(
-                                    "config database load connection file error: `{}` - {}",
-                                    &raw_conn_url_file, e
-                                ),
-                            );
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config database connection string will be set to `{}`",
-                                    DbConnectionString::default()
-                                ),
-                            );
+                            issues.push(ConfigIssue::LoadFailed {
+                                key: "database.conn_string",
+                                path: raw_conn_url_file.clone(),
+                                reason: e.to_string(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                         DbConnectionStringError::EmptyConnectionString(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                "config database connection string was empty",
-                            );
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config database connection string will be set to `{}`",
-                                    DbConnectionString::default()
-                                ),
-                            );
+                            issues.push(ConfigIssue::Invalid {
+                                key: "database.conn_string",
+                                value: "empty".to_string(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                         DbConnectionStringError::EmptyFilePath(_) => {
-                            log_serv.warn(
-                                module_path!(),
-                                "config database connection file path was empty",
-                            );
-                            log_serv.warn(
-                                module_path!(),
-                                &format!(
-                                    "config database connection string will be set to `{}`",
-                                    DbConnectionString::default()
-                                ),
-                            );
+                            issues.push(ConfigIssue::Invalid {
+                                key: "database.conn_string_file",
+                                value: raw_conn_url_file.clone(),
+                                default: DbConnectionString::default().to_string(),
+                            });
                         }
                     }
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection string file was not specified, setting database connection string to `{}`",
-                        DbConnectionString::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_string_file",
+                    default: DbConnectionString::default().to_string(),
+                });
             }
         };
 
         // Validate raw database connection max retries input
         match &raw_db_conf.conn_max_retries {
             Some(raw_conn_max_retries) => {
-                if let Err(err) = DbConnMaxRetries::new(raw_conn_max_retries) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!("config database connection max retries error: {}", err),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "configdatabase connection max retries will be set to `{}`",
-                            DbConnMaxRetries::default()
-                        ),
-                    );
+                if DbConnMaxRetries::new(raw_conn_max_retries).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_max_retries",
+                        value: raw_conn_max_retries.to_string(),
+                        default: DbConnMaxRetries::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection max retries was not specified, setting to default `{}`",
-                        DbConnMaxRetries::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_max_retries",
+                    default: DbConnMaxRetries::default().to_string(),
+                });
             }
         };
 
         // Validate raw database connection retry initial delay seconds input
         match &raw_db_conf.conn_retry_init_delay_secs {
             Some(raw_conn_retry_init_delay_secs) => {
-                if let Err(err) = DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!(
-                            "config database connection retry initial delay seconds error: {}",
-                            err
-                        ),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database connection retry initial delay seconds will be set to `{}`",
-                            DbConnRetryInitDelaySecs::default()
-                        ),
-                    );
+                if DbConnRetryInitDelaySecs::new(raw_conn_retry_init_delay_secs).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_retry_init_delay_secs",
+                        value: raw_conn_retry_init_delay_secs.to_string(),
+                        default: DbConnRetryInitDelaySecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection retry initial delay seconds was not specified, setting to default `{}`",
-                        DbConnRetryInitDelaySecs::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_retry_init_delay_secs",
+                    default: DbConnRetryInitDelaySecs::default().to_string(),
+                });
             }
         }
 
         // Validate connection acquire timeout seconds input
         match &raw_db_conf.conn_acquire_timeout_secs {
             Some(raw_conn_acquire_timeout_secs) => {
-                if let Err(err) = DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!(
-                            "config database connection acquire timeout seconds error: {}",
-                            err
-                        ),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database connection acquire timeout seconds will be set to `{}`",
-                            DbConnAcquireTimeoutSecs::default()
-                        ),
-                    );
+                if DbConnAcquireTimeoutSecs::new(raw_conn_acquire_timeout_secs).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_acquire_timeout_secs",
+                        value: raw_conn_acquire_timeout_secs.to_string(),
+                        default: DbConnAcquireTimeoutSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection acquire timeout seconds was not specified, setting to default `{}`",
-                        DbConnAcquireTimeoutSecs::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_acquire_timeout_secs",
+                    default: DbConnAcquireTimeoutSecs::default().to_string(),
+                });
             }
         };
 
         // Validate connection idle timeout seconds input
         match &raw_db_conf.conn_idle_timeout_secs {
             Some(raw_conn_idle_timeout_secs) => {
-                if let Err(err) = DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!(
-                            "config database connection idle timeout seconds error: {}",
-                            err
-                        ),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database connection idle timeout seconds will be set to `{}`",
-                            DbConnIdleTimeoutSecs::default()
-                        ),
-                    );
+                if DbConnIdleTimeoutSecs::new(raw_conn_idle_timeout_secs).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_idle_timeout_secs",
+                        value: raw_conn_idle_timeout_secs.to_string(),
+                        default: DbConnIdleTimeoutSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection idle timeout seconds was not specified, setting to default `{}`",
-                        DbConnIdleTimeoutSecs::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_idle_timeout_secs",
+                    default: DbConnIdleTimeoutSecs::default().to_string(),
+                });
             }
         };
 
         // Validate connection max lifetime seconds input
         match &raw_db_conf.conn_max_lifetime_secs {
             Some(raw_conn_max_lifetime_secs) => {
-                if let Err(err) = DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!(
-                            "config database connection max lifetime seconds error: {}",
-                            err
-                        ),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database connection max lifetime seconds will be set to `{}`",
-                            DbConnMaxLifetimeSecs::default()
-                        ),
-                    );
+                if DbConnMaxLifetimeSecs::new(raw_conn_max_lifetime_secs).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.conn_max_lifetime_secs",
+                        value: raw_conn_max_lifetime_secs.to_string(),
+                        default: DbConnMaxLifetimeSecs::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database connection max lifetime seconds was not specified, setting to default `{}`",
-                        DbConnMaxLifetimeSecs::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.conn_max_lifetime_secs",
+                    default: DbConnMaxLifetimeSecs::default().to_string(),
+                });
             }
         };
 
         // Validate min connections input
         match &raw_db_conf.min_connections {
             Some(raw_min_connections) => {
-                if let Err(err) = DbMinConnections::new(raw_min_connections) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!("config database min connections error: {}", err),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database min connections will be set to `{}`",
-                            DbMinConnections::default()
-                        ),
-                    );
+                if DbMinConnections::new(raw_min_connections).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.min_connections",
+                        value: raw_min_connections.to_string(),
+                        default: DbMinConnections::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database min connections was not specified, setting to default `{}`",
-                        DbMinConnections::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.min_connections",
+                    default: DbMinConnections::default().to_string(),
+                });
             }
         };
 
         // Validate max connections input
         match &raw_db_conf.max_connections {
             Some(raw_max_connections) => {
-                if let Err(err) = DbMaxConnections::new(raw_max_connections) {
-                    log_serv.error(
-                        module_path!(),
-                        &format!("config database max connections error: {}", err),
-                    );
-                    log_serv.warn(
-                        module_path!(),
-                        &format!(
-                            "config database max connections will be set to `{}`",
-                            DbMaxConnections::default()
-                        ),
-                    );
+                if DbMaxConnections::new(raw_max_connections).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "database.max_connections",
+                        value: raw_max_connections.to_string(),
+                        default: DbMaxConnections::default().to_string(),
+                    });
                 }
             }
             None => {
-                log_serv.warn(
-                    module_path!(),
-                    &format!(
-                        "config database max connections was not specified, setting to default `{}`",
-                        DbMaxConnections::default()
-                    ),
-                );
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "database.max_connections",
+                    default: DbMaxConnections::default().to_string(),
+                });
             }
         };
+
+        issues
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn raw(conn_url_file: Option<&str>) -> ConfigDatabase {
+        ConfigDatabase {
+            conn_url_file: conn_url_file.map(str::to_string),
+            conn_max_retries: Some(3),
+            conn_retry_init_delay_secs: Some(1),
+            conn_acquire_timeout_secs: Some(5),
+            conn_idle_timeout_secs: Some(60),
+            conn_max_lifetime_secs: Some(600),
+            max_connections: Some(10),
+            min_connections: Some(1),
+        }
+    }
+
+    fn empty() -> ConfigDatabase {
+        ConfigDatabase {
+            conn_url_file: None,
+            conn_max_retries: None,
+            conn_retry_init_delay_secs: None,
+            conn_acquire_timeout_secs: None,
+            conn_idle_timeout_secs: None,
+            conn_max_lifetime_secs: None,
+            max_connections: None,
+            min_connections: None,
+        }
+    }
+
+    #[test]
+    fn validate_accepts_valid_values() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(file, "mysql://user:pass@localhost/db").unwrap();
+        let issues =
+            Database::new(&empty()).validate_raw_config(&raw(Some(file.path().to_str().unwrap())));
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn validate_flags_all_missing_settings() {
+        let issues = Database::new(&empty()).validate_raw_config(&empty());
+        let keys: Vec<_> = issues
+            .iter()
+            .map(|issue| match issue {
+                ConfigIssue::NotSpecified { key, .. } => *key,
+                other => panic!("expected NotSpecified, got {:?}", other),
+            })
+            .collect();
+        assert_eq!(
+            keys,
+            vec![
+                "database.conn_string_file",
+                "database.conn_max_retries",
+                "database.conn_retry_init_delay_secs",
+                "database.conn_acquire_timeout_secs",
+                "database.conn_idle_timeout_secs",
+                "database.conn_max_lifetime_secs",
+                "database.min_connections",
+                "database.max_connections",
+            ]
+        );
+    }
+
+    #[test]
+    fn validate_flags_unloadable_conn_url_file() {
+        let issues = Database::new(&raw(None)).validate_raw_config(&raw(Some("/nonexistent/url")));
+        let load_failed: Vec<_> = issues
+            .iter()
+            .filter_map(|issue| match issue {
+                ConfigIssue::LoadFailed { key, .. } => Some(*key),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(load_failed, vec!["database.conn_string"]);
+    }
+
+    #[test]
+    fn new_loads_conn_string_from_file() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(file, "mysql://user:pass@localhost/db").unwrap();
+        let db = Database::new(&raw(Some(file.path().to_str().unwrap())));
+        assert_eq!(db.conn_string.get(), "mysql://user:pass@localhost/db");
+    }
+
+    #[test]
+    fn new_falls_back_to_default_when_conn_url_file_unreadable() {
+        let db = Database::new(&raw(Some("/nonexistent/url")));
+        assert_eq!(db.conn_string.get(), DbConnectionString::default().get());
     }
 }

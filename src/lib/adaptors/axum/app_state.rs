@@ -1,3 +1,5 @@
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::service::AlertService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use std::sync::Arc;
@@ -7,22 +9,22 @@ use std::sync::Arc;
 pub struct AppState<MR, DR>
 where
     MR: MetaPort,
-    DR: DatabasePort,
+    DR: DatabasePort + AlertPort,
 {
     meta_port: Arc<MR>,
-    db_port: Arc<DR>,
+    alert_service: Arc<AlertService<DR>>,
 }
 
 impl<MR, DR> AppState<MR, DR>
 where
     MR: MetaPort,
-    DR: DatabasePort,
+    DR: DatabasePort + AlertPort,
 {
     /// Create a new AppState with the given services.
-    pub fn new(meta_port: MR, db_port: DR) -> Self {
+    pub fn new(meta_port: MR, alert_service: AlertService<DR>) -> Self {
         Self {
             meta_port: Arc::new(meta_port),
-            db_port: Arc::new(db_port),
+            alert_service: Arc::new(alert_service),
         }
     }
 
@@ -31,8 +33,8 @@ where
         self.meta_port.clone()
     }
 
-    /// Get a reference to the DatabaseService.
-    pub fn get_db_port(&self) -> Arc<DR> {
-        self.db_port.clone()
+    /// Get a reference to the AlertService.
+    pub fn get_alert_service(&self) -> Arc<AlertService<DR>> {
+        self.alert_service.clone()
     }
 }

@@ -20,10 +20,13 @@ impl DbMinConnections {
         // Add validation logic here if needed
         Ok(DbMinConnections(*raw_db_min_connections))
     }
-    pub fn default() -> Self {
-        DbMinConnections(1)
-    }
     pub fn get(&self) -> u32 {
         self.0
+    }
+}
+
+impl Default for DbMinConnections {
+    fn default() -> Self {
+        DbMinConnections(1)
     }
 }

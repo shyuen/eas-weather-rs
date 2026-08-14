@@ -3,7 +3,7 @@ use thiserror::Error;
 use crate::domain::utils::helpers::capitalize_first_lowercase_rest;
 
 /// The code denoting the appropriate handling of the alert status (REQUIRED)
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertStatus(AlertStatusValue);
 
 /// Valid Code Values:
@@ -12,7 +12,7 @@ pub struct AlertStatus(AlertStatusValue);
 ///     “System” - For messages that support alert network internal functions
 ///     “Test” - Technical testing only, all recipients disregard
 ///     “Draft” – A preliminary template or draft, not actionable in its current form
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum AlertStatusValue {
     Actual,
     Exercise,

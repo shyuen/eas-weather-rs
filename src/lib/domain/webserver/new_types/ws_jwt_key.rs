@@ -3,7 +3,7 @@ use std::fmt;
 use std::fs;
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Deserialize, Serialize)]
 pub struct WebserverJwtKey(Option<String>);
 
 impl fmt::Display for WebserverJwtKey {
@@ -50,11 +50,64 @@ impl WebserverJwtKey {
         Ok(WebserverJwtKey(Some(trimmed_file_contents.to_string())))
     }
 
-    pub fn default() -> Self {
-        WebserverJwtKey(None)
-    }
-
     pub fn get(&self) -> &Option<String> {
         &self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn loads_key_from_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "jwt-signing-secret").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key.get().as_deref(), Some("jwt-signing-secret"));
+    }
+
+    #[test]
+    fn trims_file_contents() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "  secret123").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key.get().as_deref(), Some("secret123"));
+    }
+
+    #[test]
+    fn empty_path_becomes_none() {
+        assert_eq!(WebserverJwtKey::new("").unwrap(), WebserverJwtKey(None));
+        assert_eq!(WebserverJwtKey::new("   ").unwrap(), WebserverJwtKey(None));
+    }
+
+    #[test]
+    fn empty_file_becomes_none() {
+        let mut file = NamedTempFile::new().unwrap();
+        write!(file, "  ").unwrap();
+        let key = WebserverJwtKey::new(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(key, WebserverJwtKey(None));
+    }
+
+    #[test]
+    fn rejects_missing_file() {
+        assert!(matches!(
+            WebserverJwtKey::new("/nonexistent/jwt.pem").err().unwrap(),
+            WebserverJwtKeyError::BadFileLoad(_)
+        ));
+    }
+
+    #[test]
+    fn display_masks_key() {
+        let key = WebserverJwtKey(Some("jwt-signing-secret".to_string()));
+        let shown = key.to_string();
+        assert!(!shown.contains("jwt-signing-secret"), "key leaked: {shown}");
+    }
+
+    #[test]
+    fn defaults_to_none() {
+        assert_eq!(WebserverJwtKey::default(), WebserverJwtKey(None));
     }
 }

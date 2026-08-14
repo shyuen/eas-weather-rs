@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// A single reference to an earlier alert message within the <references> group (OPTIONAL)
 /// The extended message identifier is in the form (sender,identifier,sent).
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct ExtendedMessageIdentifier(String);
 
 #[derive(Error, Debug)]
@@ -40,7 +40,7 @@ impl ExtendedMessageIdentifier {
 /// The group listing identifying earlier message(s) referenced by the alert message (OPTIONAL)
 /// (1) The extended message identifier(s) (in the form sender,identifier,sent) of an earlier CAP message or messages referenced by this one.
 /// (2) If multiple messages are referenced, they SHALL be separated by whitespace.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertReferences(Option<Vec<ExtendedMessageIdentifier>>);
 
 #[derive(Error, Debug)]

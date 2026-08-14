@@ -28,11 +28,58 @@ impl WebserverHostname {
         Ok(WebserverHostname(trimmed_hostname.to_string()))
     }
 
-    pub fn default() -> Self {
-        WebserverHostname("localhost".to_string())
-    }
-
     pub fn get(&self) -> &String {
         &self.0
+    }
+}
+
+impl Default for WebserverHostname {
+    fn default() -> Self {
+        WebserverHostname("localhost".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_valid_hostname() {
+        assert_eq!(
+            WebserverHostname::new("localhost").unwrap(),
+            WebserverHostname("localhost".to_string())
+        );
+        assert_eq!(
+            WebserverHostname::new("0.0.0.0").unwrap(),
+            WebserverHostname("0.0.0.0".to_string())
+        );
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        assert_eq!(
+            WebserverHostname::new("  example.com ").unwrap(),
+            WebserverHostname("example.com".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_empty_hostname() {
+        assert!(matches!(
+            WebserverHostname::new("").err().unwrap(),
+            WebserverHostnameError::EmptyHostname
+        ));
+        assert!(matches!(
+            WebserverHostname::new("   ").err().unwrap(),
+            WebserverHostnameError::EmptyHostname
+        ));
+    }
+
+    #[test]
+    fn defaults_to_localhost() {
+        assert_eq!(
+            WebserverHostname::default(),
+            WebserverHostname("localhost".to_string())
+        );
     }
 }

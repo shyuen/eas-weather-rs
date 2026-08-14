@@ -22,10 +22,13 @@ impl DbConnAcquireTimeoutSecs {
         // Add validation logic here if needed
         Ok(DbConnAcquireTimeoutSecs(*raw_db_conn_aquire_timeout_secs))
     }
-    pub fn default() -> Self {
-        DbConnAcquireTimeoutSecs(5)
-    }
     pub fn get(&self) -> u16 {
         self.0
+    }
+}
+
+impl Default for DbConnAcquireTimeoutSecs {
+    fn default() -> Self {
+        DbConnAcquireTimeoutSecs(5)
     }
 }

@@ -1,7 +1,9 @@
 pub mod ws_api_key;
 pub mod ws_base_path;
+pub mod ws_default_page_limit;
 pub mod ws_hostname;
 pub mod ws_jwt_access_token_expiry_secs;
 pub mod ws_jwt_key;
+pub mod ws_page_limit_max;
 pub mod ws_port;
 pub mod ws_shutdown_timeout_secs;

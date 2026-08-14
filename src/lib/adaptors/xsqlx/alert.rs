@@ -9,8 +9,10 @@ use crate::domain::alert::new_types::alert_sender::AlertSender;
 use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
-use crate::domain::alert::port::DatabasePortAlert;
-use crate::domain::alert::port::{GetDailyAlertsError, GetDailyAlertsResponse};
+use crate::domain::alert::port::AlertPort;
+use crate::domain::alert::port::{
+    GetDailyAlertsError, GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse,
+};
 
 use sqlx::FromRow;
 use time::OffsetDateTime;
@@ -36,7 +38,7 @@ const FORMAT: Iso8601<
     },
 > = Iso8601;
 
-///
+/// A database row representing an alert, mapped from the MySQL alerts table.
 #[derive(
     FromRow,
     Debug,
@@ -63,11 +65,14 @@ pub struct MySqlAlert {
     pub references: Option<String>,
 }
 
-impl DatabasePortAlert for DatabaseMySql {
-    async fn get_daily_alerts_data(&self) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
+impl AlertPort for DatabaseMySql {
+    async fn get_daily_alerts_data(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
         match self.get_pool() {
             Some(pool) => {
-                // Start a new transaction
                 let mut tx = pool.begin().await.map_err(|e| {
                     GetDailyAlertsError::DatabaseConnectionError(format!(
                         "failed to begin database transaction: {}",
@@ -75,23 +80,55 @@ impl DatabasePortAlert for DatabaseMySql {
                     ))
                 })?;
 
-                // Execute the query to retrieve the latest version of each alert identifier within the last 24 hours, excluding Cancelled alerts
-                match sqlx::query_as::<_, MySqlAlert>(
+                let total: (i64,) = sqlx::query_as(
+                    r#"
+                    SELECT COUNT(*) FROM (
+                      SELECT
+                        alert.*, ROW_NUMBER()
+                      OVER (
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
+                      ) AS rn
+                      FROM
+                        Alerts AS alert
+                      WHERE
+                        `sent` >= CURDATE()
+                        AND `sent` < CURDATE() + INTERVAL 1 DAY
+                    ) AS ranked
+                    WHERE
+                        rn = 1
+                        AND
+                        `msgtype` != "Cancel"
+                    "#,
+                )
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|e| {
+                    GetDailyAlertsError::DatabaseConnectionError(format!(
+                        "failed to count daily alert items: {}",
+                        e
+                    ))
+                })?;
+
+                let alert_items = sqlx::query_as::<_, MySqlAlert>(
                     r#"
                     WITH ranked_alerts AS (
                       SELECT
-                      	alert.*, ROW_NUMBER()
+                        alert.*, ROW_NUMBER()
                       OVER (
-                      	PARTITION BY
-                      		`identifier`
-                      	ORDER BY
-                      		`sent`
-                      	DESC
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
                       ) AS rn
                       FROM
-                      	Alerts AS alert
+                        Alerts AS alert
                       WHERE
-                      	`sent` >= CURDATE()
+                        `sent` >= CURDATE()
                         AND `sent` < CURDATE() + INTERVAL 1 DAY
                     )
                     SELECT
@@ -106,63 +143,171 @@ impl DatabasePortAlert for DatabaseMySql {
                     FROM
                         ranked_alerts
                     WHERE
-                        rn = 1 -- Choose the first row number which is the latest version for an alert identifier
-	                    AND
-	                    `msgtype` != "Cancel" -- Ignore Cancelled alerts
+                        rn = 1
+                        AND
+                        `msgtype` != "Cancel"
+                    ORDER BY
+                        `sent` DESC
                     LIMIT
-                        100;
+                        ?
+                    OFFSET
+                        ?
                     "#,
                 )
+                .bind(limit as i64)
+                .bind(offset as i64)
                 .fetch_all(&mut *tx)
                 .await
-                {
-                    Ok(alert_items) => {
-                        //info!("successfully retrieved alert items from database");
+                .map_err(|e| {
+                    GetDailyAlertsError::DatabaseConnectionError(format!(
+                        "failed to retrieve daily alert items: {}",
+                        e
+                    ))
+                })?;
 
-                        // Commit the transaction
-                        tx.commit().await.map_err(|e| {
-                            GetDailyAlertsError::DatabaseConnectionError(format!(
-                                "failed to commit database transaction: {}",
-                                e
-                            ))
-                        })?;
+                tx.commit().await.map_err(|e| {
+                    GetDailyAlertsError::DatabaseConnectionError(format!(
+                        "failed to commit database transaction: {}",
+                        e
+                    ))
+                })?;
 
-                        // Convert MySqlAlert to Alert
-                        let alerts: Result<Vec<_>, _> = alert_items
-                            .into_iter()
-                            .map(|mysql_alert| Alert::try_from(mysql_alert))
-                            .collect();
+                let alerts: Result<Vec<_>, _> =
+                    alert_items.into_iter().map(Alert::try_from).collect();
 
-                        // Handle conversion result
-                        match alerts {
-                            Ok(alerts) => {
-                                // Return the successful response with the alerts
-                                Ok(GetDailyAlertsResponse { alerts })
-                            }
-                            Err(errors) => {
-                                let error_msg = errors.join("; ");
-                                //error!("data conversion errors occurred: {}", error_msg);
-                                Err(GetDailyAlertsError::DataConversionError(error_msg))
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        //error!("failed to retrieve alert items from database: {}", e);
-                        tx.commit().await.map_err(|e| {
-                            GetDailyAlertsError::DatabaseConnectionError(format!(
-                                "failed to commit database transaction: {}",
-                                e
-                            ))
-                        })?;
-                        return Err(GetDailyAlertsError::DatabaseConnectionError(format!(
-                            "failed to retrieve alert items: {}",
-                            e
-                        )));
+                match alerts {
+                    Ok(alerts) => Ok(GetDailyAlertsResponse {
+                        total: total.0 as u64,
+                        alerts,
+                    }),
+                    Err(errors) => {
+                        let error_msg = errors.join("; ");
+                        Err(GetDailyAlertsError::DataConversionError(error_msg))
                     }
                 }
             }
 
             None => Err(GetDailyAlertsError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+
+    async fn get_latest_alerts_data(
+        &self,
+        limit: u64,
+        offset: u64,
+    ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| {
+                    GetLatestAlertsError::DatabaseConnectionError(format!(
+                        "failed to begin database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                let total: (i64,) = sqlx::query_as(
+                    r#"
+                    SELECT COUNT(*) FROM (
+                      SELECT
+                        alert.*, ROW_NUMBER()
+                      OVER (
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
+                      ) AS rn
+                      FROM
+                        Alerts AS alert
+                    ) AS ranked
+                    WHERE
+                        rn = 1
+                        AND
+                        `msgtype` != "Cancel"
+                    "#,
+                )
+                .fetch_one(&mut *tx)
+                .await
+                .map_err(|e| {
+                    GetLatestAlertsError::DatabaseConnectionError(format!(
+                        "failed to count alert items: {}",
+                        e
+                    ))
+                })?;
+
+                let alert_items = sqlx::query_as::<_, MySqlAlert>(
+                    r#"
+                    WITH ranked_alerts AS (
+                      SELECT
+                        alert.*, ROW_NUMBER()
+                      OVER (
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
+                      ) AS rn
+                      FROM
+                        Alerts AS alert
+                    )
+                    SELECT
+                        `identifier`,
+                        `sender`,
+                        `sent`,
+                        `status`,
+                        `msgtype`,
+                        `source`,
+                        `scope`,
+                        `references`
+                    FROM
+                        ranked_alerts
+                    WHERE
+                        rn = 1
+                        AND
+                        `msgtype` != "Cancel"
+                    ORDER BY
+                        `sent` DESC
+                    LIMIT
+                        ?
+                    OFFSET
+                        ?
+                    "#,
+                )
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .fetch_all(&mut *tx)
+                .await
+                .map_err(|e| {
+                    GetLatestAlertsError::DatabaseConnectionError(format!(
+                        "failed to retrieve alert items: {}",
+                        e
+                    ))
+                })?;
+
+                tx.commit().await.map_err(|e| {
+                    GetLatestAlertsError::DatabaseConnectionError(format!(
+                        "failed to commit database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                let alerts: Result<Vec<_>, _> =
+                    alert_items.into_iter().map(Alert::try_from).collect();
+
+                match alerts {
+                    Ok(alerts) => Ok(GetLatestAlertsResponse {
+                        total: total.0 as u64,
+                        alerts,
+                    }),
+                    Err(errors) => {
+                        let error_msg = errors.join("; ");
+                        Err(GetLatestAlertsError::DataConversionError(error_msg))
+                    }
+                }
+            }
+            None => Err(GetLatestAlertsError::DatabaseConnectionError(
                 "connection pool to MySQL is not initialized".to_string(),
             )),
         }
@@ -216,7 +361,7 @@ impl TryFrom<MySqlAlert> for Alert {
             ));
         }
 
-        let source = AlertSource::new(&serde_json::to_string(&mysql_alert.source).unwrap());
+        let source = AlertSource::new(&mysql_alert.source.unwrap_or_default());
         if source.is_err() {
             errors.push(format!(
                 "failed to create AlertSource from MySqlAlert: {:?}",
@@ -233,22 +378,25 @@ impl TryFrom<MySqlAlert> for Alert {
         }
 
         // Create AlertReferences from space-separated ExtendedMessageIdentifiers
-        let references_string = serde_json::to_string(&mysql_alert.references).unwrap();
-        let references_raw: Vec<&str> = references_string.split(' ').collect();
-        let mut ext_msg_idents = Vec::new();
-
-        for ext_msg_ident in &references_raw {
-            let alert_ref = ExtendedMessageIdentifier::new(ext_msg_ident);
-            if alert_ref.is_err() {
-                errors.push(format!(
-                    "failed to create ExtendedMessageIdentifier from MySqlAlert references: {:?}",
-                    alert_ref.err()
-                ));
-                break;
-            } else {
-                ext_msg_idents.push(alert_ref.unwrap());
+        let ext_msg_idents = match &mysql_alert.references {
+            Some(refs) if !refs.is_empty() => {
+                let mut idents = Vec::new();
+                for raw in refs.split(' ') {
+                    match ExtendedMessageIdentifier::new(raw) {
+                        Ok(ident) => idents.push(ident),
+                        Err(e) => {
+                            errors.push(format!(
+                                "failed to create ExtendedMessageIdentifier: {:?}",
+                                e
+                            ));
+                            break;
+                        }
+                    }
+                }
+                idents
             }
-        }
+            _ => Vec::new(),
+        };
         if !errors.is_empty() {
             return Err(errors);
         }

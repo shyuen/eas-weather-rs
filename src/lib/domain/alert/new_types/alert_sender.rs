@@ -3,7 +3,7 @@ use thiserror::Error;
 /// The identifier of the sender of the alert message (REQUIRED)
 /// (1) Identifies the originator of this alert. Guaranteed by assigner to be unique globally; e.g., may be based on an Internet domain name.
 /// (2) MUST NOT include spaces, commas or restricted characters (< and &).
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct AlertSender(String);
 
 #[derive(Error, Debug)]
