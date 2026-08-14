@@ -1,4 +1,5 @@
 use crate::adaptors::axum::app_state::AppState;
+use crate::domain::alert::model::Alert;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
@@ -7,16 +8,42 @@ use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use utoipa::IntoParams;
-
-use crate::adaptors::axum::openapi::AlertsListResponse;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, IntoParams)]
 pub(crate) struct LatestAlertsParams {
     pub(crate) limit: Option<u64>,
     pub(crate) offset: Option<u64>,
+}
+
+/// Paginated list of alerts returned by the alert endpoints.
+///
+/// `alerts` carries the domain `Alert` type directly (so the response is the
+/// real serialized data), while the schema for that field is documented via
+/// [`AlertSchema`] through utoipa's `value_type`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AlertsListResponse {
+    pub total: u64,
+    pub count: u64,
+    pub limit: u64,
+    pub offset: u64,
+    #[schema(value_type = Vec<AlertSchema>)]
+    pub alerts: Vec<Alert>,
+}
+
+/// Single alert, mirroring the serialized shape of `domain::alert::model::Alert`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AlertSchema {
+    pub identifier: String,
+    pub sender: String,
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: String,
+    pub scope: String,
+    pub references: Vec<String>,
 }
 
 /// Handler for GET /alerts

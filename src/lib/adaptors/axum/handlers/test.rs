@@ -1,8 +1,16 @@
 use crate::adaptors::axum::api_errors::ApiError;
+use crate::adaptors::axum::handlers::error::ErrorResponse;
 use axum::Json;
 use axum::extract::Path;
+use serde::Serialize;
+use utoipa::ToSchema;
 
-use crate::adaptors::axum::openapi::{ErrorResponse, UserResponse};
+/// User payload returned by `/test/user/{id}`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct UserResponse {
+    pub id: u32,
+    pub name: String,
+}
 
 /// Deliberately fails with a 500 error. Used to exercise the error path.
 #[utoipa::path(

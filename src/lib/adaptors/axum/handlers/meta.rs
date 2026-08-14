@@ -1,13 +1,28 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::alert::port::AlertPort;
+use crate::domain::config::model::Config;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaPort;
+use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
+use serde::Serialize;
+use utoipa::ToSchema;
 
-use crate::adaptors::axum::openapi::{ConfResponse, RawConfResponse};
+/// Raw configuration dump returned by `/meta/raw_conf`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct RawConfResponse {
+    #[schema(value_type = Object)]
+    pub raw_conf: Config,
+}
+
+/// Processed configuration returned by `/meta/conf`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConfResponse {
+    #[schema(value_type = Object)]
+    pub conf: ValidatedConfig,
+}
 
 /// Handler for GET /meta/raw_conf
 #[utoipa::path(
