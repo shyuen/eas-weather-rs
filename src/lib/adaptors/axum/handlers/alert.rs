@@ -1,5 +1,5 @@
 use crate::adaptors::axum::app_state::AppState;
-use crate::adaptors::axum::handlers::error::ErrorResponse;
+use crate::adaptors::axum::handlers::error::{ErrorResponse, JsonBody};
 use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::{AlertPort, CreateAlertError, UpdateAlertError};
@@ -244,7 +244,7 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
 )]
 pub(crate) async fn create_alert<MR, DR>(
     State(state): State<AppState<MR, DR>>,
-    Json(req): Json<CreateAlertRequest>,
+    JsonBody(req): JsonBody<CreateAlertRequest>,
 ) -> impl IntoResponse
 where
     MR: MetaPort,
@@ -291,7 +291,7 @@ where
 pub(crate) async fn update_alert<MR, DR>(
     State(state): State<AppState<MR, DR>>,
     Path(identifier): Path<String>,
-    Json(req): Json<UpdateAlertRequest>,
+    JsonBody(req): JsonBody<UpdateAlertRequest>,
 ) -> impl IntoResponse
 where
     MR: MetaPort,
@@ -623,6 +623,29 @@ mod tests {
         assert_eq!(response.status(), 500);
     }
 
+    #[tokio::test]
+    async fn test_create_alert_missing_field_returns_422() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let mut body = valid_create_body();
+        body.as_object_mut().unwrap().remove("identifier");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 422);
+    }
+
     // ── PUT /alerts/{identifier} ──
 
     fn valid_update_body() -> serde_json::Value {
@@ -727,5 +750,28 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), 500);
+    }
+
+    #[tokio::test]
+    async fn test_update_alert_missing_field_returns_422() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let mut body = valid_update_body();
+        body.as_object_mut().unwrap().remove("sender");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 422);
     }
 }
