@@ -16,6 +16,17 @@ pub trait AlertPort: Clone + Send + Sync + 'static {
         limit: u64,
         offset: u64,
     ) -> impl Future<Output = Result<GetLatestAlertsResponse, GetLatestAlertsError>> + Send;
+
+    // Create a new alert
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send;
+}
+
+// Create Alert
+pub struct CreateAlertResponse {
+    pub alert: Alert,
 }
 
 // Daily Alerts
@@ -46,4 +57,14 @@ pub enum GetDailyAlertsError {
     DatabaseConnectionError(String),
     #[error("conversion error: {0}")]
     DataConversionError(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum CreateAlertError {
+    #[error("database error: {0}")]
+    DatabaseError(String),
+    #[error("database error: {0}")]
+    DatabaseConnectionError(String),
+    #[error("validation error: {0}")]
+    ValidationError(String),
 }

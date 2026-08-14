@@ -1,6 +1,7 @@
 use crate::adaptors::axum::app_state::AppState;
-use crate::domain::alert::model::Alert;
-use crate::domain::alert::port::AlertPort;
+use crate::adaptors::axum::handlers::error::ErrorResponse;
+use crate::domain::alert::model::{Alert, CreateAlertInput};
+use crate::domain::alert::port::{AlertPort, CreateAlertError};
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 
@@ -41,8 +42,42 @@ pub struct AlertSchema {
     pub sent: String,
     pub status: String,
     pub msg_type: String,
-    pub source: String,
+    pub source: Option<String>,
     pub scope: String,
+    pub references: Vec<String>,
+}
+
+impl From<&Alert> for AlertSchema {
+    fn from(alert: &Alert) -> Self {
+        AlertSchema {
+            identifier: alert.identifier().as_str().to_string(),
+            sender: alert.sender().as_str().to_string(),
+            sent: alert.sent().as_offset_date_time().to_string(),
+            status: alert.status().as_str().to_string(),
+            msg_type: alert.msg_type().as_str().to_string(),
+            source: alert.source().as_opt_str().map(|s| s.to_string()),
+            scope: alert.scope().as_str().to_string(),
+            references: alert
+                .references()
+                .as_db_string()
+                .map(|s| s.split(' ').map(|x| x.to_string()).collect())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Request body for creating a new alert.
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+pub struct CreateAlertRequest {
+    pub identifier: String,
+    pub sender: String,
+    /// RFC 3339 timestamp, e.g. "2002-05-24T16:49:00-00:00".
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: Option<String>,
+    pub scope: String,
+    /// Each reference must be in the form `sender,identifier,sent`.
     pub references: Vec<String>,
 }
 
@@ -137,6 +172,63 @@ where
                 alerts: response.alerts,
             };
             (StatusCode::OK, Json(body)).into_response()
+        }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// Convert the HTTP request body into the domain's raw input contract.
+impl From<CreateAlertRequest> for CreateAlertInput {
+    fn from(req: CreateAlertRequest) -> Self {
+        CreateAlertInput {
+            identifier: req.identifier,
+            sender: req.sender,
+            sent: req.sent,
+            status: req.status,
+            msg_type: req.msg_type,
+            source: req.source,
+            scope: req.scope,
+            references: req.references,
+        }
+    }
+}
+
+/// Handler for POST /alerts
+///
+/// Validates the request body into a domain `Alert` and persists it.
+#[utoipa::path(
+    post,
+    path = "/alerts",
+    request_body = CreateAlertRequest,
+    responses(
+        (status = 201, description = "Alert created", body = AlertSchema),
+        (status = 400, description = "Validation error", body = ErrorResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
+pub(crate) async fn create_alert<MR, DR>(
+    State(state): State<AppState<MR, DR>>,
+    Json(req): Json<CreateAlertRequest>,
+) -> impl IntoResponse
+where
+    MR: MetaPort,
+    DR: DatabasePort + AlertPort,
+{
+    let alert_service = state.get_alert_service();
+
+    match alert_service.create_alert(req.into()).await {
+        Ok(response) => (
+            StatusCode::CREATED,
+            Json(AlertSchema::from(&response.alert)),
+        )
+            .into_response(),
+        Err(CreateAlertError::ValidationError(msg)) => {
+            (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
         }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -331,5 +423,113 @@ mod tests {
         assert_eq!(response.status(), 500);
         let json = body_to_json(response).await;
         assert!(json["error"].is_string());
+    }
+
+    // ── POST /alerts ──
+
+    fn valid_create_body() -> serde_json::Value {
+        serde_json::json!({
+            "identifier": "alert-123",
+            "sender": "Sender123",
+            "sent": "2002-05-24T16:49:00-00:00",
+            "status": "Actual",
+            "msg_type": "Alert",
+            "source": "Weather Station 1",
+            "scope": "Public",
+            "references": ["Sender1,Alert123,2024-06-01T12:00:00-00:00"]
+        })
+    }
+
+    #[tokio::test]
+    async fn test_create_alert_success() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_create_body().to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 201);
+        let json = body_to_json(response).await;
+        assert_eq!(json["identifier"], "alert-123");
+        assert_eq!(json["status"], "Actual");
+    }
+
+    #[tokio::test]
+    async fn test_create_alert_validation_error() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let mut body = valid_create_body();
+        body["sender"] = serde_json::json!("Invalid Sender");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+        let json = body_to_json(response).await;
+        assert!(json["error"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_create_alert_bad_timestamp() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let mut body = valid_create_body();
+        body["sent"] = serde_json::json!("not-a-timestamp");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+    }
+
+    #[tokio::test]
+    async fn test_create_alert_db_error() {
+        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_create_body().to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 500);
     }
 }

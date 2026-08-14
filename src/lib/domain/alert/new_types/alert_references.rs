@@ -35,6 +35,10 @@ impl ExtendedMessageIdentifier {
         }
         Ok(ExtendedMessageIdentifier(trimmed.to_string()))
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// The group listing identifying earlier message(s) referenced by the alert message (OPTIONAL)
@@ -53,6 +57,17 @@ impl AlertReferences {
         } else {
             Ok(AlertReferences(Some(references)))
         }
+    }
+
+    /// Render as the CAP space-separated `sender,identifier,sent` string.
+    /// Returns `None` when there are no references, matching the nullable DB column.
+    pub fn as_db_string(&self) -> Option<String> {
+        self.0.as_ref().map(|refs| {
+            refs.iter()
+                .map(|e| e.as_str())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
     }
 }
 

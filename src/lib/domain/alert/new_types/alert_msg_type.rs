@@ -49,6 +49,16 @@ impl AlertMsgType {
             _ => Err(AlertMsgTypeError::InvalidMsgTypeValue),
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match self.0 {
+            AlertMsgTypeValue::Alert => "Alert",
+            AlertMsgTypeValue::Update => "Update",
+            AlertMsgTypeValue::Cancel => "Cancel",
+            AlertMsgTypeValue::Ack => "Ack",
+            AlertMsgTypeValue::Error => "Error",
+        }
+    }
 }
 
 #[cfg(test)]

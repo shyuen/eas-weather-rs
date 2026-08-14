@@ -43,6 +43,14 @@ impl AlertScope {
             _ => Err(AlertScopeError::InvalidScopeValue),
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match self.0 {
+            AlertScopeValue::Public => "Public",
+            AlertScopeValue::Restricted => "Restricted",
+            AlertScopeValue::Private => "Private",
+        }
+    }
 }
 
 #[cfg(test)]
