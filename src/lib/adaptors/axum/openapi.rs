@@ -26,7 +26,8 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::AlertSchema,
         crate::adaptors::axum::handlers::alert::CreateAlertRequest,
         crate::adaptors::axum::handlers::alert::UpdateAlertRequest,
-        crate::adaptors::axum::handlers::error::ErrorResponse,
+        crate::adaptors::axum::handlers::error::ApiErrorResponse,
+        crate::adaptors::axum::handlers::error::ErrorCode,
         crate::adaptors::axum::handlers::meta::RawConfResponse,
         crate::adaptors::axum::handlers::meta::ConfResponse,
         crate::adaptors::axum::handlers::test::UserResponse

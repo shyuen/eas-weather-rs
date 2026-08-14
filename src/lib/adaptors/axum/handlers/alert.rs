@@ -1,8 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
-use crate::adaptors::axum::handlers::error::{ErrorResponse, JsonBody};
+use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode, JsonBody};
 use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
-use crate::domain::alert::port::{AlertPort, CreateAlertError, UpdateAlertError};
+use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 
@@ -11,7 +11,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, IntoParams)]
@@ -107,7 +106,7 @@ pub struct UpdateAlertRequest {
     params(LatestAlertsParams),
     responses(
         (status = 200, description = "Latest alerts", body = AlertsListResponse),
-        (status = 500, description = "Database error")
+        (status = 500, description = "Database error", body = ApiErrorResponse)
     ),
     tag = "alerts"
 )]
@@ -139,11 +138,7 @@ where
             };
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": err.to_string() })),
-        )
-            .into_response(),
+        Err(err) => ApiErrorResponse::from(err).into_response(),
     }
 }
 
@@ -157,7 +152,7 @@ where
     params(LatestAlertsParams),
     responses(
         (status = 200, description = "Daily alerts", body = AlertsListResponse),
-        (status = 500, description = "Database error")
+        (status = 500, description = "Database error", body = ApiErrorResponse)
     ),
     tag = "alerts"
 )]
@@ -189,11 +184,7 @@ where
             };
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": err.to_string() })),
-        )
-            .into_response(),
+        Err(err) => ApiErrorResponse::from(err).into_response(),
     }
 }
 
@@ -237,8 +228,9 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
     request_body = CreateAlertRequest,
     responses(
         (status = 201, description = "Alert created", body = AlertSchema),
-        (status = 400, description = "Validation error", body = ErrorResponse),
-        (status = 500, description = "Database error")
+        (status = 400, description = "Validation error", body = ApiErrorResponse),
+        (status = 422, description = "Malformed request body", body = ApiErrorResponse),
+        (status = 500, description = "Database error", body = ApiErrorResponse)
     ),
     tag = "alerts"
 )]
@@ -258,14 +250,7 @@ where
             Json(AlertSchema::from(&response.alert)),
         )
             .into_response(),
-        Err(CreateAlertError::ValidationError(msg)) => {
-            (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
-        }
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": err.to_string() })),
-        )
-            .into_response(),
+        Err(err) => ApiErrorResponse::from(err).into_response(),
     }
 }
 
@@ -282,9 +267,10 @@ where
     ),
     responses(
         (status = 200, description = "Alert replaced", body = AlertSchema),
-        (status = 400, description = "Validation error", body = ErrorResponse),
-        (status = 404, description = "Alert not found", body = ErrorResponse),
-        (status = 500, description = "Database error")
+        (status = 400, description = "Validation error or invalid identifier", body = ApiErrorResponse),
+        (status = 404, description = "Alert not found", body = ApiErrorResponse),
+        (status = 422, description = "Malformed request body", body = ApiErrorResponse),
+        (status = 500, description = "Database error", body = ApiErrorResponse)
     ),
     tag = "alerts"
 )]
@@ -300,11 +286,12 @@ where
     let identifier = match AlertIdentifier::new(identifier) {
         Ok(id) => id,
         Err(err) => {
-            return (
+            return ApiErrorResponse::new(
+                ErrorCode::InvalidIdentifier,
+                err.to_string(),
                 StatusCode::BAD_REQUEST,
-                Json(json!({ "error": err.to_string() })),
             )
-                .into_response();
+            .into_response();
         }
     };
 
@@ -312,19 +299,7 @@ where
 
     match alert_service.update_alert(identifier, req.into()).await {
         Ok(response) => (StatusCode::OK, Json(AlertSchema::from(&response.alert))).into_response(),
-        Err(UpdateAlertError::ValidationError(msg)) => {
-            (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
-        }
-        Err(UpdateAlertError::NotFound) => (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "alert not found" })),
-        )
-            .into_response(),
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": err.to_string() })),
-        )
-            .into_response(),
+        Err(err) => ApiErrorResponse::from(err).into_response(),
     }
 }
 
@@ -445,7 +420,8 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), 500);
         let json = body_to_json(response).await;
-        assert!(json["error"].is_string());
+        assert_eq!(json["code"], "DATABASE_ERROR");
+        assert!(json["message"].is_string());
     }
 
     // ── GET /alerts/daily ──
@@ -512,7 +488,8 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), 500);
         let json = body_to_json(response).await;
-        assert!(json["error"].is_string());
+        assert_eq!(json["code"], "DATABASE_ERROR");
+        assert!(json["message"].is_string());
     }
 
     // ── POST /alerts ──
@@ -576,7 +553,8 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), 400);
         let json = body_to_json(response).await;
-        assert!(json["error"].is_string());
+        assert_eq!(json["code"], "ALERT_VALIDATION_FAILED");
+        assert!(json["message"].is_string());
     }
 
     #[tokio::test]
@@ -728,7 +706,8 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), 400);
         let json = body_to_json(response).await;
-        assert!(json["error"].is_string());
+        assert_eq!(json["code"], "ALERT_VALIDATION_FAILED");
+        assert!(json["message"].is_string());
     }
 
     #[tokio::test]
