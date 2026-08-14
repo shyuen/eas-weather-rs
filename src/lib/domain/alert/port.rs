@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::alert::model::Alert;
+use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 
 pub trait AlertPort: Clone + Send + Sync + 'static {
     // Get alerts within 24 hours
@@ -22,10 +23,22 @@ pub trait AlertPort: Clone + Send + Sync + 'static {
         &self,
         alert: Alert,
     ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send;
+
+    // Update an existing alert (identified by `identifier`)
+    fn update_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send;
 }
 
 // Create Alert
 pub struct CreateAlertResponse {
+    pub alert: Alert,
+}
+
+// Update Alert
+pub struct UpdateAlertResponse {
     pub alert: Alert,
 }
 
@@ -67,4 +80,16 @@ pub enum CreateAlertError {
     DatabaseConnectionError(String),
     #[error("validation error: {0}")]
     ValidationError(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum UpdateAlertError {
+    #[error("database error: {0}")]
+    DatabaseError(String),
+    #[error("database error: {0}")]
+    DatabaseConnectionError(String),
+    #[error("validation error: {0}")]
+    ValidationError(String),
+    #[error("alert not found")]
+    NotFound,
 }

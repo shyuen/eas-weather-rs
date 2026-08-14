@@ -11,6 +11,7 @@
 use std::future::Future;
 
 use crate::domain::alert::model::Alert;
+use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
@@ -206,6 +207,13 @@ impl AlertPort for MockDb {
     ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
         async move { Ok(CreateAlertResponse { alert }) }
     }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Ok(UpdateAlertResponse { alert }) }
+    }
 }
 
 /// `DatabasePort + AlertPort` double that always fails with a database error.
@@ -253,6 +261,13 @@ impl AlertPort for FailingDb {
         _alert: Alert,
     ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
         async move { Err(CreateAlertError::DatabaseError("test error".into())) }
+    }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        _alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Err(UpdateAlertError::DatabaseError("test error".into())) }
     }
 }
 
@@ -338,6 +353,13 @@ impl AlertPort for FlakyDb {
     ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
         async move { Ok(CreateAlertResponse { alert }) }
     }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Ok(UpdateAlertResponse { alert }) }
+    }
 }
 
 /// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
@@ -361,12 +383,15 @@ pub fn build_alert_app<D>(
 where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
 {
-    use crate::adaptors::axum::handlers::alert::{create_alert, get_alerts, get_daily_alerts};
-    use axum::routing::{get, post};
+    use crate::adaptors::axum::handlers::alert::{
+        create_alert, get_alerts, get_daily_alerts, update_alert,
+    };
+    use axum::routing::{get, post, put};
 
     axum::Router::new()
         .route("/", get(get_alerts::<MockMeta, D>))
         .route("/", post(create_alert::<MockMeta, D>))
+        .route("/{identifier}", put(update_alert::<MockMeta, D>))
         .route("/daily", get(get_daily_alerts::<MockMeta, D>))
         .with_state(state)
 }

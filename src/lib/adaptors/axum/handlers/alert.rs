@@ -1,12 +1,13 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::error::ErrorResponse;
-use crate::domain::alert::model::{Alert, CreateAlertInput};
-use crate::domain::alert::port::{AlertPort, CreateAlertError};
+use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
+use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
+use crate::domain::alert::port::{AlertPort, CreateAlertError, UpdateAlertError};
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 
 use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
@@ -70,6 +71,21 @@ impl From<&Alert> for AlertSchema {
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct CreateAlertRequest {
     pub identifier: String,
+    pub sender: String,
+    /// RFC 3339 timestamp, e.g. "2002-05-24T16:49:00-00:00".
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: Option<String>,
+    pub scope: String,
+    /// Each reference must be in the form `sender,identifier,sent`.
+    pub references: Vec<String>,
+}
+
+/// Request body for replacing an existing alert. The identifier comes from the
+/// URL path, not the body.
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+pub struct UpdateAlertRequest {
     pub sender: String,
     /// RFC 3339 timestamp, e.g. "2002-05-24T16:49:00-00:00".
     pub sent: String,
@@ -197,6 +213,21 @@ impl From<CreateAlertRequest> for CreateAlertInput {
     }
 }
 
+/// Convert the HTTP update body into the domain's raw input contract.
+impl From<UpdateAlertRequest> for UpdateAlertInput {
+    fn from(req: UpdateAlertRequest) -> Self {
+        UpdateAlertInput {
+            sender: req.sender,
+            sent: req.sent,
+            status: req.status,
+            msg_type: req.msg_type,
+            source: req.source,
+            scope: req.scope,
+            references: req.references,
+        }
+    }
+}
+
 /// Handler for POST /alerts
 ///
 /// Validates the request body into a domain `Alert` and persists it.
@@ -230,6 +261,65 @@ where
         Err(CreateAlertError::ValidationError(msg)) => {
             (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
         }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// Handler for PUT /alerts/{identifier}
+///
+/// Replaces an existing alert, identified by the URL path. The path identifier
+/// is authoritative; the body carries only the updateable fields.
+#[utoipa::path(
+    put,
+    path = "/alerts/{identifier}",
+    request_body = UpdateAlertRequest,
+    params(
+        ("identifier" = String, Path, description = "Alert identifier")
+    ),
+    responses(
+        (status = 200, description = "Alert replaced", body = AlertSchema),
+        (status = 400, description = "Validation error", body = ErrorResponse),
+        (status = 404, description = "Alert not found", body = ErrorResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
+pub(crate) async fn update_alert<MR, DR>(
+    State(state): State<AppState<MR, DR>>,
+    Path(identifier): Path<String>,
+    Json(req): Json<UpdateAlertRequest>,
+) -> impl IntoResponse
+where
+    MR: MetaPort,
+    DR: DatabasePort + AlertPort,
+{
+    let identifier = match AlertIdentifier::new(identifier) {
+        Ok(id) => id,
+        Err(err) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": err.to_string() })),
+            )
+                .into_response();
+        }
+    };
+
+    let alert_service = state.get_alert_service();
+
+    match alert_service.update_alert(identifier, req.into()).await {
+        Ok(response) => (StatusCode::OK, Json(AlertSchema::from(&response.alert))).into_response(),
+        Err(UpdateAlertError::ValidationError(msg)) => {
+            (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
+        }
+        Err(UpdateAlertError::NotFound) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "alert not found" })),
+        )
+            .into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": err.to_string() })),
@@ -526,6 +616,112 @@ mod tests {
                     .uri("/")
                     .header("content-type", "application/json")
                     .body(Body::from(valid_create_body().to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 500);
+    }
+
+    // ── PUT /alerts/{identifier} ──
+
+    fn valid_update_body() -> serde_json::Value {
+        serde_json::json!({
+            "sender": "Sender456",
+            "sent": "2003-01-01T12:00:00-00:00",
+            "status": "Test",
+            "msg_type": "Alert",
+            "source": "Weather Station 2",
+            "scope": "Public",
+            "references": ["Sender2,Alert456,2024-06-02T12:00:00-00:00"]
+        })
+    }
+
+    #[tokio::test]
+    async fn test_update_alert_success() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_update_body().to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let json = body_to_json(response).await;
+        assert_eq!(json["identifier"], "alert-123");
+        assert_eq!(json["sender"], "Sender456");
+        assert_eq!(json["status"], "Test");
+    }
+
+    #[tokio::test]
+    async fn test_update_alert_invalid_identifier() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/Invalid%20Identifier")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_update_body().to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+    }
+
+    #[tokio::test]
+    async fn test_update_alert_validation_error() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let mut body = valid_update_body();
+        body["sender"] = serde_json::json!("Invalid Sender");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+        let json = body_to_json(response).await;
+        assert!(json["error"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_update_alert_db_error() {
+        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(valid_update_body().to_string()))
                     .unwrap(),
             )
             .await
