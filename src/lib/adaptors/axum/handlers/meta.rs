@@ -6,7 +6,6 @@ use crate::domain::meta::port::MetaPort;
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use serde_json::json;
 
 use crate::adaptors::axum::openapi::{ConfResponse, RawConfResponse};
 
@@ -28,9 +27,7 @@ where
 {
     let raw_conf = state.get_meta_port().get_raw_config_data();
 
-    Json(json!({
-        "raw_conf": raw_conf,
-    }))
+    Json(RawConfResponse { raw_conf })
 }
 
 /// Handler for GET /meta/conf
@@ -51,9 +48,7 @@ where
 {
     let conf = state.get_meta_port().get_conf();
 
-    Json(json!({
-        "conf": conf,
-    }))
+    Json(ConfResponse { conf })
 }
 
 #[cfg(test)]

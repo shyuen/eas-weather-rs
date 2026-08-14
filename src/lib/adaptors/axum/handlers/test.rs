@@ -1,7 +1,6 @@
 use crate::adaptors::axum::api_errors::ApiError;
 use axum::Json;
 use axum::extract::Path;
-use serde_json::{Value, json};
 
 use crate::adaptors::axum::openapi::{ErrorResponse, UserResponse};
 
@@ -14,7 +13,7 @@ use crate::adaptors::axum::openapi::{ErrorResponse, UserResponse};
     ),
     tag = "test"
 )]
-pub async fn list_error() -> Result<Json<Value>, ApiError> {
+pub async fn list_error() -> Result<Json<ErrorResponse>, ApiError> {
     Err(ApiError::InternalError)
 }
 
@@ -29,10 +28,13 @@ pub async fn list_error() -> Result<Json<Value>, ApiError> {
     ),
     tag = "test"
 )]
-pub async fn get_user(Path(id): Path<u32>) -> Result<Json<Value>, ApiError> {
+pub async fn get_user(Path(id): Path<u32>) -> Result<Json<UserResponse>, ApiError> {
     if id > 100 {
         return Err(ApiError::NotFound);
     }
 
-    Ok(Json(json!({"id": id, "name": "User"})))
+    Ok(Json(UserResponse {
+        id,
+        name: "User".to_string(),
+    }))
 }

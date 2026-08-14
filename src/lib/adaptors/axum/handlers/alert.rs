@@ -51,17 +51,16 @@ where
     let alert_service = state.get_alert_service();
 
     match alert_service.get_latest_alerts(limit, offset).await {
-        Ok(response) => (
-            StatusCode::OK,
-            Json(json!({
-                "total": response.total,
-                "count": response.alerts.len(),
-                "limit": limit,
-                "offset": offset,
-                "alerts": response.alerts,
-            })),
-        )
-            .into_response(),
+        Ok(response) => {
+            let body = AlertsListResponse {
+                total: response.total,
+                count: response.alerts.len() as u64,
+                limit,
+                offset,
+                alerts: response.alerts,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": err.to_string() })),
@@ -102,17 +101,16 @@ where
     let alert_service = state.get_alert_service();
 
     match alert_service.get_daily_alerts(limit, offset).await {
-        Ok(response) => (
-            StatusCode::OK,
-            Json(json!({
-                "total": response.total,
-                "count": response.alerts.len(),
-                "limit": limit,
-                "offset": offset,
-                "alerts": response.alerts,
-            })),
-        )
-            .into_response(),
+        Ok(response) => {
+            let body = AlertsListResponse {
+                total: response.total,
+                count: response.alerts.len() as u64,
+                limit,
+                offset,
+                alerts: response.alerts,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": err.to_string() })),
