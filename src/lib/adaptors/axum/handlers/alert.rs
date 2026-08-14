@@ -1,4 +1,5 @@
 use crate::adaptors::axum::app_state::AppState;
+use crate::domain::alert::model::Alert;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
@@ -7,19 +8,58 @@ use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub(crate) struct LatestAlertsParams {
     pub(crate) limit: Option<u64>,
     pub(crate) offset: Option<u64>,
+}
+
+/// Paginated list of alerts returned by the alert endpoints.
+///
+/// `alerts` carries the domain `Alert` type directly (so the response is the
+/// real serialized data), while the schema for that field is documented via
+/// [`AlertSchema`] through utoipa's `value_type`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AlertsListResponse {
+    pub total: u64,
+    pub count: u64,
+    pub limit: u64,
+    pub offset: u64,
+    #[schema(value_type = Vec<AlertSchema>)]
+    pub alerts: Vec<Alert>,
+}
+
+/// Single alert, mirroring the serialized shape of `domain::alert::model::Alert`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AlertSchema {
+    pub identifier: String,
+    pub sender: String,
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: String,
+    pub scope: String,
+    pub references: Vec<String>,
 }
 
 /// Handler for GET /alerts
 ///
 /// Returns the latest version of each alert, ordered by sent time descending,
 /// with pagination.
+#[utoipa::path(
+    get,
+    path = "/alerts",
+    params(LatestAlertsParams),
+    responses(
+        (status = 200, description = "Latest alerts", body = AlertsListResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
 pub(crate) async fn get_alerts<MR, DR>(
     State(state): State<AppState<MR, DR>>,
     Query(params): Query<LatestAlertsParams>,
@@ -38,17 +78,16 @@ where
     let alert_service = state.get_alert_service();
 
     match alert_service.get_latest_alerts(limit, offset).await {
-        Ok(response) => (
-            StatusCode::OK,
-            Json(json!({
-                "total": response.total,
-                "count": response.alerts.len(),
-                "limit": limit,
-                "offset": offset,
-                "alerts": response.alerts,
-            })),
-        )
-            .into_response(),
+        Ok(response) => {
+            let body = AlertsListResponse {
+                total: response.total,
+                count: response.alerts.len() as u64,
+                limit,
+                offset,
+                alerts: response.alerts,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": err.to_string() })),
@@ -61,6 +100,16 @@ where
 ///
 /// Returns the latest version of each alert sent within the last 24 hours,
 /// fetched from the database via the alert port, with pagination.
+#[utoipa::path(
+    get,
+    path = "/alerts/daily",
+    params(LatestAlertsParams),
+    responses(
+        (status = 200, description = "Daily alerts", body = AlertsListResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
 pub(crate) async fn get_daily_alerts<MR, DR>(
     State(state): State<AppState<MR, DR>>,
     Query(params): Query<LatestAlertsParams>,
@@ -79,17 +128,16 @@ where
     let alert_service = state.get_alert_service();
 
     match alert_service.get_daily_alerts(limit, offset).await {
-        Ok(response) => (
-            StatusCode::OK,
-            Json(json!({
-                "total": response.total,
-                "count": response.alerts.len(),
-                "limit": limit,
-                "offset": offset,
-                "alerts": response.alerts,
-            })),
-        )
-            .into_response(),
+        Ok(response) => {
+            let body = AlertsListResponse {
+                total: response.total,
+                count: response.alerts.len() as u64,
+                limit,
+                offset,
+                alerts: response.alerts,
+            };
+            (StatusCode::OK, Json(body)).into_response()
+        }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": err.to_string() })),
