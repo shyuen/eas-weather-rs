@@ -1,14 +1,38 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::alert::port::AlertPort;
+use crate::domain::config::model::Config;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaPort;
+use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 
 use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use serde_json::json;
+use serde::Serialize;
+use utoipa::ToSchema;
+
+/// Raw configuration dump returned by `/meta/raw_conf`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct RawConfResponse {
+    #[schema(value_type = Object)]
+    pub raw_conf: Config,
+}
+
+/// Processed configuration returned by `/meta/conf`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConfResponse {
+    #[schema(value_type = Object)]
+    pub conf: ValidatedConfig,
+}
 
 /// Handler for GET /meta/raw_conf
+#[utoipa::path(
+    get,
+    path = "/meta/raw_conf",
+    responses(
+        (status = 200, description = "Raw configuration", body = RawConfResponse)
+    ),
+    tag = "meta"
+)]
 pub(crate) async fn get_raw_app_config<MR, DR>(
     State(state): State<AppState<MR, DR>>,
 ) -> impl IntoResponse
@@ -18,12 +42,18 @@ where
 {
     let raw_conf = state.get_meta_port().get_raw_config_data();
 
-    Json(json!({
-        "raw_conf": raw_conf,
-    }))
+    Json(RawConfResponse { raw_conf })
 }
 
 /// Handler for GET /meta/conf
+#[utoipa::path(
+    get,
+    path = "/meta/conf",
+    responses(
+        (status = 200, description = "Processed configuration", body = ConfResponse)
+    ),
+    tag = "meta"
+)]
 pub(crate) async fn get_app_config<MR, DR>(
     State(state): State<AppState<MR, DR>>,
 ) -> impl IntoResponse
@@ -33,9 +63,7 @@ where
 {
     let conf = state.get_meta_port().get_conf();
 
-    Json(json!({
-        "conf": conf,
-    }))
+    Json(ConfResponse { conf })
 }
 
 #[cfg(test)]
