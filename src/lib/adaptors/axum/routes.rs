@@ -156,7 +156,12 @@ mod tests {
                 .is_some()
         );
         assert!(doc["components"]["schemas"].get("AlertSchema").is_some());
-        assert!(doc["components"]["schemas"].get("ErrorResponse").is_some());
+        assert!(
+            doc["components"]["schemas"]
+                .get("ApiErrorResponse")
+                .is_some()
+        );
+        assert!(doc["components"]["schemas"].get("ErrorCode").is_some());
     }
 
     #[tokio::test]
