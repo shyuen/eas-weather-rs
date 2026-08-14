@@ -8,7 +8,17 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use serde_json::json;
 
+use crate::adaptors::axum::openapi::{ConfResponse, RawConfResponse};
+
 /// Handler for GET /meta/raw_conf
+#[utoipa::path(
+    get,
+    path = "/meta/raw_conf",
+    responses(
+        (status = 200, description = "Raw configuration", body = RawConfResponse)
+    ),
+    tag = "meta"
+)]
 pub(crate) async fn get_raw_app_config<MR, DR>(
     State(state): State<AppState<MR, DR>>,
 ) -> impl IntoResponse
@@ -24,6 +34,14 @@ where
 }
 
 /// Handler for GET /meta/conf
+#[utoipa::path(
+    get,
+    path = "/meta/conf",
+    responses(
+        (status = 200, description = "Processed configuration", body = ConfResponse)
+    ),
+    tag = "meta"
+)]
 pub(crate) async fn get_app_config<MR, DR>(
     State(state): State<AppState<MR, DR>>,
 ) -> impl IntoResponse

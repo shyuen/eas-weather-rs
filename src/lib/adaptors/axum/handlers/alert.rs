@@ -9,8 +9,11 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Deserialize;
 use serde_json::json;
+use utoipa::IntoParams;
 
-#[derive(Deserialize)]
+use crate::adaptors::axum::openapi::AlertsListResponse;
+
+#[derive(Deserialize, IntoParams)]
 pub(crate) struct LatestAlertsParams {
     pub(crate) limit: Option<u64>,
     pub(crate) offset: Option<u64>,
@@ -20,6 +23,16 @@ pub(crate) struct LatestAlertsParams {
 ///
 /// Returns the latest version of each alert, ordered by sent time descending,
 /// with pagination.
+#[utoipa::path(
+    get,
+    path = "/alerts",
+    params(LatestAlertsParams),
+    responses(
+        (status = 200, description = "Latest alerts", body = AlertsListResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
 pub(crate) async fn get_alerts<MR, DR>(
     State(state): State<AppState<MR, DR>>,
     Query(params): Query<LatestAlertsParams>,
@@ -61,6 +74,16 @@ where
 ///
 /// Returns the latest version of each alert sent within the last 24 hours,
 /// fetched from the database via the alert port, with pagination.
+#[utoipa::path(
+    get,
+    path = "/alerts/daily",
+    params(LatestAlertsParams),
+    responses(
+        (status = 200, description = "Daily alerts", body = AlertsListResponse),
+        (status = 500, description = "Database error")
+    ),
+    tag = "alerts"
+)]
 pub(crate) async fn get_daily_alerts<MR, DR>(
     State(state): State<AppState<MR, DR>>,
     Query(params): Query<LatestAlertsParams>,
