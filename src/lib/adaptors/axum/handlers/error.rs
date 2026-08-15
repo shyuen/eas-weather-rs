@@ -3,7 +3,6 @@ use axum::extract::FromRequest;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
-use tracing::warn;
 use utoipa::ToSchema;
 
 use crate::domain::alert::port::{
@@ -150,9 +149,11 @@ impl From<GetDailyAlertsError> for ApiErrorResponse {
     }
 }
 
-/// Extractor for a JSON request body that logs malformed bodies while still
-/// returning axum's default `422 Unprocessable Entity` rejection — now wrapped
-/// in the unified [`ApiErrorResponse`] envelope.
+/// Extractor for a JSON request body that turns a malformed body into axum's
+/// default `422 Unprocessable Entity` rejection — wrapped in the unified
+/// [`ApiErrorResponse`] envelope. The rejection is a client error, so it is not
+/// logged server-side; the service logs the action failure when the body is
+/// well-formed but the action itself fails.
 pub struct JsonBody<T>(pub T);
 
 impl<S, T> FromRequest<S> for JsonBody<T>
@@ -167,7 +168,6 @@ where
             Ok(Json(value)) => Ok(JsonBody(value)),
             Err(rejection) => {
                 let message = rejection.body_text();
-                warn!("rejected invalid JSON request body: {}", message);
                 Err(ApiErrorResponse::new(
                     ErrorCode::InvalidRequestBody,
                     message,
