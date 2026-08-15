@@ -1,5 +1,7 @@
 use axum::Router;
 use axum::routing::{get, post, put};
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -25,6 +27,11 @@ where
         .nest("/meta", create_meta_routes())
         .nest("/alerts", create_alert_routes())
         .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
+                .on_response(DefaultOnResponse::new().level(Level::DEBUG)),
+        )
 }
 
 pub fn create_health_routes<MR, DR>() -> Router<AppState<MR, DR>>
