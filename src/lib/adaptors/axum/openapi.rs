@@ -17,9 +17,7 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::create_alert,
         crate::adaptors::axum::handlers::alert::update_alert,
         crate::adaptors::axum::handlers::meta::get_app_config,
-        crate::adaptors::axum::handlers::meta::get_raw_app_config,
-        crate::adaptors::axum::handlers::test::list_error,
-        crate::adaptors::axum::handlers::test::get_user
+        crate::adaptors::axum::handlers::meta::get_raw_app_config
     ),
     components(schemas(
         crate::adaptors::axum::handlers::alert::AlertsListResponse,
@@ -29,8 +27,7 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::error::ApiErrorResponse,
         crate::adaptors::axum::handlers::error::ErrorCode,
         crate::adaptors::axum::handlers::meta::RawConfResponse,
-        crate::adaptors::axum::handlers::meta::ConfResponse,
-        crate::adaptors::axum::handlers::test::UserResponse
+        crate::adaptors::axum::handlers::meta::ConfResponse
     ))
 )]
 pub(crate) struct ApiDoc;

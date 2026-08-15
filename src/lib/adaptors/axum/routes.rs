@@ -9,7 +9,6 @@ use crate::adaptors::axum::handlers::alert::{
 };
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
-use crate::adaptors::axum::handlers::test::{get_user, list_error};
 use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
@@ -23,7 +22,6 @@ where
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .nest("/health", create_health_routes())
-        .nest("/test", create_test_routes())
         .nest("/meta", create_meta_routes())
         .nest("/alerts", create_alert_routes())
         .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()))
@@ -38,16 +36,6 @@ where
         .route("/startup", get(startup))
         .route("/readiness", get(readiness))
         .route("/liveness", get(liveness))
-}
-
-pub fn create_test_routes<MR, DR>() -> Router<AppState<MR, DR>>
-where
-    MR: MetaPort,
-    DR: DatabasePort + AlertPort,
-{
-    Router::new()
-        .route("/error", get(list_error))
-        .route("/user/{id}", get(get_user))
 }
 
 pub fn create_meta_routes<MR, DR>() -> Router<AppState<MR, DR>>
@@ -121,7 +109,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_routes_are_mounted() {
-        assert_eq!(get_status("/test/user/1").await, 200);
+        assert_eq!(get_status("/meta/conf").await, 200);
     }
 
     #[tokio::test]
@@ -148,8 +136,6 @@ mod tests {
         assert!(doc["paths"].get("/alerts/daily").is_some());
         assert!(doc["paths"].get("/meta/conf").is_some());
         assert!(doc["paths"].get("/meta/raw_conf").is_some());
-        assert!(doc["paths"].get("/test/error").is_some());
-        assert!(doc["paths"].get("/test/user/{id}").is_some());
         assert!(
             doc["components"]["schemas"]
                 .get("AlertsListResponse")
