@@ -103,8 +103,9 @@ pub struct ConfigFigment {
 /// Build a figment whose first (highest-priority) layer is the serialized CLI
 /// arguments, if any. A `null` value contributes no layer.
 fn base_figment(cli: &serde_json::Value) -> Figment {
-    let mut figment = Figment::new();
+    let mut figment = Figment::new(); // Start with an empty figment
     if !cli.is_null() {
+        // Add the serialized CLI arguments as a layer to the figment.
         figment = figment.join(Serialized::defaults(cli.clone()));
     }
     figment
