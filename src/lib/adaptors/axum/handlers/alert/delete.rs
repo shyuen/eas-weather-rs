@@ -6,7 +6,7 @@ use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
 /// Handler for DELETE /alerts/{identifier}
@@ -27,12 +27,12 @@ use crate::domain::database::port::DatabasePort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn delete_alert<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
+pub(crate) async fn delete_alert<C, DR>(
+    State(state): State<AppState<C, DR>>,
     Path(identifier): Path<String>,
 ) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
@@ -64,16 +64,13 @@ mod tests {
 
     use crate::adaptors::axum::handlers::alert::body_to_json;
     use crate::test_support::{
-        DEFAULT_PAGE_LIMIT, FailingDb, MissingDb, MockDb, MockMeta, PAGE_LIMIT_MAX,
-        build_alert_app, build_state, build_webserver,
+        DEFAULT_PAGE_LIMIT, FailingDb, MissingDb, MockDb, PAGE_LIMIT_MAX, build_alert_app,
+        build_state, mock_config_service,
     };
 
     #[tokio::test]
     async fn test_delete_alert_success() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -93,10 +90,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_alert_invalid_identifier() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -115,10 +109,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_alert_not_found() {
-        let state = build_state::<MissingDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state =
+            build_state::<MissingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -137,10 +129,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_alert_db_error() {
-        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state =
+            build_state::<FailingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(

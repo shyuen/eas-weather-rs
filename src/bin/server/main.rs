@@ -49,7 +49,7 @@ async fn main() -> Result<(), std::io::Error> {
     let alert_service = AlertService::new(&database_service);
 
     // Start Web Server
-    // ConfigService implements MetaPort, the config seam for the webserver
+    // The webserver consumes the config service for the /meta endpoints
     webserver_service
         .start_server(&alert_service, &conf_service)
         .await

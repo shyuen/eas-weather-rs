@@ -1,7 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::model::Config;
-use crate::domain::config::port::{MetaPort, ValidatedConfig};
+use crate::domain::config::model::ValidatedConfig;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
 use axum::Json;
@@ -36,14 +37,14 @@ pub struct ConfResponse {
     ),
     tag = "meta"
 )]
-pub(crate) async fn get_raw_app_config<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
+pub(crate) async fn get_raw_app_config<C, DR>(
+    State(state): State<AppState<C, DR>>,
 ) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let raw_conf = state.get_meta_port().get_raw_config_data();
+    let raw_conf = state.get_config_service().get_raw_config().clone();
 
     Json(RawConfResponse { raw_conf })
 }
@@ -59,14 +60,12 @@ where
     ),
     tag = "meta"
 )]
-pub(crate) async fn get_app_config<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
-) -> impl IntoResponse
+pub(crate) async fn get_app_config<C, DR>(State(state): State<AppState<C, DR>>) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let conf = state.get_meta_port().get_conf();
+    let conf = state.get_config_service().get_validated_app_conf();
 
     Json(ConfResponse { conf })
 }
@@ -82,8 +81,11 @@ mod tests {
     use crate::adaptors::axum::app_state::AppState;
     use crate::domain::alert::port::AlertPort;
     use crate::domain::config::model::*;
+    use crate::domain::config::service::ConfigService;
     use crate::domain::database::port::DatabasePort;
-    use crate::test_support::{MockDb, MockMeta, build_state, build_webserver};
+    use crate::test_support::{
+        MockConfig, MockDb, build_state, build_webserver, mock_config_service,
+    };
 
     use super::{get_app_config, get_raw_app_config};
 
@@ -118,13 +120,13 @@ mod tests {
         }
     }
 
-    fn build_meta_app<D>(state: AppState<MockMeta, D>) -> axum::Router
+    fn build_meta_app<D>(state: AppState<MockConfig, D>) -> axum::Router
     where
         D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
     {
         axum::Router::new()
-            .route("/raw_conf", get(get_raw_app_config::<MockMeta, D>))
-            .route("/conf", get(get_app_config::<MockMeta, D>))
+            .route("/raw_conf", get(get_raw_app_config::<MockConfig, D>))
+            .route("/conf", get(get_app_config::<MockConfig, D>))
             .with_state(state)
     }
 
@@ -136,8 +138,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_raw_app_config() {
-        let meta = MockMeta::new(build_webserver(10, 100)).with_raw_config(raw_conf());
-        let state = build_state::<MockDb>(meta);
+        let config_service = ConfigService::from_config_port(
+            MockConfig::new()
+                .with_webserver_config(build_webserver(10, 100))
+                .with_raw_config(raw_conf()),
+        );
+        let state = build_state::<MockDb>(config_service);
         let app = build_meta_app::<MockDb>(state);
         let response = app
             .oneshot(
@@ -164,7 +170,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_app_config() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(10, 100)));
+        let state = build_state::<MockDb>(mock_config_service(10, 100));
         let app = build_meta_app::<MockDb>(state);
         let response = app
             .oneshot(Request::builder().uri("/conf").body(Body::empty()).unwrap())
