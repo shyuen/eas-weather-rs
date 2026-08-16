@@ -15,7 +15,7 @@ async fn main() -> Result<(), std::io::Error> {
     // Parse command-line arguments once and inject them into the config adaptor
     let conf_service: ConfigService<ConfigFigment> =
         // Create a new instance of ConfigService with the Figment adaptor
-        ConfigService::from_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
+        ConfigService::from_config_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
     let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
@@ -25,13 +25,13 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_raw_config_validation();
 
     // Output logging adaptor configuration
-    conf_service.log_adaptor_config(logging_service.get_port());
+    conf_service.log_adaptor_config(logging_service.get_logging_port());
 
     // Initialize the database service
     let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(&conf_service);
 
     // Output database adaptor configuration
-    conf_service.log_adaptor_config(database_service.get_port());
+    conf_service.log_adaptor_config(database_service.get_database_port());
 
     // Initialize database connection pool within the service
     if let Err(err) = database_service.create_pool().await {
@@ -44,9 +44,9 @@ async fn main() -> Result<(), std::io::Error> {
         WebserverService::new(conf_service.get_webservicer_config());
 
     // Output webserver adaptor configuration
-    conf_service.log_adaptor_config(webserver_service.get_port());
+    conf_service.log_adaptor_config(webserver_service.get_webserver_port());
 
-    // Initialize meta service
+    // Initialize meta service (implements MetaPort, the config seam for the webserver)
     let meta_service = MetaService::new(&conf_service);
 
     // Initialize alert service
