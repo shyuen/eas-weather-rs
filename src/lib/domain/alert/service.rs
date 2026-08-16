@@ -265,30 +265,35 @@ fn build_alert_for_update(
 
 /// Build a validated [`Alert`] for a partial update, merging the provided patch
 /// fields over an existing alert. Fields absent from the patch keep their
-/// existing validated values.
+/// existing validated values; an explicit `null` on a required field is
+/// rejected, while optional fields (`source`, `references`) are cleared.
 fn build_alert_for_patch(
     identifier: AlertIdentifier,
     existing: &Alert,
     input: PatchAlertInput,
 ) -> Result<Alert, String> {
     let sender = match input.sender {
-        Some(sender) => AlertSender::new(sender).map_err(|e| e.to_string())?,
+        Some(Some(sender)) => AlertSender::new(sender).map_err(|e| e.to_string())?,
+        Some(None) => return Err("field `sender` cannot be null".to_string()),
         None => existing.sender().clone(),
     };
     let sent = match input.sent {
-        Some(sent) => {
+        Some(Some(sent)) => {
             let sent_ts = OffsetDateTime::parse(&sent, &Rfc3339)
                 .map_err(|e| format!("invalid `sent` timestamp: {}", e))?;
             AlertSent::new(sent_ts).map_err(|e| e.to_string())?
         }
+        Some(None) => return Err("field `sent` cannot be null".to_string()),
         None => existing.sent().clone(),
     };
     let status = match input.status {
-        Some(status) => AlertStatus::new(status).map_err(|e| e.to_string())?,
+        Some(Some(status)) => AlertStatus::new(status).map_err(|e| e.to_string())?,
+        Some(None) => return Err("field `status` cannot be null".to_string()),
         None => existing.status().clone(),
     };
     let msg_type = match input.msg_type {
-        Some(msg_type) => AlertMsgType::new(msg_type).map_err(|e| e.to_string())?,
+        Some(Some(msg_type)) => AlertMsgType::new(msg_type).map_err(|e| e.to_string())?,
+        Some(None) => return Err("field `msg_type` cannot be null".to_string()),
         None => existing.msg_type().clone(),
     };
     let source = match input.source {
@@ -297,17 +302,19 @@ fn build_alert_for_patch(
         None => existing.source().clone(),
     };
     let scope = match input.scope {
-        Some(scope) => AlertScope::new(scope).map_err(|e| e.to_string())?,
+        Some(Some(scope)) => AlertScope::new(scope).map_err(|e| e.to_string())?,
+        Some(None) => return Err("field `scope` cannot be null".to_string()),
         None => existing.scope().clone(),
     };
     let references = match input.references {
-        Some(references) => {
+        Some(Some(references)) => {
             let mut refs = Vec::new();
             for r in references {
                 refs.push(ExtendedMessageIdentifier::new(&r).map_err(|e| e.to_string())?);
             }
             AlertReferences::new(refs).map_err(|e| e.to_string())?
         }
+        Some(None) => AlertReferences::new(Vec::new()).map_err(|e| e.to_string())?,
         None => existing.references().clone(),
     };
 
@@ -435,7 +442,7 @@ mod tests {
         let service = build_service::<MockDb>();
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
-            sender: Some("PatchedSender".to_string()),
+            sender: Some(Some("PatchedSender".to_string())),
             sent: None,
             status: None,
             msg_type: None,
@@ -454,7 +461,7 @@ mod tests {
         let service = build_service::<MockDb>();
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
-            sender: Some("Invalid Sender".to_string()),
+            sender: Some(Some("Invalid Sender".to_string())),
             sent: None,
             status: None,
             msg_type: None,
@@ -464,6 +471,45 @@ mod tests {
         };
         let result = service.patch_alert(identifier, input).await;
         assert!(matches!(result, Err(PatchAlertError::ValidationError(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_alert_rejects_null_required_field() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = PatchAlertInput {
+            sender: Some(None),
+            sent: None,
+            status: None,
+            msg_type: None,
+            source: None,
+            scope: None,
+            references: None,
+        };
+        let result = service.patch_alert(identifier, input).await;
+        assert!(matches!(
+            result,
+            Err(PatchAlertError::ValidationError(msg))
+                if msg == "field `sender` cannot be null"
+        ));
+    }
+
+    #[tokio::test]
+    async fn patch_alert_clears_optional_fields() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = PatchAlertInput {
+            sender: None,
+            sent: None,
+            status: None,
+            msg_type: None,
+            source: Some(None),
+            scope: None,
+            references: Some(None),
+        };
+        let resp = service.patch_alert(identifier, input).await.unwrap();
+        assert!(resp.alert.source().as_opt_str().is_none());
+        assert_eq!(resp.alert.references().as_db_string(), None);
     }
 
     #[tokio::test]

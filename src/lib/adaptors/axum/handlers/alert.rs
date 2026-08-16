@@ -97,25 +97,32 @@ pub struct UpdateAlertRequest {
 }
 
 /// Request body for partially updating an existing alert. The identifier comes
-/// from the URL path. Omitted fields keep their existing values; `source` may
-/// be set to `null` to clear it.
+/// from the URL path. Omitted fields keep their existing values. Sending `null`
+/// for a required field is a validation error; `null` for `source` or
+/// `references` clears the field.
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct PatchAlertRequest {
-    pub sender: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub sender: Option<Option<String>>,
     /// RFC 3339 timestamp, e.g. "2002-05-24T16:49:00-00:00".
-    pub sent: Option<String>,
-    pub status: Option<String>,
-    pub msg_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub sent: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub status: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub msg_type: Option<Option<String>>,
     #[serde(default, deserialize_with = "deserialize_double_option")]
     pub source: Option<Option<String>>,
-    pub scope: Option<String>,
-    /// Each reference must be in the form `sender,identifier,sent`.
-    pub references: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub scope: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub references: Option<Option<Vec<String>>>,
 }
 
 /// Deserialize an `Option<Option<T>>` so that an explicit JSON `null` yields
 /// `Some(None)` (distinct from a missing field, which yields `None`). This lets
-/// PATCH clear an optional field by sending `null`.
+/// PATCH distinguish "clear this field" (`null`) from "leave it untouched"
+/// (absent), and lets validation reject `null` on required fields.
 fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where
     D: serde::de::Deserializer<'de>,
@@ -902,6 +909,33 @@ mod tests {
         assert_eq!(response.status(), 200);
         let json = body_to_json(response).await;
         assert_eq!(json["source"], serde_json::Value::Null);
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_null_required_field_rejected() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({
+            "sender": null
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+        let json = body_to_json(response).await;
+        assert_eq!(json["code"], "ALERT_VALIDATION_FAILED");
+        assert_eq!(json["message"], "field `sender` cannot be null");
     }
 
     #[tokio::test]

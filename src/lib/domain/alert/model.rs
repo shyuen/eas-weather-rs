@@ -36,21 +36,21 @@ pub struct UpdateAlertInput {
     pub references: Vec<String>,
 }
 
-/// Raw, unvalidated fields for partially updating an existing alert. Fields set
-/// to `Some` override the stored value; fields left `None` keep the existing
-/// value. `source` uses `Option<Option<String>>` so an explicit `null` clears
-/// the value while an absent field leaves it untouched. The identifier is
-/// omitted — it is supplied by the URL path and applied authoritatively by the
-/// service.
+/// Raw, unvalidated fields for partially updating an existing alert. Required
+/// fields use `Option<Option<T>>`: `None` leaves the stored value untouched,
+/// while `Some(None)` (an explicit JSON `null`) is rejected by validation since
+/// the field cannot be cleared. Optional fields (`source`, `references`) accept
+/// `Some(None)` to clear them. The identifier is omitted — it is supplied by
+/// the URL path and applied authoritatively by the service.
 #[derive(Debug, Clone)]
 pub struct PatchAlertInput {
-    pub sender: Option<String>,
-    pub sent: Option<String>,
-    pub status: Option<String>,
-    pub msg_type: Option<String>,
+    pub sender: Option<Option<String>>,
+    pub sent: Option<Option<String>>,
+    pub status: Option<Option<String>>,
+    pub msg_type: Option<Option<String>>,
     pub source: Option<Option<String>>,
-    pub scope: Option<String>,
-    pub references: Option<Vec<String>>,
+    pub scope: Option<Option<String>>,
+    pub references: Option<Option<Vec<String>>>,
 }
 
 /// Complete alert structure.
