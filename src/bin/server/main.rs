@@ -1,4 +1,5 @@
 use eas_weather_rs::adaptors::axum::model::WebserverAxum;
+use eas_weather_rs::adaptors::clap::model::parse_cli;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
 use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
@@ -11,8 +12,9 @@ use eas_weather_rs::domain::webserver::service::WebserverService;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    // Initialize configuration service to load configuration input
-    let conf_service: ConfigService<ConfigFigment> = ConfigService::new();
+    // Parse command-line arguments once and inject them into the config adaptor
+    let conf_service: ConfigService<ConfigFigment> =
+        ConfigService::from_port(ConfigFigment::with_cli(parse_cli()));
 
     // Initialize logging service with the loaded configuration so we can start logging messages
     let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
