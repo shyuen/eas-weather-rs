@@ -40,7 +40,8 @@ async fn main() -> Result<(), std::io::Error> {
     }
 
     // Start server to listen for incoming requests
-    let webserver_service: WebserverService<WebserverAxum> = WebserverService::new(&conf_service);
+    let webserver_service: WebserverService<WebserverAxum> =
+        WebserverService::new(conf_service.get_webservicer_config());
 
     // Output webserver adaptor configuration
     conf_service.log_adaptor_config(webserver_service.get_port());
@@ -53,6 +54,6 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Start Web Server
     webserver_service
-        .start_server(&conf_service, &alert_service, &meta_service)
+        .start_server(&alert_service, &meta_service)
         .await
 }
