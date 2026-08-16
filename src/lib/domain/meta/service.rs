@@ -19,7 +19,7 @@ impl<C> MetaService<C>
 where
     C: ConfigPort,
 {
-    pub fn new(conf_serv: ConfigService<C>) -> Self
+    pub fn new(conf_serv: &ConfigService<C>) -> Self
     where
         C: ConfigPort,
     {
@@ -67,7 +67,7 @@ mod tests {
     async fn get_conf_assembles_validated_config_from_port() {
         type MockConfigService = ConfigService<MockConfig>;
         let conf_serv: MockConfigService = ConfigService::new();
-        let meta = MetaService::new(conf_serv);
+        let meta = MetaService::new(&conf_serv);
         let conf = meta.get_conf();
         assert_eq!(
             serde_json::to_value(conf.get_logging_config()).unwrap(),
