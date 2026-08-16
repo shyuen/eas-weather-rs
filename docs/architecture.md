@@ -7,13 +7,15 @@ delivery design.
 
 ## Overview
 
-Two applications, split by lifecycle:
+Two applications, split by lifecycle (plus a planned auth microservice):
 
 1. **`eas-weather-rs`** (this crate) — a read-only query API serving alert data
    over HTTP from a database.
 2. **Listener (new, separate)** — a long-running consumer that receives alert
    data over a socket connection (Plemorex), validates, archives, deduplicates,
    filters, and delivers alerts to clients. It never serves HTTP requests.
+3. **Auth microservice (planned)** — a JWT *issuer* for a future user portal and
+   service-to-service auth; see [Authentication](#authentication).
 
 The split keeps two very different lifecycles apart: a request/response server
 vs. a long-running subscriber with a live socket.
@@ -155,6 +157,56 @@ not hardcoded:
 - `FilterPort` — region/severity rule decisions.
 - `DeliveryPort` — fan-out to clients.
 
+## Authentication
+
+Two distinct consumers authenticate against the API:
+
+1. **DEV / internal access** to `eas-weather-rs` endpoints (`/alerts/*`, `/meta/*`).
+2. **End users** of a future **user portal** (manual alert viewing/sending).
+
+Both can share a single **issuer**: a dedicated **auth microservice** that handles
+login, credentials, roles/scopes, and **mints JWTs**. Validation of JWTs is
+stateless and stays embedded in each consuming service; only issuance lives in
+the auth microservice.
+
+```
+[User Portal] ──login──▶ [Auth microservice] ──issues JWT──┐
+                                                          │  shared key
+[DEV / other svc] ──login──▶ [Auth] ──JWT─────────────────┼──▶ [eas-weather-rs] validates
+                                                          │  (JWK)
+                                                          └──▶ [listener] validates
+```
+
+Key decisions:
+
+- **Issuer is separate; validators are embedded.** `eas-weather-rs` and the
+  listener validate with the shared signing key (`webserver.jwk_key_file` /
+  `SERVER__JWK_KEY_FILE`). No runtime dependency on the auth microservice for
+  validation.
+- **API key (simple DEV/ops path).** Accept an `X-API-Key` header matching the
+  configured key (`webserver.api_key_file`). Self-contained; no issuer needed.
+- **Either API key or JWT** is accepted on protected endpoints.
+- **Asymmetric keys (RS256 / JWK).** The auth microservice holds the private
+  key; consuming services hold only the **public** JWK. Services cannot mint
+  tokens, and the config's JWK naming matches this model. (Prefer this over a
+  shared symmetric secret.)
+- **OpenAPI integration.** Security schemes (`api_key`, `bearer`) are declared
+  in the utoipa `ApiDoc` via a `SecurityAddon` (`Modify`), and per-endpoint
+  `security(...)` requirements are attached to `#[utoipa::path]` annotations so
+  Swagger UI shows an "Authorize" button. utoipa documents but does **not**
+  enforce — enforcement is the axum auth middleware.
+
+Implementation phasing:
+
+1. **Now:** OpenAPI security docs + API-key middleware in `eas-weather-rs`.
+2. **Now (foundation):** JWT validation middleware (RS256/JWK) so the API is
+   ready to accept the auth microservice's tokens with no rework.
+3. **Later:** build the **auth microservice** as the issuer (user portal login +
+   service tokens), once an actual login/user portal exists.
+
+The auth microservice is deferred because there is no issuer yet; validation can
+(and should) be in place first.
+
 ## Open questions
 
 - Is the feed delivered as CAP XML or JSON?
@@ -164,3 +216,5 @@ not hardcoded:
   buffer be an external broker (Kafka)?
 - Is `identifier` guaranteed globally unique by the feed, or must we dedup on a
   composite key?
+- Is there a real token issuer (login service) yet, or is the auth microservice
+  deferred until a user portal exists?

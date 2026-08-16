@@ -17,6 +17,10 @@ impl AlertSent {
         // Additional validation can be added here if needed
         Ok(AlertSent(timestamp))
     }
+
+    pub fn as_offset_date_time(&self) -> OffsetDateTime {
+        self.0
+    }
 }
 
 /// Serialize as an RFC 3339 timestamp string (e.g. "2002-05-24T16:49:00-07:00").

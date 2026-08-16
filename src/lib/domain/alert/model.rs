@@ -7,6 +7,52 @@ use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 
+/// Raw, unvalidated fields for creating an alert. The domain service validates
+/// these into an [`Alert`], so this type is the input contract from the HTTP
+/// layer without dragging adaptor types into the domain.
+#[derive(Debug, Clone)]
+pub struct CreateAlertInput {
+    pub identifier: String,
+    pub sender: String,
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: Option<String>,
+    pub scope: String,
+    pub references: Vec<String>,
+}
+
+/// Raw, unvalidated fields for replacing an existing alert. The identifier is
+/// omitted — it is supplied by the URL path and applied authoritatively by the
+/// service.
+#[derive(Debug, Clone)]
+pub struct UpdateAlertInput {
+    pub sender: String,
+    pub sent: String,
+    pub status: String,
+    pub msg_type: String,
+    pub source: Option<String>,
+    pub scope: String,
+    pub references: Vec<String>,
+}
+
+/// Raw, unvalidated fields for partially updating an existing alert. Required
+/// fields use `Option<Option<T>>`: `None` leaves the stored value untouched,
+/// while `Some(None)` (an explicit JSON `null`) is rejected by validation since
+/// the field cannot be cleared. Optional fields (`source`, `references`) accept
+/// `Some(None)` to clear them. The identifier is omitted — it is supplied by
+/// the URL path and applied authoritatively by the service.
+#[derive(Debug, Clone)]
+pub struct PatchAlertInput {
+    pub sender: Option<Option<String>>,
+    pub sent: Option<Option<String>>,
+    pub status: Option<Option<String>>,
+    pub msg_type: Option<Option<String>>,
+    pub source: Option<Option<String>>,
+    pub scope: Option<Option<String>>,
+    pub references: Option<Option<Vec<String>>>,
+}
+
 /// Complete alert structure.
 /// See https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2.html for reference.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -48,6 +94,31 @@ impl Alert {
             scope,
             references,
         }
+    }
+
+    pub fn identifier(&self) -> &AlertIdentifier {
+        &self.identifier
+    }
+    pub fn sender(&self) -> &AlertSender {
+        &self.sender
+    }
+    pub fn sent(&self) -> &AlertSent {
+        &self.sent
+    }
+    pub fn status(&self) -> &AlertStatus {
+        &self.status
+    }
+    pub fn msg_type(&self) -> &AlertMsgType {
+        &self.msg_type
+    }
+    pub fn source(&self) -> &AlertSource {
+        &self.source
+    }
+    pub fn scope(&self) -> &AlertScope {
+        &self.scope
+    }
+    pub fn references(&self) -> &AlertReferences {
+        &self.references
     }
 }
 

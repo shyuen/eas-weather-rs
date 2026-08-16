@@ -49,6 +49,16 @@ impl AlertStatus {
             _ => Err(AlertStatusError::InvalidStatusValue),
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match self.0 {
+            AlertStatusValue::Actual => "Actual",
+            AlertStatusValue::Exercise => "Exercise",
+            AlertStatusValue::System => "System",
+            AlertStatusValue::Test => "Test",
+            AlertStatusValue::Draft => "Draft",
+        }
+    }
 }
 
 #[cfg(test)]
