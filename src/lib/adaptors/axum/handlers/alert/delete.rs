@@ -6,8 +6,8 @@ use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
+use crate::domain::config::port::MetaPort;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaPort;
 
 /// Handler for DELETE /alerts/{identifier}
 ///
