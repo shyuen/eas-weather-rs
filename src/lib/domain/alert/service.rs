@@ -35,7 +35,7 @@ where
     D: AlertPort + DatabasePort,
 {
     /// Creates a new instance of AlertService.
-    pub fn new(db_serv: DatabaseService<D>) -> Self {
+    pub fn new(db_serv: &DatabaseService<D>) -> Self {
         let db_port = db_serv.get_port();
 
         // Log the initialization of the AlertService
@@ -357,7 +357,7 @@ mod tests {
             port: MockConfig::new(),
         };
         let db_service = DatabaseService::<D>::new(&conf_service);
-        AlertService::new(db_service)
+        AlertService::new(&db_service)
     }
 
     #[tokio::test]

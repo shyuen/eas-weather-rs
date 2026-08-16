@@ -524,7 +524,7 @@ where
         port: MockConfig::new(),
     };
     let db_service = DatabaseService::new(&conf_service);
-    let alert_service = AlertService::new(db_service);
+    let alert_service = AlertService::new(&db_service);
     crate::adaptors::axum::app_state::AppState::new(meta, alert_service)
 }
 
