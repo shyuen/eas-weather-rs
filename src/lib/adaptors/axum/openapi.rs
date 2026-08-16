@@ -17,6 +17,7 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::create_alert,
         crate::adaptors::axum::handlers::alert::update_alert,
         crate::adaptors::axum::handlers::alert::patch_alert,
+        crate::adaptors::axum::handlers::alert::delete_alert,
         crate::adaptors::axum::handlers::meta::get_app_config,
         crate::adaptors::axum::handlers::meta::get_raw_app_config
     ),

@@ -9,9 +9,10 @@ use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::{
-    AlertPort, CreateAlertError, CreateAlertResponse, GetAlertError, GetDailyAlertsError,
-    GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse, PatchAlertError,
-    PatchAlertResponse, UpdateAlertError, UpdateAlertResponse,
+    AlertPort, CreateAlertError, CreateAlertResponse, DeleteAlertError, DeleteAlertResponse,
+    GetAlertError, GetDailyAlertsError, GetDailyAlertsResponse, GetLatestAlertsError,
+    GetLatestAlertsResponse, PatchAlertError, PatchAlertResponse, UpdateAlertError,
+    UpdateAlertResponse,
 };
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
@@ -208,6 +209,24 @@ where
                     }
                     UpdateAlertError::ValidationError(msg) => PatchAlertError::ValidationError(msg),
                 })
+            }
+        }
+    }
+
+    /// Delete an existing alert (identified by `identifier`).
+    pub async fn delete_alert(
+        &self,
+        identifier: AlertIdentifier,
+    ) -> Result<DeleteAlertResponse, DeleteAlertError> {
+        debug!("delete_alert(identifier={})", identifier.as_str());
+        match self.db_port.delete_alert_data(&identifier).await {
+            Ok(resp) => {
+                info!("delete_alert removed successfully");
+                Ok(resp)
+            }
+            Err(err) => {
+                error!("delete_alert failed: {}", err);
+                Err(err)
             }
         }
     }
@@ -529,6 +548,25 @@ mod tests {
         assert!(matches!(
             result,
             Err(PatchAlertError::DatabaseError(msg)) if msg == "test error"
+        ));
+    }
+
+    #[tokio::test]
+    async fn delete_alert_returns_port_data() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let resp = service.delete_alert(identifier).await;
+        assert!(matches!(resp, Ok(DeleteAlertResponse)));
+    }
+
+    #[tokio::test]
+    async fn delete_alert_propagates_error() {
+        let service = build_service::<FailingDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let result = service.delete_alert(identifier).await;
+        assert!(matches!(
+            result,
+            Err(DeleteAlertError::DatabaseError(msg)) if msg == "test error"
         ));
     }
 
