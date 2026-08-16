@@ -1,4 +1,3 @@
-use clap::Parser;
 use dotenv::dotenv;
 use figment::{
     Figment,
@@ -6,7 +5,6 @@ use figment::{
 };
 use std::env;
 
-use crate::adaptors::clap::model::Cli;
 use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::{Config, RawConfigInputs};
 use crate::domain::config::port::ConfigPort;
@@ -96,17 +94,32 @@ pub struct ConfigFigment {
     conf_logging: Logging,
     conf_database: Database,
     conf_webserver: Webserver,
+    /// Serialized CLI arguments, supplied by the composition root. Carried as a
+    /// neutral `serde_json::Value` so this adaptor has no dependency on the clap
+    /// adaptor.
+    cli: serde_json::Value,
 }
 
-fn collect_raw_input() -> Config {
+/// Build a figment whose first (highest-priority) layer is the serialized CLI
+/// arguments, if any. A `null` value contributes no layer.
+fn base_figment(cli: &serde_json::Value) -> Figment {
+    let mut figment = Figment::new(); // Start with an empty figment
+    if !cli.is_null() {
+        // Add the serialized CLI arguments as a layer to the figment.
+        figment = figment.join(Serialized::defaults(cli.clone()));
+    }
+    figment
+}
+
+/// Collect the raw configuration from all sources (CLI, ENV, FILE) and merge them into a single `Config` struct.
+fn collect_raw_input(cli: &serde_json::Value) -> Config {
     // This line loads the environment variables from the ".env" file.
     dotenv().ok();
 
     // Use Figment to load preliminary configuration
     // We need this to handle the certain configuration options such as using a
     // different configuration file to load when dictated by the CLI or ENV.
-    let conf: Config = match Figment::new()
-        .join(Serialized::defaults(Cli::parse()))
+    let conf: Config = match base_figment(cli)
         .join(Env::prefixed(APP_SECTION_ENV_PREFIX).split("__"))
         .extract()
     {
@@ -125,8 +138,7 @@ fn collect_raw_input() -> Config {
 
     // Use Figment to load configuration from multiple sources the following priority
     // CLI > ENV > FILE > DEFAULT FILE > CODE
-    let conf: Config = match Figment::new()
-        .join(Serialized::defaults(Cli::parse()))
+    let conf: Config = match base_figment(cli)
         .join(Env::prefixed(LOGGING_ENV_PREFIX).split("__"))
         .join(Env::prefixed(SERVER_ENV_PREFIX).split("__"))
         .join(Env::prefixed(DATABASE_ENV_PREFIX).split("__"))
@@ -144,15 +156,28 @@ fn collect_raw_input() -> Config {
     conf
 }
 
-impl ConfigPort for ConfigFigment {
-    fn new() -> Self {
-        let conf = collect_raw_input();
+impl ConfigFigment {
+    /// Construct the config adaptor from CLI arguments that were already parsed
+    /// and serialized by the composition root (see `src/bin/server/main.rs`).
+    ///
+    /// Passing `serde_json::Value::Null` (or an object) is supported; a `null`
+    /// value contributes no CLI layer, which is what [`ConfigPort::new`] uses.
+    pub fn with_cli(cli: serde_json::Value) -> Self {
+        // Collect the raw configuration from all sources (CLI, ENV, FILE) and merge them into a single `Config` struct.
+        let conf = collect_raw_input(&cli);
         Self {
             conf_raw: conf.clone(),
             conf_logging: Logging::new(&conf.logging),
             conf_database: Database::new(&conf.database),
             conf_webserver: Webserver::new(&conf.webserver),
+            cli,
         }
+    }
+}
+
+impl ConfigPort for ConfigFigment {
+    fn new() -> Self {
+        Self::with_cli(serde_json::Value::Null)
     }
 
     /// Get the raw configuration
@@ -178,7 +203,7 @@ impl ConfigPort for ConfigFigment {
     // Gather raw config input from each source without validation
     fn raw_config_input(&self) -> RawConfigInputs {
         // Gather config from CLI
-        let cli = serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null);
+        let cli = self.cli.clone();
 
         // Gather config from ENV
         let env = serde_json::to_value(

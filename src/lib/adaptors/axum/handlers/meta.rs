@@ -25,6 +25,9 @@ pub struct ConfResponse {
 }
 
 /// Handler for GET /meta/raw_conf
+///
+/// Returns the raw configuration combined data source from CLI, ENV, and config files as a JSON object.
+/// This endpoint is useful for debugging and inspecting the application's configuration.
 #[utoipa::path(
     get,
     path = "/meta/raw_conf",
@@ -46,6 +49,8 @@ where
 }
 
 /// Handler for GET /meta/conf
+///
+/// Returns a validated configuration struct that is used by the application, which may differ from the raw configuration due to validation and default values.
 #[utoipa::path(
     get,
     path = "/meta/conf",
