@@ -38,6 +38,15 @@ where
         Self { port }
     }
 
+    /// Create a new instance wrapping an already-constructed port.
+    ///
+    /// Lets the composition root inject adaptor-specific construction inputs
+    /// (e.g. pre-parsed CLI arguments) that the parameterless [`ConfigPort::new`]
+    /// cannot express.
+    pub fn from_port(port: C) -> Self {
+        Self { port }
+    }
+
     /// Get the Config repository
     pub fn get_port(&self) -> &C {
         &self.port

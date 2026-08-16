@@ -2,7 +2,7 @@ use clap::Parser;
 use serde_derive::Serialize;
 
 /// CLI Configuration for the application. Please refer to `config/default.toml` for default values.
-/// Should closely follow the structure of the `Config` struct in `core::domain::config::raw`.
+/// Should closely follow the structure of the `Config` struct in `crate::domain::config::model`.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
 pub(crate) struct Cli {
@@ -17,6 +17,16 @@ pub(crate) struct Cli {
     #[arg(short = 'c', long, env = "EAS_WEATHER_RS__APP__CONFIG_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) config_file: Option<String>,
+}
+
+/// Parse the process command-line arguments and serialize them to a neutral
+/// JSON value for the config adaptor.
+///
+/// Called once by the composition root (`src/bin/server/main.rs`); the figment
+/// adaptor consumes the serialized value, so the two adaptors never reference
+/// each other.
+pub fn parse_cli() -> serde_json::Value {
+    serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null)
 }
 
 #[derive(Debug, Parser, Serialize)]
@@ -58,10 +68,10 @@ struct Webserver {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) api_key_file: Option<String>,
 
-    /// Path to the JWK key file
-    #[arg(short = 'j', long, env = "EAS_WEATHER_RS__SERVER__JWK_KEY_FILE")]
+    /// Path to the JWT key file
+    #[arg(short = 'j', long, env = "EAS_WEATHER_RS__SERVER__JWT_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub(crate) jwk_key_file: Option<String>,
+    pub(crate) jwt_key_file: Option<String>,
 
     /// Default page limit for paginated endpoints
     #[arg(long, env = "EAS_WEATHER_RS__SERVER__DEFAULT_PAGE_LIMIT")]
