@@ -10,6 +10,8 @@
 
 use std::future::Future;
 
+use crate::domain::alert::model::Alert;
+use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
@@ -153,6 +155,34 @@ impl ConfigPort for MockConfig {
 #[derive(Clone)]
 pub struct MockDb;
 
+/// Build a valid [`Alert`] with deterministic values, used by the success-path
+/// mocks (`MockDb`, `FlakyDb`) when an existing alert must be returned.
+fn mock_alert(identifier: AlertIdentifier) -> Alert {
+    use crate::domain::alert::new_types::alert_msg_type::AlertMsgType;
+    use crate::domain::alert::new_types::alert_references::AlertReferences;
+    use crate::domain::alert::new_types::alert_references::ExtendedMessageIdentifier;
+    use crate::domain::alert::new_types::alert_scope::AlertScope;
+    use crate::domain::alert::new_types::alert_sender::AlertSender;
+    use crate::domain::alert::new_types::alert_sent::AlertSent;
+    use crate::domain::alert::new_types::alert_source::AlertSource;
+    use crate::domain::alert::new_types::alert_status::AlertStatus;
+    use time::OffsetDateTime;
+
+    let sender = AlertSender::new("Sender123".to_string()).unwrap();
+    let sent = AlertSent::new(OffsetDateTime::now_utc()).unwrap();
+    let status = AlertStatus::new("Actual".to_string()).unwrap();
+    let msg_type = AlertMsgType::new("Alert".to_string()).unwrap();
+    let source = AlertSource::new("Weather Station 1").unwrap();
+    let scope = AlertScope::new("Public".to_string()).unwrap();
+    let reference =
+        ExtendedMessageIdentifier::new("Sender1,Alert123,2024-06-01T12:00:00-00:00").unwrap();
+    let references = AlertReferences::new(vec![reference]).unwrap();
+
+    Alert::new(
+        identifier, sender, sent, status, msg_type, source, scope, references,
+    )
+}
+
 impl DatabasePort for MockDb {
     fn new(_conf: &Database) -> Self {
         MockDb
@@ -199,6 +229,36 @@ impl AlertPort for MockDb {
             })
         }
     }
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Ok(CreateAlertResponse { alert }) }
+    }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Ok(UpdateAlertResponse { alert }) }
+    }
+    fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        let identifier = identifier.clone();
+        async move {
+            Ok(GetAlertResponse {
+                alert: mock_alert(identifier),
+            })
+        }
+    }
+    fn delete_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<DeleteAlertResponse, DeleteAlertError>> + Send {
+        async move { Ok(DeleteAlertResponse) }
+    }
 }
 
 /// `DatabasePort + AlertPort` double that always fails with a database error.
@@ -240,6 +300,31 @@ impl AlertPort for FailingDb {
         _o: u64,
     ) -> impl Future<Output = Result<GetDailyAlertsResponse, GetDailyAlertsError>> + Send {
         async move { Err(GetDailyAlertsError::DatabaseError("test error".into())) }
+    }
+    fn create_alert_data(
+        &self,
+        _alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Err(CreateAlertError::DatabaseError("test error".into())) }
+    }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        _alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Err(UpdateAlertError::DatabaseError("test error".into())) }
+    }
+    fn get_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        async move { Err(GetAlertError::DatabaseError("test error".into())) }
+    }
+    fn delete_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<DeleteAlertResponse, DeleteAlertError>> + Send {
+        async move { Err(DeleteAlertError::DatabaseError("test error".into())) }
     }
 }
 
@@ -319,6 +404,114 @@ impl AlertPort for FlakyDb {
             })
         }
     }
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Ok(CreateAlertResponse { alert }) }
+    }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Ok(UpdateAlertResponse { alert }) }
+    }
+    fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        let identifier = identifier.clone();
+        async move {
+            Ok(GetAlertResponse {
+                alert: mock_alert(identifier),
+            })
+        }
+    }
+    fn delete_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<DeleteAlertResponse, DeleteAlertError>> + Send {
+        async move { Ok(DeleteAlertResponse) }
+    }
+}
+
+/// `DatabasePort + AlertPort` double that reports a missing alert: reads and
+/// deletes for a specific identifier return `NotFound`.
+#[derive(Clone)]
+pub struct MissingDb;
+
+impl DatabasePort for MissingDb {
+    fn new(_conf: &Database) -> Self {
+        MissingDb
+    }
+    fn create_pool(&mut self) -> impl Future<Output = Result<(), DatabaseConnectError>> + Send {
+        async { Ok(()) }
+    }
+    fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
+        async { Ok(()) }
+    }
+}
+
+impl AdaptorConfigRepr for MissingDb {
+    fn adaptor_name(&self) -> &'static str {
+        "missing_db"
+    }
+    fn config_fields(&self) -> Vec<AdaptorConfigField> {
+        vec![]
+    }
+}
+
+impl AlertPort for MissingDb {
+    fn get_latest_alerts_data(
+        &self,
+        _l: u64,
+        _o: u64,
+    ) -> impl Future<Output = Result<GetLatestAlertsResponse, GetLatestAlertsError>> + Send {
+        async move {
+            Ok(GetLatestAlertsResponse {
+                alerts: vec![],
+                total: 42,
+            })
+        }
+    }
+    fn get_daily_alerts_data(
+        &self,
+        _l: u64,
+        _o: u64,
+    ) -> impl Future<Output = Result<GetDailyAlertsResponse, GetDailyAlertsError>> + Send {
+        async move {
+            Ok(GetDailyAlertsResponse {
+                alerts: vec![],
+                total: 42,
+            })
+        }
+    }
+    fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> impl Future<Output = Result<CreateAlertResponse, CreateAlertError>> + Send {
+        async move { Ok(CreateAlertResponse { alert }) }
+    }
+    fn update_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
+        async move { Ok(UpdateAlertResponse { alert }) }
+    }
+    fn get_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        async move { Err(GetAlertError::NotFound) }
+    }
+    fn delete_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<DeleteAlertResponse, DeleteAlertError>> + Send {
+        async move { Err(DeleteAlertError::NotFound) }
+    }
 }
 
 /// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
@@ -342,11 +535,17 @@ pub fn build_alert_app<D>(
 where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
 {
-    use crate::adaptors::axum::handlers::alert::{get_alerts, get_daily_alerts};
-    use axum::routing::get;
+    use crate::adaptors::axum::handlers::alert::{
+        create_alert, delete_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
+    };
+    use axum::routing::{delete, get, patch, post, put};
 
     axum::Router::new()
         .route("/", get(get_alerts::<MockMeta, D>))
+        .route("/", post(create_alert::<MockMeta, D>))
+        .route("/{identifier}", put(update_alert::<MockMeta, D>))
+        .route("/{identifier}", patch(patch_alert::<MockMeta, D>))
+        .route("/{identifier}", delete(delete_alert::<MockMeta, D>))
         .route("/daily", get(get_daily_alerts::<MockMeta, D>))
         .with_state(state)
 }

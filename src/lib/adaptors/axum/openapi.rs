@@ -14,18 +14,23 @@ use utoipa::OpenApi;
     paths(
         crate::adaptors::axum::handlers::alert::get_alerts,
         crate::adaptors::axum::handlers::alert::get_daily_alerts,
+        crate::adaptors::axum::handlers::alert::create_alert,
+        crate::adaptors::axum::handlers::alert::update_alert,
+        crate::adaptors::axum::handlers::alert::patch_alert,
+        crate::adaptors::axum::handlers::alert::delete_alert,
         crate::adaptors::axum::handlers::meta::get_app_config,
-        crate::adaptors::axum::handlers::meta::get_raw_app_config,
-        crate::adaptors::axum::handlers::test::list_error,
-        crate::adaptors::axum::handlers::test::get_user
+        crate::adaptors::axum::handlers::meta::get_raw_app_config
     ),
     components(schemas(
         crate::adaptors::axum::handlers::alert::AlertsListResponse,
         crate::adaptors::axum::handlers::alert::AlertSchema,
-        crate::adaptors::axum::handlers::error::ErrorResponse,
+        crate::adaptors::axum::handlers::alert::CreateAlertRequest,
+        crate::adaptors::axum::handlers::alert::UpdateAlertRequest,
+        crate::adaptors::axum::handlers::alert::PatchAlertRequest,
+        crate::adaptors::axum::handlers::error::ApiErrorResponse,
+        crate::adaptors::axum::handlers::error::ErrorCode,
         crate::adaptors::axum::handlers::meta::RawConfResponse,
-        crate::adaptors::axum::handlers::meta::ConfResponse,
-        crate::adaptors::axum::handlers::test::UserResponse
+        crate::adaptors::axum::handlers::meta::ConfResponse
     ))
 )]
 pub(crate) struct ApiDoc;

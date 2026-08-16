@@ -17,6 +17,10 @@ impl AlertSource {
             Ok(AlertSource(Some(trimmed.to_string())))
         }
     }
+
+    pub fn as_opt_str(&self) -> Option<&str> {
+        self.0.as_deref()
+    }
 }
 
 #[cfg(test)]
