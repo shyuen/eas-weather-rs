@@ -26,6 +26,10 @@ impl AlertSender {
         }
         Ok(AlertSender(sender))
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[cfg(test)]

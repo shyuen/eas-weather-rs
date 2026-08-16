@@ -11,7 +11,9 @@ use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::port::{
-    GetDailyAlertsError, GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse,
+    CreateAlertError, CreateAlertResponse, GetAlertError, GetAlertResponse, GetDailyAlertsError,
+    GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError,
+    UpdateAlertResponse,
 };
 
 use sqlx::FromRow;
@@ -310,6 +312,205 @@ impl AlertPort for DatabaseMySql {
             None => Err(GetLatestAlertsError::DatabaseConnectionError(
                 "connection pool to MySQL is not initialized".to_string(),
             )),
+        }
+    }
+    async fn create_alert_data(
+        &self,
+        alert: Alert,
+    ) -> Result<CreateAlertResponse, CreateAlertError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let row = MySqlAlert::from(&alert);
+
+                let mut tx = pool.begin().await.map_err(|e| {
+                    CreateAlertError::DatabaseConnectionError(format!(
+                        "failed to begin database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                sqlx::query(
+                    r#"
+                    INSERT INTO Alerts
+                        (`identifier`, `sender`, `sent`, `status`, `msgtype`, `source`, `scope`, `references`)
+                    VALUES
+                        (?, ?, ?, ?, ?, ?, ?, ?)
+                    "#,
+                )
+                .bind(&row.identifier)
+                .bind(&row.sender)
+                .bind(row.sent)
+                .bind(&row.status)
+                .bind(&row.msgtype)
+                .bind(&row.source)
+                .bind(&row.scope)
+                .bind(&row.references)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| {
+                    CreateAlertError::DatabaseError(format!(
+                        "failed to insert alert: {}",
+                        e
+                    ))
+                })?;
+
+                tx.commit().await.map_err(|e| {
+                    CreateAlertError::DatabaseConnectionError(format!(
+                        "failed to commit database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                Ok(CreateAlertResponse { alert })
+            }
+
+            None => Err(CreateAlertError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+
+    async fn update_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+        alert: Alert,
+    ) -> Result<UpdateAlertResponse, UpdateAlertError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let row = MySqlAlert::from(&alert);
+
+                let mut tx = pool.begin().await.map_err(|e| {
+                    UpdateAlertError::DatabaseConnectionError(format!(
+                        "failed to begin database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                let result = sqlx::query(
+                    r#"
+                    UPDATE Alerts
+                    SET
+                        `sender` = ?,
+                        `sent` = ?,
+                        `status` = ?,
+                        `msgtype` = ?,
+                        `source` = ?,
+                        `scope` = ?,
+                        `references` = ?
+                    WHERE
+                        `identifier` = ?
+                    "#,
+                )
+                .bind(&row.sender)
+                .bind(row.sent)
+                .bind(&row.status)
+                .bind(&row.msgtype)
+                .bind(&row.source)
+                .bind(&row.scope)
+                .bind(&row.references)
+                .bind(identifier.as_str())
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| {
+                    UpdateAlertError::DatabaseError(format!("failed to update alert: {}", e))
+                })?;
+
+                if result.rows_affected() == 0 {
+                    return Err(UpdateAlertError::NotFound);
+                }
+
+                tx.commit().await.map_err(|e| {
+                    UpdateAlertError::DatabaseConnectionError(format!(
+                        "failed to commit database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                Ok(UpdateAlertResponse { alert })
+            }
+
+            None => Err(UpdateAlertError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+
+    async fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> Result<GetAlertResponse, GetAlertError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let alert_item = sqlx::query_as::<_, MySqlAlert>(
+                    r#"
+                    WITH ranked_alerts AS (
+                      SELECT
+                        alert.*, ROW_NUMBER()
+                      OVER (
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
+                      ) AS rn
+                      FROM
+                        Alerts AS alert
+                      WHERE
+                        `identifier` = ?
+                    )
+                    SELECT
+                        `identifier`,
+                        `sender`,
+                        `sent`,
+                        `status`,
+                        `msgtype`,
+                        `source`,
+                        `scope`,
+                        `references`
+                    FROM
+                        ranked_alerts
+                    WHERE
+                        rn = 1
+                    "#,
+                )
+                .bind(identifier.as_str())
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    GetAlertError::DatabaseConnectionError(format!(
+                        "failed to retrieve alert: {}",
+                        e
+                    ))
+                })?;
+
+                match alert_item {
+                    Some(item) => match Alert::try_from(item) {
+                        Ok(alert) => Ok(GetAlertResponse { alert }),
+                        Err(errors) => Err(GetAlertError::DataConversionError(errors.join("; "))),
+                    },
+                    None => Err(GetAlertError::NotFound),
+                }
+            }
+
+            None => Err(GetAlertError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+}
+
+/// Implement From to convert Alert to MySqlAlert for persistence.
+impl From<&Alert> for MySqlAlert {
+    fn from(alert: &Alert) -> Self {
+        MySqlAlert {
+            identifier: alert.identifier().as_str().to_string(),
+            sender: alert.sender().as_str().to_string(),
+            sent: alert.sent().as_offset_date_time(),
+            status: alert.status().as_str().to_string(),
+            msgtype: alert.msg_type().as_str().to_string(),
+            source: alert.source().as_opt_str().map(|s| s.to_string()),
+            scope: alert.scope().as_str().to_string(),
+            references: alert.references().as_db_string(),
         }
     }
 }
