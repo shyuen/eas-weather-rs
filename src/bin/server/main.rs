@@ -46,10 +46,10 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_adaptor_config(webserver_service.get_port());
 
     // Initialize meta service
-    let meta_service = MetaService::new(conf_service.clone());
+    let meta_service = MetaService::new(&conf_service);
 
     // Initialize alert service
-    let alert_service = AlertService::new(database_service.clone());
+    let alert_service = AlertService::new(&database_service);
 
     // Start Web Server
     webserver_service
