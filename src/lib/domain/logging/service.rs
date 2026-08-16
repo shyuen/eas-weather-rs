@@ -25,7 +25,7 @@ where
     }
 
     /// Return a reference to the underlying logging port.
-    pub fn get_port(&self) -> &L {
+    pub fn get_logging_port(&self) -> &L {
         &self.log_port
     }
 }

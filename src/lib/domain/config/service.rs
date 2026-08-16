@@ -41,12 +41,12 @@ where
     /// Lets the composition root inject adaptor-specific construction inputs
     /// (e.g. pre-parsed CLI arguments) that the parameterless [`ConfigPort::new`]
     /// cannot express.
-    pub fn from_port(port: C) -> Self {
+    pub fn from_config_port(port: C) -> Self {
         Self { port }
     }
 
-    /// Get the Config repository
-    pub fn get_port(&self) -> &C {
+    /// Get the Config port
+    pub fn get_config_port(&self) -> &C {
         &self.port
     }
 

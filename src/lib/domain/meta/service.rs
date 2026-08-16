@@ -23,7 +23,7 @@ where
     where
         C: ConfigPort,
     {
-        let conf_port = conf_serv.get_port().clone();
+        let conf_port = conf_serv.get_config_port().clone();
 
         // Log the initialization of the MetaService
         info!("Initializing MetaService");
@@ -31,8 +31,8 @@ where
         Self { conf_port }
     }
 
-    /// Get the Config repository
-    pub fn get_port(&self) -> &C {
+    /// Get the wrapped Config port
+    pub fn get_config_port(&self) -> &C {
         &self.conf_port
     }
 }
@@ -71,15 +71,15 @@ mod tests {
         let conf = meta.get_conf();
         assert_eq!(
             serde_json::to_value(conf.get_logging_config()).unwrap(),
-            serde_json::to_value(meta.get_port().get_logging_config()).unwrap()
+            serde_json::to_value(meta.get_config_port().get_logging_config()).unwrap()
         );
         assert_eq!(
             serde_json::to_value(conf.get_database_config()).unwrap(),
-            serde_json::to_value(meta.get_port().get_database_config()).unwrap()
+            serde_json::to_value(meta.get_config_port().get_database_config()).unwrap()
         );
         assert_eq!(
             serde_json::to_value(conf.get_webserver_config()).unwrap(),
-            serde_json::to_value(meta.get_port().get_webserver_config()).unwrap()
+            serde_json::to_value(meta.get_config_port().get_webserver_config()).unwrap()
         );
     }
 

@@ -36,7 +36,7 @@ where
 {
     /// Creates a new instance of AlertService.
     pub fn new(db_serv: &DatabaseService<D>) -> Self {
-        let db_port = db_serv.get_port();
+        let db_port = db_serv.get_database_port();
 
         // Log the initialization of the AlertService
         info!("Initializing AlertService");
@@ -46,8 +46,8 @@ where
         }
     }
 
-    /// Get the Database repository
-    pub fn get_db_port(&self) -> &D {
+    /// Get the Database port
+    pub fn get_database_port(&self) -> &D {
         &self.db_port
     }
 

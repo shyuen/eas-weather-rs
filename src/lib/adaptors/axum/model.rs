@@ -41,7 +41,7 @@ impl WebserverPort for WebserverAxum {
         D: DatabasePort + AlertPort,
     {
         // Database port for graceful shutdown is sourced from the alert service.
-        let db_port = alert_service.get_db_port().clone();
+        let db_port = alert_service.get_database_port().clone();
 
         // Create the application state with the necessary services
         let state = AppState::new(meta_port.clone(), alert_service.clone());
