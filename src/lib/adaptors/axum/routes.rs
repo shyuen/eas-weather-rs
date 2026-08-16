@@ -11,8 +11,8 @@ use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::alert::{
     create_alert, delete_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
 };
+use crate::adaptors::axum::handlers::conf::{get_app_config, get_raw_config};
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
-use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
@@ -26,7 +26,7 @@ where
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .nest("/health", create_health_routes())
-        .nest("/meta", create_meta_routes())
+        .nest("/conf", create_conf_routes())
         .nest("/alerts", create_alert_routes())
         .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(
@@ -77,14 +77,14 @@ where
         .route("/liveness", get(liveness))
 }
 
-pub fn create_meta_routes<C, DR>() -> Router<AppState<C, DR>>
+pub fn create_conf_routes<C, DR>() -> Router<AppState<C, DR>>
 where
     C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     Router::new()
-        .route("/raw_conf", get(get_raw_app_config))
-        .route("/conf", get(get_app_config))
+        .route("/raw", get(get_raw_config))
+        .route("/app", get(get_app_config))
 }
 
 pub fn create_alert_routes<C, DR>() -> Router<AppState<C, DR>>
@@ -135,8 +135,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn meta_routes_are_mounted() {
-        assert_eq!(get_status("/meta/conf").await, 200);
+    async fn conf_routes_are_mounted() {
+        assert_eq!(get_status("/conf/app").await, 200);
     }
 
     #[tokio::test]
@@ -147,7 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_routes_are_mounted() {
-        assert_eq!(get_status("/meta/conf").await, 200);
+        assert_eq!(get_status("/conf/app").await, 200);
     }
 
     #[test]
@@ -227,8 +227,8 @@ mod tests {
                 .get("operationId")
                 .is_some()
         );
-        assert!(doc["paths"].get("/meta/conf").is_some());
-        assert!(doc["paths"].get("/meta/raw_conf").is_some());
+        assert!(doc["paths"].get("/conf/app").is_some());
+        assert!(doc["paths"].get("/conf/raw").is_some());
         assert!(
             doc["components"]["schemas"]
                 .get("AlertsListResponse")
