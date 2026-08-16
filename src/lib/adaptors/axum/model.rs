@@ -34,7 +34,6 @@ impl WebserverPort for WebserverAxum {
 
     async fn start_server<D>(
         &self,
-        config: &Webserver,
         alert_service: &AlertService<D>,
         meta_port: &impl MetaPort,
     ) -> Result<ShutdownReason, std::io::Error>
@@ -50,7 +49,7 @@ impl WebserverPort for WebserverAxum {
         // Create the Axum application with the defined routes and state
         let app = create_routes().with_state(state);
 
-        let addr = format!("{}:{}", config.hostname.get(), config.port.get());
+        let addr = format!("{}:{}", self.config.hostname.get(), self.config.port.get());
 
         // Channel so shutdown_signal can report why we stopped.
         let (shutdown_tx, shutdown_rx) = oneshot::channel::<ShutdownReason>();
