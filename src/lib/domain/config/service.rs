@@ -4,10 +4,10 @@ use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::issue::ConfigIssue;
 use crate::domain::config::model::Config;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::config::port::{MetaPort, ValidatedConfig};
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
-use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]

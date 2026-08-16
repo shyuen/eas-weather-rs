@@ -10,8 +10,8 @@ use crate::adaptors::axum::handlers::alert::AlertSchema;
 use crate::adaptors::axum::handlers::error::{ApiErrorResponse, JsonBody};
 use crate::domain::alert::model::CreateAlertInput;
 use crate::domain::alert::port::AlertPort;
+use crate::domain::config::port::MetaPort;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaPort;
 
 /// Request body for creating a new alert.
 #[derive(Debug, Clone, Deserialize, ToSchema)]

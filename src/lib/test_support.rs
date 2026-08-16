@@ -17,12 +17,12 @@ use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::config::port::{MetaPort, ValidatedConfig};
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 use crate::domain::database::service::DatabaseService;
 use crate::domain::logging::model::Logging;
-use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 use crate::domain::webserver::model::Webserver;
 
 pub const DEFAULT_PAGE_LIMIT: u64 = 10;

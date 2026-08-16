@@ -11,8 +11,8 @@ use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode, JsonBo
 use crate::domain::alert::model::PatchAlertInput;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
+use crate::domain::config::port::MetaPort;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::MetaPort;
 
 /// Request body for partially updating an existing alert. The identifier comes
 /// from the URL path. Omitted fields keep their existing values. Sending `null`
