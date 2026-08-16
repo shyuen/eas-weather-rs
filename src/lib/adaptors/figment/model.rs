@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use figment::{
     Figment,
     providers::{Env, Format, Serialized, Toml},
