@@ -7,7 +7,6 @@ use eas_weather_rs::domain::alert::service::AlertService;
 use eas_weather_rs::domain::config::service::ConfigService;
 use eas_weather_rs::domain::database::service::DatabaseService;
 use eas_weather_rs::domain::logging::service::LoggingService;
-use eas_weather_rs::domain::meta::service::MetaService;
 use eas_weather_rs::domain::webserver::service::WebserverService;
 
 #[tokio::main]
@@ -46,14 +45,12 @@ async fn main() -> Result<(), std::io::Error> {
     // Output webserver adaptor configuration
     conf_service.log_adaptor_config(webserver_service.get_webserver_port());
 
-    // Initialize meta service (implements MetaPort, the config seam for the webserver)
-    let meta_service = MetaService::new(&conf_service);
-
     // Initialize alert service
     let alert_service = AlertService::new(&database_service);
 
     // Start Web Server
+    // ConfigService implements MetaPort, the config seam for the webserver
     webserver_service
-        .start_server(&alert_service, &meta_service)
+        .start_server(&alert_service, &conf_service)
         .await
 }
