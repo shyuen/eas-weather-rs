@@ -18,6 +18,8 @@ pub struct RawConfResponse {
 }
 
 /// Processed configuration returned by `/meta/conf`.
+///
+/// Returns a validated configuration struct that is used by the application, which may differ from the raw configuration due to validation and default values.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConfResponse {
     #[schema(value_type = Object)]
@@ -25,6 +27,9 @@ pub struct ConfResponse {
 }
 
 /// Handler for GET /meta/raw_conf
+///
+/// Returns the raw configuration combined data source from CLI, ENV, and config files as a JSON object.
+/// This endpoint is useful for debugging and inspecting the application's configuration.
 #[utoipa::path(
     get,
     path = "/meta/raw_conf",
