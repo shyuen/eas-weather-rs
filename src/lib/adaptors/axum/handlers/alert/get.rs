@@ -7,7 +7,7 @@ use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::alert::{AlertsListResponse, LatestAlertsParams};
 use crate::adaptors::axum::handlers::error::ApiErrorResponse;
 use crate::domain::alert::port::AlertPort;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
 /// Handler for GET /alerts
@@ -24,15 +24,15 @@ use crate::domain::database::port::DatabasePort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_alerts<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
+pub(crate) async fn get_alerts<C, DR>(
+    State(state): State<AppState<C, DR>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let conf = state.get_meta_port().get_conf();
+    let conf = state.get_config_service().get_validated_app_conf();
     let ws_conf = conf.get_webserver_config();
     let default_limit = ws_conf.default_page_limit.get();
     let page_limit_max = ws_conf.page_limit_max.get();
@@ -70,15 +70,15 @@ where
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_daily_alerts<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
+pub(crate) async fn get_daily_alerts<C, DR>(
+    State(state): State<AppState<C, DR>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let conf = state.get_meta_port().get_conf();
+    let conf = state.get_config_service().get_validated_app_conf();
     let ws_conf = conf.get_webserver_config();
     let default_limit = ws_conf.default_page_limit.get();
     let page_limit_max = ws_conf.page_limit_max.get();
@@ -110,16 +110,13 @@ mod tests {
 
     use crate::adaptors::axum::handlers::alert::body_to_json;
     use crate::test_support::{
-        DEFAULT_PAGE_LIMIT, FailingDb, MockDb, MockMeta, PAGE_LIMIT_MAX, build_alert_app,
-        build_state, build_webserver,
+        DEFAULT_PAGE_LIMIT, FailingDb, MockDb, PAGE_LIMIT_MAX, build_alert_app, build_state,
+        mock_config_service,
     };
 
     #[tokio::test]
     async fn test_get_alerts_default_params() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -136,10 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_alerts_caps_limit() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -157,10 +151,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_alerts_within_limit() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -178,10 +169,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_alerts_with_offset() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -200,10 +188,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_alerts_error() {
-        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state =
+            build_state::<FailingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -217,10 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_daily_alerts_default_params() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -240,10 +223,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_daily_alerts_caps_limit() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -261,10 +241,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_daily_alerts_error() {
-        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state =
+            build_state::<FailingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(

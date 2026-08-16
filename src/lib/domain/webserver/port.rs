@@ -1,7 +1,8 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
+use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 
@@ -12,11 +13,12 @@ pub trait WebserverPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// Start the web server. The returned `ShutdownReason` indicates why the
     /// server stopped so the caller (service) can log it; the adaptor performs
     /// the shutdown but does not own the logging.
-    fn start_server<D>(
+    fn start_server<C, D>(
         &self,
         alert_service: &AlertService<D>,
-        meta_port: &impl MetaPort,
+        config_service: &ConfigService<C>,
     ) -> impl std::future::Future<Output = Result<ShutdownReason, std::io::Error>> + Send
     where
+        C: ConfigPort,
         D: DatabasePort + AlertPort;
 }

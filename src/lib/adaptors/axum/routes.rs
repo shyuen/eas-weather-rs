@@ -15,12 +15,12 @@ use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
 use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
-pub fn create_routes<MR, DR>() -> Router<AppState<MR, DR>>
+pub fn create_routes<C, DR>() -> Router<AppState<C, DR>>
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     Router::new()
@@ -66,9 +66,9 @@ impl<B> OnResponse<B> for StatusOnResponse {
     }
 }
 
-pub fn create_health_routes<MR, DR>() -> Router<AppState<MR, DR>>
+pub fn create_health_routes<C, DR>() -> Router<AppState<C, DR>>
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     Router::new()
@@ -77,9 +77,9 @@ where
         .route("/liveness", get(liveness))
 }
 
-pub fn create_meta_routes<MR, DR>() -> Router<AppState<MR, DR>>
+pub fn create_meta_routes<C, DR>() -> Router<AppState<C, DR>>
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     Router::new()
@@ -87,9 +87,9 @@ where
         .route("/conf", get(get_app_config))
 }
 
-pub fn create_alert_routes<MR, DR>() -> Router<AppState<MR, DR>>
+pub fn create_alert_routes<C, DR>() -> Router<AppState<C, DR>>
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     Router::new()
@@ -104,8 +104,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::test_support::{
-        DEFAULT_PAGE_LIMIT, MockDb, MockMeta, PAGE_LIMIT_MAX, build_full_app, build_state,
-        build_webserver,
+        DEFAULT_PAGE_LIMIT, MockDb, PAGE_LIMIT_MAX, build_full_app, build_state,
+        mock_config_service,
     };
     use axum::body::Body;
     use axum::http::Request;
@@ -113,10 +113,7 @@ mod tests {
     use tower::ServiceExt;
 
     async fn get_status(uri: &str) -> u16 {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_full_app::<MockDb>(state);
         let response = app
             .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
@@ -185,10 +182,8 @@ mod tests {
         with_default(subscriber, || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
-                let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-                    DEFAULT_PAGE_LIMIT,
-                    PAGE_LIMIT_MAX,
-                )));
+                let state =
+                    build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
                 let app = build_full_app::<MockDb>(state);
                 let response = app
                     .oneshot(
@@ -210,10 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn openapi_json_is_served() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_full_app::<MockDb>(state);
         let response = app
             .oneshot(
