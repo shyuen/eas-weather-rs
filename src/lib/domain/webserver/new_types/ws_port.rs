@@ -4,29 +4,29 @@ use thiserror::Error;
 
 /// A validated and formatted Db connection retry initial delay in seconds.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-pub struct WebserverPort(u16);
+pub struct WebserverTcpPort(u16);
 
-impl fmt::Display for WebserverPort {
+impl fmt::Display for WebserverTcpPort {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 #[derive(Error, Debug)]
-pub enum WebserverPortError {}
+pub enum WebserverTcpPortError {}
 
-impl WebserverPort {
-    pub fn new(raw_ws_port: &u16) -> Result<Self, WebserverPortError> {
+impl WebserverTcpPort {
+    pub fn new(raw_ws_port: &u16) -> Result<Self, WebserverTcpPortError> {
         // Add validation logic here if needed
-        Ok(WebserverPort(*raw_ws_port))
+        Ok(WebserverTcpPort(*raw_ws_port))
     }
     pub fn get(&self) -> u16 {
         self.0
     }
 }
 
-impl Default for WebserverPort {
+impl Default for WebserverTcpPort {
     fn default() -> Self {
-        WebserverPort(8080)
+        WebserverTcpPort(8080)
     }
 }

@@ -5,7 +5,7 @@ use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 
-pub trait WebserverRepo: AdaptorConfigRepr + Clone + Send + Sync + 'static {
+pub trait WebserverPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// Create a new instance of the webserver repository with the given configuration
     fn new(conf_webserv: &Webserver) -> Self;
 

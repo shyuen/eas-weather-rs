@@ -11,7 +11,7 @@ use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRep
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
-use crate::domain::webserver::port::WebserverRepo;
+use crate::domain::webserver::port::WebserverPort;
 
 #[derive(Debug, Clone)]
 pub struct WebserverAxum {
@@ -26,7 +26,7 @@ impl WebserverAxum {
     }
 }
 
-impl WebserverRepo for WebserverAxum {
+impl WebserverPort for WebserverAxum {
     /// Create a new instance of the webserver repository with the given configuration
     fn new(conf_webserv: &Webserver) -> Self {
         WebserverAxum::new(conf_webserv.clone())
