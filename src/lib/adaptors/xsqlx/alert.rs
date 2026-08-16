@@ -11,9 +11,9 @@ use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::port::{
-    CreateAlertError, CreateAlertResponse, GetAlertError, GetAlertResponse, GetDailyAlertsError,
-    GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError,
-    UpdateAlertResponse,
+    CreateAlertError, CreateAlertResponse, DeleteAlertError, DeleteAlertResponse, GetAlertError,
+    GetAlertResponse, GetDailyAlertsError, GetDailyAlertsResponse, GetLatestAlertsError,
+    GetLatestAlertsResponse, UpdateAlertError, UpdateAlertResponse,
 };
 
 use sqlx::FromRow;
@@ -493,6 +493,53 @@ impl AlertPort for DatabaseMySql {
             }
 
             None => Err(GetAlertError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+
+    async fn delete_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> Result<DeleteAlertResponse, DeleteAlertError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| {
+                    DeleteAlertError::DatabaseConnectionError(format!(
+                        "failed to begin database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                let result = sqlx::query(
+                    r#"
+                    DELETE FROM Alerts
+                    WHERE
+                        `identifier` = ?
+                    "#,
+                )
+                .bind(identifier.as_str())
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| {
+                    DeleteAlertError::DatabaseError(format!("failed to delete alert: {}", e))
+                })?;
+
+                if result.rows_affected() == 0 {
+                    return Err(DeleteAlertError::NotFound);
+                }
+
+                tx.commit().await.map_err(|e| {
+                    DeleteAlertError::DatabaseConnectionError(format!(
+                        "failed to commit database transaction: {}",
+                        e
+                    ))
+                })?;
+
+                Ok(DeleteAlertResponse)
+            }
+
+            None => Err(DeleteAlertError::DatabaseConnectionError(
                 "connection pool to MySQL is not initialized".to_string(),
             )),
         }
