@@ -21,9 +21,11 @@ Each domain context: `port.rs` (trait), `service.rs` (generic struct), `model.rs
 
 ## Config loading (figment)
 
-Priority (later overrides): code defaults → `config/default.toml` → selected config file (`--config-file`) → `.env` → env vars → CLI args.
+Priority (highest wins): CLI args → env vars (incl. `.env` file) → selected config file (`--config-file`) → `config/default.toml` → code defaults.
 
 Env prefixes: `EAS_WEATHER_RS__APP__`, `EAS_WEATHER_RS__LOGGING__`, `EAS_WEATHER_RS__SERVER__`, `EAS_WEATHER_RS__DATABASE__`. The base prefix `EAS_WEATHER_RS` is derived from the crate name (hyphens → underscores) and verified at compile time in `src/lib/adaptors/figment/model.rs`. Env vars split on `__` → nested keys (e.g. `EAS_WEATHER_RS__SERVER__PORT` → `server.port`). clap's `#[arg(env = "...")]` attributes are written as literals (clap can't take a const).
+
+**Adaptors never reference each other.** `main.rs` (composition root) parses CLI args once via `clap::parse_cli()` and injects them as a neutral `serde_json::Value` through `ConfigFigment::with_cli(...)` → `ConfigService::from_port(...)`. The `.env` file is loaded via `dotenvy::dotenv()` inside the figment adaptor (part of the env-var source).
 
 **Two-phase load:** figment loads config twice — first to extract `config_file` path, second with all sources.
 
@@ -34,7 +36,5 @@ Secrets come from `*_file` paths, never inline. `DbConnectionString::Display` ma
 - `DatabaseService<D>` requires `D: DatabasePort + AlertPort` (double bound on the same type param)
 - Port traits use **static dispatch** (`impl Future<...> + Send`), never `#[async_trait]`
 - Planned exits: `std::process::exit(1)` everywhere, never panics
-- `.gitignore` lists `conf/config.toml` (old path), but the actual directory is `config/`
-- `poem` adaptor exists with swagger-ui but is **not wired** in `main.rs` — axum is the active webserver
-- Adding a config field: update newtype → `Config*` raw struct (`domain/config/model.rs`) → `Cli` struct → `config/default.toml`
+- Adding a config field: update newtype → `Config*` raw struct (`domain/config/model.rs`) → `Cli` struct → `config/default.toml`. Not every `ConfigWebserver` field has a short CLI flag, but all are settable via `--long-flag` or env var
 - `test_api` file contains a sample API key (`MOHmohMoh`)

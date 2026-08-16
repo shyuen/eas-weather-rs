@@ -63,6 +63,11 @@ struct Webserver {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) base_path: Option<String>,
 
+    /// Graceful shutdown timeout in seconds
+    #[arg(long, env = "EAS_WEATHER_RS__SERVER__SHUTDOWN_TIMEOUT_SECS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) shutdown_timeout_secs: Option<u64>,
+
     /// Path to the API key file
     #[arg(short = 'k', long, env = "EAS_WEATHER_RS__SERVER__API_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -72,6 +77,11 @@ struct Webserver {
     #[arg(short = 'j', long, env = "EAS_WEATHER_RS__SERVER__JWT_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwt_key_file: Option<String>,
+
+    /// JWT access token expiry in seconds
+    #[arg(long, env = "EAS_WEATHER_RS__SERVER__JWT_ACCESS_TOKEN_EXPIRY_SECS")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) jwt_access_token_expiry_secs: Option<u64>,
 
     /// Default page limit for paginated endpoints
     #[arg(long, env = "EAS_WEATHER_RS__SERVER__DEFAULT_PAGE_LIMIT")]
