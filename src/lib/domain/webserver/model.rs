@@ -12,7 +12,7 @@ use crate::domain::webserver::new_types::ws_jwt_access_token_expiry_secs::Webser
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKey;
 use crate::domain::webserver::new_types::ws_jwt_key::WebserverJwtKeyError;
 use crate::domain::webserver::new_types::ws_page_limit_max::WebserverPageLimitMax;
-use crate::domain::webserver::new_types::ws_port::WebserverPort;
+use crate::domain::webserver::new_types::ws_port::WebserverTcpPort;
 use crate::domain::webserver::new_types::ws_shutdown_timeout_secs::WebserverShutdownTimeoutSecs;
 
 /// Why the web server stopped, reported back to the caller so it can log the
@@ -30,7 +30,7 @@ pub enum ShutdownReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Webserver {
     pub hostname: WebserverHostname,
-    pub port: WebserverPort,
+    pub port: WebserverTcpPort,
     pub base_path: WebserverBasePath,
 
     pub shutdown_timeout_secs: WebserverShutdownTimeoutSecs,
@@ -56,11 +56,11 @@ impl Webserver {
         };
 
         let port = match &conf.port {
-            Some(raw_port) => WebserverPort::new(raw_port).unwrap_or_else(|_| {
+            Some(raw_port) => WebserverTcpPort::new(raw_port).unwrap_or_else(|_| {
                 eprintln!("uncaught WebPortError");
                 std::process::exit(1); // We use exit for planned exits instead of panics
             }),
-            None => WebserverPort::default(),
+            None => WebserverTcpPort::default(),
         };
 
         let base_path = match &conf.base_path {
@@ -156,18 +156,18 @@ impl Webserver {
 
         match &raw_ws_conf.port {
             Some(raw_port) => {
-                if WebserverPort::new(raw_port).is_err() {
+                if WebserverTcpPort::new(raw_port).is_err() {
                     issues.push(ConfigIssue::Invalid {
                         key: "webserver.port",
                         value: raw_port.to_string(),
-                        default: WebserverPort::default().to_string(),
+                        default: WebserverTcpPort::default().to_string(),
                     });
                 }
             }
             None => {
                 issues.push(ConfigIssue::NotSpecified {
                     key: "webserver.port",
-                    default: WebserverPort::default().to_string(),
+                    default: WebserverTcpPort::default().to_string(),
                 });
             }
         }

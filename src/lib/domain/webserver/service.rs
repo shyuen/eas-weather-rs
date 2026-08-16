@@ -5,20 +5,20 @@ use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::meta::service::MetaService;
 use crate::domain::webserver::model::ShutdownReason;
-use crate::domain::webserver::port::WebserverRepo;
+use crate::domain::webserver::port::WebserverPort;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
 pub struct WebserverService<WR>
 where
-    WR: WebserverRepo,
+    WR: WebserverPort,
 {
     pub repo: WR,
 }
 
 impl<WR> WebserverService<WR>
 where
-    WR: WebserverRepo,
+    WR: WebserverPort,
 {
     /// Creates a new instance of WebserverService.
     pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
