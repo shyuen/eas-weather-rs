@@ -1,10 +1,8 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::port::ConfigPort;
-use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::service::MetaService;
-use crate::domain::webserver::model::ShutdownReason;
+use crate::domain::meta::port::MetaPort;
+use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverPort;
 use tracing::{debug, error, info};
 
@@ -14,6 +12,7 @@ where
     WP: WebserverPort,
 {
     pub repo: WP,
+    conf: Webserver,
 }
 
 impl<WP> WebserverService<WP>
@@ -21,14 +20,12 @@ where
     WP: WebserverPort,
 {
     /// Creates a new instance of WebserverService.
-    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
-    where
-        C: ConfigPort,
-    {
-        let conf_webserv = conf_serv.get_webservicer_config();
-
+    pub fn new(conf_webserv: &Webserver) -> Self {
         let repo = WP::new(conf_webserv);
-        Self { repo }
+        Self {
+            repo,
+            conf: conf_webserv.clone(),
+        }
     }
 
     /// Get the Webserver repository
@@ -36,30 +33,22 @@ where
         &self.repo
     }
 
-    pub async fn start_server<C, D>(
+    pub async fn start_server<D>(
         &self,
-        conf_serv: &ConfigService<C>,
         alert_serv: &AlertService<D>,
-        meta_serv: &MetaService<C>,
+        meta_port: &impl MetaPort,
     ) -> Result<(), std::io::Error>
     where
         D: DatabasePort + AlertPort,
-        C: ConfigPort,
     {
-        let webserv_conf = conf_serv.get_webservicer_config();
-
         debug!("start_server: starting server");
         info!(
             "start_server: starting {} server at {}:{}",
             self.repo.adaptor_name(),
-            webserv_conf.hostname.get(),
-            webserv_conf.port.get()
+            self.conf.hostname.get(),
+            self.conf.port.get()
         );
-        match self
-            .repo
-            .start_server(webserv_conf, alert_serv, meta_serv)
-            .await
-        {
+        match self.repo.start_server(alert_serv, meta_port).await {
             Ok(reason) => {
                 match reason {
                     ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),

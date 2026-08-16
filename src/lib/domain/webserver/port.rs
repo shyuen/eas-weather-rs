@@ -14,7 +14,6 @@ pub trait WebserverPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// the shutdown but does not own the logging.
     fn start_server<D>(
         &self,
-        config: &Webserver,
         alert_service: &AlertService<D>,
         meta_port: &impl MetaPort,
     ) -> impl std::future::Future<Output = Result<ShutdownReason, std::io::Error>> + Send
