@@ -1,4 +1,4 @@
-use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
+use crate::domain::alert::model::{Alert, CreateAlertInput, PatchAlertInput, UpdateAlertInput};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::new_types::alert_msg_type::AlertMsgType;
 use crate::domain::alert::new_types::alert_references::AlertReferences;
@@ -9,8 +9,9 @@ use crate::domain::alert::new_types::alert_sent::AlertSent;
 use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::{
-    AlertPort, CreateAlertError, CreateAlertResponse, GetDailyAlertsError, GetDailyAlertsResponse,
-    GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError, UpdateAlertResponse,
+    AlertPort, CreateAlertError, CreateAlertResponse, GetAlertError, GetDailyAlertsError,
+    GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse, PatchAlertError,
+    PatchAlertResponse, UpdateAlertError, UpdateAlertResponse,
 };
 use crate::domain::database::port::DatabasePort;
 use crate::domain::database::service::DatabaseService;
@@ -152,6 +153,64 @@ where
             }
         }
     }
+
+    /// Validate and partially update an existing alert (identified by
+    /// `identifier`). Fields present in `input` override the stored value;
+    /// fields absent are left untouched.
+    pub async fn patch_alert(
+        &self,
+        identifier: AlertIdentifier,
+        input: PatchAlertInput,
+    ) -> Result<PatchAlertResponse, PatchAlertError> {
+        let existing = match self.db_port.get_alert_data(&identifier).await {
+            Ok(resp) => resp.alert,
+            Err(err) => {
+                error!("patch_alert failed to fetch existing alert: {}", err);
+                return Err(match err {
+                    GetAlertError::NotFound => PatchAlertError::NotFound,
+                    GetAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
+                    GetAlertError::DatabaseConnectionError(msg) => {
+                        PatchAlertError::DatabaseConnectionError(msg)
+                    }
+                    GetAlertError::DataConversionError(msg) => {
+                        PatchAlertError::DataConversionError(msg)
+                    }
+                });
+            }
+        };
+
+        let alert = match build_alert_for_patch(identifier, &existing, input) {
+            Ok(alert) => alert,
+            Err(err) => {
+                warn!("patch_alert rejected invalid input: {}", err);
+                return Err(PatchAlertError::ValidationError(err));
+            }
+        };
+
+        debug!("patch_alert(alert={:?})", alert);
+        let alert_identifier = alert.identifier().clone();
+        match self
+            .db_port
+            .update_alert_data(&alert_identifier, alert)
+            .await
+        {
+            Ok(resp) => {
+                info!("patch_alert persisted successfully");
+                Ok(PatchAlertResponse { alert: resp.alert })
+            }
+            Err(err) => {
+                error!("patch_alert failed: {}", err);
+                Err(match err {
+                    UpdateAlertError::NotFound => PatchAlertError::NotFound,
+                    UpdateAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
+                    UpdateAlertError::DatabaseConnectionError(msg) => {
+                        PatchAlertError::DatabaseConnectionError(msg)
+                    }
+                    UpdateAlertError::ValidationError(msg) => PatchAlertError::ValidationError(msg),
+                })
+            }
+        }
+    }
 }
 
 /// Build a validated [`Alert`] from raw input, returning the first validation
@@ -198,6 +257,59 @@ fn build_alert_for_update(
         refs.push(ExtendedMessageIdentifier::new(&r).map_err(|e| e.to_string())?);
     }
     let references = AlertReferences::new(refs).map_err(|e| e.to_string())?;
+
+    Ok(Alert::new(
+        identifier, sender, sent, status, msg_type, source, scope, references,
+    ))
+}
+
+/// Build a validated [`Alert`] for a partial update, merging the provided patch
+/// fields over an existing alert. Fields absent from the patch keep their
+/// existing validated values.
+fn build_alert_for_patch(
+    identifier: AlertIdentifier,
+    existing: &Alert,
+    input: PatchAlertInput,
+) -> Result<Alert, String> {
+    let sender = match input.sender {
+        Some(sender) => AlertSender::new(sender).map_err(|e| e.to_string())?,
+        None => existing.sender().clone(),
+    };
+    let sent = match input.sent {
+        Some(sent) => {
+            let sent_ts = OffsetDateTime::parse(&sent, &Rfc3339)
+                .map_err(|e| format!("invalid `sent` timestamp: {}", e))?;
+            AlertSent::new(sent_ts).map_err(|e| e.to_string())?
+        }
+        None => existing.sent().clone(),
+    };
+    let status = match input.status {
+        Some(status) => AlertStatus::new(status).map_err(|e| e.to_string())?,
+        None => existing.status().clone(),
+    };
+    let msg_type = match input.msg_type {
+        Some(msg_type) => AlertMsgType::new(msg_type).map_err(|e| e.to_string())?,
+        None => existing.msg_type().clone(),
+    };
+    let source = match input.source {
+        Some(Some(source)) => AlertSource::new(&source).map_err(|e| e.to_string())?,
+        Some(None) => AlertSource::new("").map_err(|e| e.to_string())?,
+        None => existing.source().clone(),
+    };
+    let scope = match input.scope {
+        Some(scope) => AlertScope::new(scope).map_err(|e| e.to_string())?,
+        None => existing.scope().clone(),
+    };
+    let references = match input.references {
+        Some(references) => {
+            let mut refs = Vec::new();
+            for r in references {
+                refs.push(ExtendedMessageIdentifier::new(&r).map_err(|e| e.to_string())?);
+            }
+            AlertReferences::new(refs).map_err(|e| e.to_string())?
+        }
+        None => existing.references().clone(),
+    };
 
     Ok(Alert::new(
         identifier, sender, sent, status, msg_type, source, scope, references,
@@ -315,6 +427,62 @@ mod tests {
         assert!(matches!(
             result,
             Err(UpdateAlertError::DatabaseError(msg)) if msg == "test error"
+        ));
+    }
+
+    #[tokio::test]
+    async fn patch_alert_returns_merged_data() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = PatchAlertInput {
+            sender: Some("PatchedSender".to_string()),
+            sent: None,
+            status: None,
+            msg_type: None,
+            source: None,
+            scope: None,
+            references: None,
+        };
+        let resp = service.patch_alert(identifier, input).await.unwrap();
+        assert_eq!(resp.alert.identifier().as_str(), "alert-123");
+        assert_eq!(resp.alert.sender().as_str(), "PatchedSender");
+        assert_eq!(resp.alert.status().as_str(), "Actual");
+    }
+
+    #[tokio::test]
+    async fn patch_alert_rejects_invalid_input() {
+        let service = build_service::<MockDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = PatchAlertInput {
+            sender: Some("Invalid Sender".to_string()),
+            sent: None,
+            status: None,
+            msg_type: None,
+            source: None,
+            scope: None,
+            references: None,
+        };
+        let result = service.patch_alert(identifier, input).await;
+        assert!(matches!(result, Err(PatchAlertError::ValidationError(_))));
+    }
+
+    #[tokio::test]
+    async fn patch_alert_propagates_error() {
+        let service = build_service::<FailingDb>();
+        let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
+        let input = PatchAlertInput {
+            sender: None,
+            sent: None,
+            status: None,
+            msg_type: None,
+            source: None,
+            scope: None,
+            references: None,
+        };
+        let result = service.patch_alert(identifier, input).await;
+        assert!(matches!(
+            result,
+            Err(PatchAlertError::DatabaseError(msg)) if msg == "test error"
         ));
     }
 

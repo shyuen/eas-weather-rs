@@ -36,6 +36,23 @@ pub struct UpdateAlertInput {
     pub references: Vec<String>,
 }
 
+/// Raw, unvalidated fields for partially updating an existing alert. Fields set
+/// to `Some` override the stored value; fields left `None` keep the existing
+/// value. `source` uses `Option<Option<String>>` so an explicit `null` clears
+/// the value while an absent field leaves it untouched. The identifier is
+/// omitted — it is supplied by the URL path and applied authoritatively by the
+/// service.
+#[derive(Debug, Clone)]
+pub struct PatchAlertInput {
+    pub sender: Option<String>,
+    pub sent: Option<String>,
+    pub status: Option<String>,
+    pub msg_type: Option<String>,
+    pub source: Option<Option<String>>,
+    pub scope: Option<String>,
+    pub references: Option<Vec<String>>,
+}
+
 /// Complete alert structure.
 /// See https://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2.html for reference.
 #[derive(Debug, Clone, serde::Serialize)]

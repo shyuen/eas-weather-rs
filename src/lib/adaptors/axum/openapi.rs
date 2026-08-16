@@ -16,6 +16,7 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::get_daily_alerts,
         crate::adaptors::axum::handlers::alert::create_alert,
         crate::adaptors::axum::handlers::alert::update_alert,
+        crate::adaptors::axum::handlers::alert::patch_alert,
         crate::adaptors::axum::handlers::meta::get_app_config,
         crate::adaptors::axum::handlers::meta::get_raw_app_config
     ),
@@ -24,6 +25,7 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::AlertSchema,
         crate::adaptors::axum::handlers::alert::CreateAlertRequest,
         crate::adaptors::axum::handlers::alert::UpdateAlertRequest,
+        crate::adaptors::axum::handlers::alert::PatchAlertRequest,
         crate::adaptors::axum::handlers::error::ApiErrorResponse,
         crate::adaptors::axum::handlers::error::ErrorCode,
         crate::adaptors::axum::handlers::meta::RawConfResponse,

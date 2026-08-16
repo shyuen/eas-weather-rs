@@ -1,6 +1,6 @@
 use axum::Router;
 use axum::http::Response;
-use axum::routing::{get, post, put};
+use axum::routing::{get, patch, post, put};
 use std::time::Duration;
 use tower_http::trace::{DefaultMakeSpan, OnResponse, TraceLayer};
 use tracing::{Level, Span};
@@ -9,7 +9,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::alert::{
-    create_alert, get_alerts, get_daily_alerts, update_alert,
+    create_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
 };
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::handlers::meta::{get_app_config, get_raw_app_config};
@@ -96,6 +96,7 @@ where
         .route("/", get(get_alerts))
         .route("/", post(create_alert))
         .route("/{identifier}", put(update_alert))
+        .route("/{identifier}", patch(patch_alert))
         .route("/daily", get(get_daily_alerts))
 }
 

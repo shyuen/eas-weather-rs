@@ -1,6 +1,6 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode, JsonBody};
-use crate::domain::alert::model::{Alert, CreateAlertInput, UpdateAlertInput};
+use crate::domain::alert::model::{Alert, CreateAlertInput, PatchAlertInput, UpdateAlertInput};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::database::port::DatabasePort;
@@ -94,6 +94,34 @@ pub struct UpdateAlertRequest {
     pub scope: String,
     /// Each reference must be in the form `sender,identifier,sent`.
     pub references: Vec<String>,
+}
+
+/// Request body for partially updating an existing alert. The identifier comes
+/// from the URL path. Omitted fields keep their existing values; `source` may
+/// be set to `null` to clear it.
+#[derive(Debug, Clone, Deserialize, ToSchema)]
+pub struct PatchAlertRequest {
+    pub sender: Option<String>,
+    /// RFC 3339 timestamp, e.g. "2002-05-24T16:49:00-00:00".
+    pub sent: Option<String>,
+    pub status: Option<String>,
+    pub msg_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_double_option")]
+    pub source: Option<Option<String>>,
+    pub scope: Option<String>,
+    /// Each reference must be in the form `sender,identifier,sent`.
+    pub references: Option<Vec<String>>,
+}
+
+/// Deserialize an `Option<Option<T>>` so that an explicit JSON `null` yields
+/// `Some(None)` (distinct from a missing field, which yields `None`). This lets
+/// PATCH clear an optional field by sending `null`.
+fn deserialize_double_option<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    Ok(Some(Option::<T>::deserialize(deserializer)?))
 }
 
 /// Handler for GET /alerts
@@ -219,6 +247,21 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
     }
 }
 
+/// Convert the HTTP patch body into the domain's raw input contract.
+impl From<PatchAlertRequest> for PatchAlertInput {
+    fn from(req: PatchAlertRequest) -> Self {
+        PatchAlertInput {
+            sender: req.sender,
+            sent: req.sent,
+            status: req.status,
+            msg_type: req.msg_type,
+            source: req.source,
+            scope: req.scope,
+            references: req.references,
+        }
+    }
+}
+
 /// Handler for POST /alerts
 ///
 /// Validates the request body into a domain `Alert` and persists it.
@@ -298,6 +341,55 @@ where
     let alert_service = state.get_alert_service();
 
     match alert_service.update_alert(identifier, req.into()).await {
+        Ok(response) => (StatusCode::OK, Json(AlertSchema::from(&response.alert))).into_response(),
+        Err(err) => ApiErrorResponse::from(err).into_response(),
+    }
+}
+
+/// Handler for PATCH /alerts/{identifier}
+///
+/// Partially updates an existing alert, identified by the URL path. Omitted
+/// fields keep their existing values; the path identifier is authoritative.
+#[utoipa::path(
+    patch,
+    path = "/alerts/{identifier}",
+    request_body = PatchAlertRequest,
+    params(
+        ("identifier" = String, Path, description = "Alert identifier")
+    ),
+    responses(
+        (status = 200, description = "Alert updated", body = AlertSchema),
+        (status = 400, description = "Validation error or invalid identifier", body = ApiErrorResponse),
+        (status = 404, description = "Alert not found", body = ApiErrorResponse),
+        (status = 422, description = "Malformed request body", body = ApiErrorResponse),
+        (status = 500, description = "Database error", body = ApiErrorResponse)
+    ),
+    tag = "alerts"
+)]
+pub(crate) async fn patch_alert<MR, DR>(
+    State(state): State<AppState<MR, DR>>,
+    Path(identifier): Path<String>,
+    JsonBody(req): JsonBody<PatchAlertRequest>,
+) -> impl IntoResponse
+where
+    MR: MetaPort,
+    DR: DatabasePort + AlertPort,
+{
+    let identifier = match AlertIdentifier::new(identifier) {
+        Ok(id) => id,
+        Err(err) => {
+            return ApiErrorResponse::new(
+                ErrorCode::InvalidIdentifier,
+                err.to_string(),
+                StatusCode::BAD_REQUEST,
+            )
+            .into_response();
+        }
+    };
+
+    let alert_service = state.get_alert_service();
+
+    match alert_service.patch_alert(identifier, req.into()).await {
         Ok(response) => (StatusCode::OK, Json(AlertSchema::from(&response.alert))).into_response(),
         Err(err) => ApiErrorResponse::from(err).into_response(),
     }
@@ -747,6 +839,156 @@ mod tests {
                     .uri("/alert-123")
                     .header("content-type", "application/json")
                     .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 422);
+    }
+
+    // ── PATCH /alerts/{identifier} ──
+
+    #[tokio::test]
+    async fn test_patch_alert_success() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({
+            "sender": "PatchedSender",
+            "status": "Test"
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let json = body_to_json(response).await;
+        assert_eq!(json["identifier"], "alert-123");
+        assert_eq!(json["sender"], "PatchedSender");
+        assert_eq!(json["status"], "Test");
+        assert_eq!(json["msg_type"], "Alert");
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_clear_source() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({
+            "source": null
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let json = body_to_json(response).await;
+        assert_eq!(json["source"], serde_json::Value::Null);
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_invalid_identifier() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({ "sender": "PatchedSender" });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/Invalid%20Identifier")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_validation_error() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({
+            "sender": "Invalid Sender"
+        });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 400);
+        let json = body_to_json(response).await;
+        assert_eq!(json["code"], "ALERT_VALIDATION_FAILED");
+        assert!(json["message"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_db_error() {
+        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let body = serde_json::json!({ "sender": "PatchedSender" });
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 500);
+    }
+
+    #[tokio::test]
+    async fn test_patch_alert_malformed_body_returns_422() {
+        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
+            DEFAULT_PAGE_LIMIT,
+            PAGE_LIMIT_MAX,
+        )));
+        let app = build_alert_app(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/alert-123")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{not valid json"))
                     .unwrap(),
             )
             .await
