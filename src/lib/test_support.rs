@@ -492,7 +492,7 @@ impl AlertPort for MissingDb {
 }
 
 /// Convenience: a `ConfigService<MockConfig>` with the given webserver page
-/// limits, used to drive handler config lookups (page limits, meta endpoints).
+/// limits, used to drive handler config lookups (page limits, conf endpoints).
 pub fn mock_config_service(dpl: u64, plm: u64) -> ConfigService<MockConfig> {
     ConfigService::from_config_port(
         MockConfig::new().with_webserver_config(build_webserver(dpl, plm)),
