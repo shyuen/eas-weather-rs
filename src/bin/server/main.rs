@@ -14,7 +14,8 @@ use eas_weather_rs::domain::webserver::service::WebserverService;
 async fn main() -> Result<(), std::io::Error> {
     // Parse command-line arguments once and inject them into the config adaptor
     let conf_service: ConfigService<ConfigFigment> =
-        ConfigService::from_port(ConfigFigment::with_cli(parse_cli()));
+        // Create a new instance of ConfigService with the Figment adaptor
+        ConfigService::from_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
     let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
