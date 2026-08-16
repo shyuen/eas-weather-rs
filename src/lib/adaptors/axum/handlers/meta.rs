@@ -1,8 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::model::Config;
+use crate::domain::config::port::{MetaPort, ValidatedConfig};
 use crate::domain::database::port::DatabasePort;
-use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 
 use axum::Json;
 use axum::extract::State;
