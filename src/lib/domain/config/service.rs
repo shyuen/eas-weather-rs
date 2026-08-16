@@ -7,6 +7,7 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
+use crate::domain::meta::port::{MetaPort, ValidatedConfig};
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
@@ -206,4 +207,51 @@ where
     pub fn get_webservicer_config(&self) -> &Webserver {
         self.port.get_webserver_config()
     }
+}
+
+/// Implement the MetaPort trait for ConfigService, allowing it to provide access to configuration data.
+impl<C> MetaPort for ConfigService<C>
+where
+    C: ConfigPort,
+{
+    fn get_raw_config_data(&self) -> Config {
+        self.port.get_raw_config().clone()
+    }
+
+    // Return a validated configuration struct
+    // which can be used by a handler
+    fn get_conf(&self) -> ValidatedConfig {
+        ValidatedConfig::new(
+            self.port.get_logging_config().clone(),
+            self.port.get_database_config().clone(),
+            self.port.get_webserver_config().clone(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::MockConfig;
+
+    #[tokio::test]
+    async fn get_conf_assembles_validated_config_from_port() {
+        let conf_serv: ConfigService<MockConfig> = ConfigService::new();
+        let conf = conf_serv.get_conf();
+        assert_eq!(
+            serde_json::to_value(conf.get_logging_config()).unwrap(),
+            serde_json::to_value(conf_serv.get_logging_config()).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(conf.get_database_config()).unwrap(),
+            serde_json::to_value(conf_serv.get_database_config()).unwrap()
+        );
+        assert_eq!(
+            serde_json::to_value(conf.get_webserver_config()).unwrap(),
+            serde_json::to_value(conf_serv.get_webservicer_config()).unwrap()
+        );
+    }
+
+    // `get_raw_config_data` requires MockConfig::get_raw_config, which is
+    // intentionally unimplemented, so it is not unit-tested here.
 }
