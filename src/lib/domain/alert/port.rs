@@ -36,6 +36,12 @@ pub trait AlertPort: Clone + Send + Sync + 'static {
         &self,
         identifier: &AlertIdentifier,
     ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send;
+
+    // Delete an alert by identifier
+    fn delete_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<DeleteAlertResponse, DeleteAlertError>> + Send;
 }
 
 // Create Alert
@@ -57,6 +63,9 @@ pub struct GetAlertResponse {
 pub struct PatchAlertResponse {
     pub alert: Alert,
 }
+
+// Delete an alert
+pub struct DeleteAlertResponse;
 
 // Daily Alerts
 pub struct GetDailyAlertsResponse {
@@ -132,6 +141,16 @@ pub enum PatchAlertError {
     ValidationError(String),
     #[error("conversion error: {0}")]
     DataConversionError(String),
+    #[error("alert not found")]
+    NotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum DeleteAlertError {
+    #[error("database error: {0}")]
+    DatabaseError(String),
+    #[error("database error: {0}")]
+    DatabaseConnectionError(String),
     #[error("alert not found")]
     NotFound,
 }
