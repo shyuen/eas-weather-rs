@@ -17,7 +17,6 @@ use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
-use crate::domain::config::port::{MetaPort, ValidatedConfig};
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
@@ -67,49 +66,14 @@ pub fn build_webserver(dpl: u64, plm: u64) -> Webserver {
     Webserver::new(&raw_webserver(Some(dpl), Some(plm)))
 }
 
-/// `MetaPort` double that always returns a `ValidatedConfig` built from the
-/// supplied `Webserver` (with neutral logging/database config), and an
-/// optional raw `Config`.
-#[derive(Clone)]
-pub struct MockMeta {
-    conf: ValidatedConfig,
-    raw_conf: Option<Config>,
-}
-
-impl MockMeta {
-    pub fn new(webserver: Webserver) -> Self {
-        let logging = Logging::new(&raw_logging());
-        let database = Database::new(&raw_database());
-        let conf = ValidatedConfig::new(logging, database, webserver);
-        Self {
-            conf,
-            raw_conf: None,
-        }
-    }
-
-    pub fn with_raw_config(mut self, raw: Config) -> Self {
-        self.raw_conf = Some(raw);
-        self
-    }
-}
-
-impl MetaPort for MockMeta {
-    fn get_raw_config_data(&self) -> Config {
-        self.raw_conf
-            .clone()
-            .expect("MockMeta::with_raw_config must be called to use get_raw_config_data")
-    }
-    fn get_conf(&self) -> ValidatedConfig {
-        self.conf.clone()
-    }
-}
-
-/// `ConfigPort` double that always returns neutral (default) config.
+/// `ConfigPort` double that always returns neutral (default) config, with
+/// optional overrides for the webserver config and the raw config.
 #[derive(Clone)]
 pub struct MockConfig {
     logging: Logging,
     database: Database,
     webserver: Webserver,
+    raw_conf: Option<Config>,
 }
 
 impl MockConfig {
@@ -118,7 +82,18 @@ impl MockConfig {
             logging: Logging::new(&raw_logging()),
             database: Database::new(&raw_database()),
             webserver: Webserver::new(&raw_webserver(None, None)),
+            raw_conf: None,
         }
+    }
+
+    pub fn with_webserver_config(mut self, webserver: Webserver) -> Self {
+        self.webserver = webserver;
+        self
+    }
+
+    pub fn with_raw_config(mut self, raw: Config) -> Self {
+        self.raw_conf = Some(raw);
+        self
     }
 }
 
@@ -127,7 +102,9 @@ impl ConfigPort for MockConfig {
         Self::new()
     }
     fn get_raw_config(&self) -> &Config {
-        unimplemented!("not needed by tests")
+        self.raw_conf
+            .as_ref()
+            .expect("MockConfig::with_raw_config must be called to use get_raw_config")
     }
     fn get_logging_config(&self) -> &Logging {
         &self.logging
@@ -514,23 +491,30 @@ impl AlertPort for MissingDb {
     }
 }
 
-/// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
+/// Convenience: a `ConfigService<MockConfig>` with the given webserver page
+/// limits, used to drive handler config lookups (page limits, conf endpoints).
+pub fn mock_config_service(dpl: u64, plm: u64) -> ConfigService<MockConfig> {
+    ConfigService::from_config_port(
+        MockConfig::new().with_webserver_config(build_webserver(dpl, plm)),
+    )
+}
+
+/// Convenience: an `AppState` wired with the supplied `ConfigService` and a real
 /// `AlertService` over the supplied `D: DatabasePort + AlertPort` double.
-pub fn build_state<D>(meta: MockMeta) -> crate::adaptors::axum::app_state::AppState<MockMeta, D>
+pub fn build_state<D>(
+    config_service: ConfigService<MockConfig>,
+) -> crate::adaptors::axum::app_state::AppState<MockConfig, D>
 where
     D: DatabasePort + AlertPort + Clone,
 {
-    let conf_service = ConfigService {
-        port: MockConfig::new(),
-    };
-    let db_service = DatabaseService::new(&conf_service);
+    let db_service = DatabaseService::new(&config_service);
     let alert_service = AlertService::new(&db_service);
-    crate::adaptors::axum::app_state::AppState::new(meta, alert_service)
+    crate::adaptors::axum::app_state::AppState::new(config_service, alert_service)
 }
 
-/// Convenience: the router for the alert handlers, bound to `MockMeta`.
+/// Convenience: the router for the alert handlers, bound to `MockConfig`.
 pub fn build_alert_app<D>(
-    state: crate::adaptors::axum::app_state::AppState<MockMeta, D>,
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, D>,
 ) -> axum::Router
 where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
@@ -541,21 +525,21 @@ where
     use axum::routing::{delete, get, patch, post, put};
 
     axum::Router::new()
-        .route("/", get(get_alerts::<MockMeta, D>))
-        .route("/", post(create_alert::<MockMeta, D>))
-        .route("/{identifier}", put(update_alert::<MockMeta, D>))
-        .route("/{identifier}", patch(patch_alert::<MockMeta, D>))
-        .route("/{identifier}", delete(delete_alert::<MockMeta, D>))
-        .route("/daily", get(get_daily_alerts::<MockMeta, D>))
+        .route("/", get(get_alerts::<MockConfig, D>))
+        .route("/", post(create_alert::<MockConfig, D>))
+        .route("/{identifier}", put(update_alert::<MockConfig, D>))
+        .route("/{identifier}", patch(patch_alert::<MockConfig, D>))
+        .route("/{identifier}", delete(delete_alert::<MockConfig, D>))
+        .route("/daily", get(get_daily_alerts::<MockConfig, D>))
         .with_state(state)
 }
 
-/// Convenience: the full router (all route groups) bound to `MockMeta`.
+/// Convenience: the full router (all route groups) bound to `MockConfig`.
 pub fn build_full_app<D>(
-    state: crate::adaptors::axum::app_state::AppState<MockMeta, D>,
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, D>,
 ) -> axum::Router
 where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
 {
-    crate::adaptors::axum::routes::create_routes::<MockMeta, D>().with_state(state)
+    crate::adaptors::axum::routes::create_routes::<MockConfig, D>().with_state(state)
 }

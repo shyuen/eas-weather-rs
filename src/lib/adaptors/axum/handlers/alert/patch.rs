@@ -11,7 +11,7 @@ use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode, JsonBo
 use crate::domain::alert::model::PatchAlertInput;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
 /// Request body for partially updating an existing alert. The identifier comes
@@ -84,13 +84,13 @@ impl From<PatchAlertRequest> for PatchAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn patch_alert<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
+pub(crate) async fn patch_alert<C, DR>(
+    State(state): State<AppState<C, DR>>,
     Path(identifier): Path<String>,
     JsonBody(req): JsonBody<PatchAlertRequest>,
 ) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
@@ -121,16 +121,13 @@ mod tests {
 
     use crate::adaptors::axum::handlers::alert::body_to_json;
     use crate::test_support::{
-        DEFAULT_PAGE_LIMIT, FailingDb, MockDb, MockMeta, PAGE_LIMIT_MAX, build_alert_app,
-        build_state, build_webserver,
+        DEFAULT_PAGE_LIMIT, FailingDb, MockDb, PAGE_LIMIT_MAX, build_alert_app, build_state,
+        mock_config_service,
     };
 
     #[tokio::test]
     async fn test_patch_alert_success() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({
             "sender": "PatchedSender",
@@ -157,10 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_clear_source() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({
             "source": null
@@ -183,10 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_null_required_field_rejected() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({
             "sender": null
@@ -210,10 +201,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_invalid_identifier() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({ "sender": "PatchedSender" });
         let response = app
@@ -232,10 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_validation_error() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({
             "sender": "Invalid Sender"
@@ -259,10 +244,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_db_error() {
-        let state = build_state::<FailingDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state =
+            build_state::<FailingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let body = serde_json::json!({ "sender": "PatchedSender" });
         let response = app
@@ -281,10 +264,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_patch_alert_malformed_body_returns_422() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(
-            DEFAULT_PAGE_LIMIT,
-            PAGE_LIMIT_MAX,
-        )));
+        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
         let app = build_alert_app(state);
         let response = app
             .oneshot(

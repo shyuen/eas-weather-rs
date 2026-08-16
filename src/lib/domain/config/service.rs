@@ -2,9 +2,8 @@ use tracing::{debug, info, trace, warn};
 
 use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::issue::ConfigIssue;
-use crate::domain::config::model::Config;
+use crate::domain::config::model::{Config, ValidatedConfig};
 use crate::domain::config::port::ConfigPort;
-use crate::domain::config::port::{MetaPort, ValidatedConfig};
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
@@ -207,20 +206,10 @@ where
     pub fn get_webservicer_config(&self) -> &Webserver {
         self.port.get_webserver_config()
     }
-}
 
-/// Implement the MetaPort trait for ConfigService, allowing it to provide access to configuration data.
-impl<C> MetaPort for ConfigService<C>
-where
-    C: ConfigPort,
-{
-    fn get_raw_config_data(&self) -> Config {
-        self.port.get_raw_config().clone()
-    }
-
-    // Return a validated configuration struct
-    // which can be used by a handler
-    fn get_conf(&self) -> ValidatedConfig {
+    /// Return the validated application configuration struct
+    /// which can be used by a handler
+    pub fn get_validated_app_conf(&self) -> ValidatedConfig {
         ValidatedConfig::new(
             self.port.get_logging_config().clone(),
             self.port.get_database_config().clone(),
@@ -235,9 +224,9 @@ mod tests {
     use crate::test_support::MockConfig;
 
     #[tokio::test]
-    async fn get_conf_assembles_validated_config_from_port() {
+    async fn get_validated_app_conf_assembles_validated_config_from_port() {
         let conf_serv: ConfigService<MockConfig> = ConfigService::new();
-        let conf = conf_serv.get_conf();
+        let conf = conf_serv.get_validated_app_conf();
         assert_eq!(
             serde_json::to_value(conf.get_logging_config()).unwrap(),
             serde_json::to_value(conf_serv.get_logging_config()).unwrap()
@@ -251,7 +240,4 @@ mod tests {
             serde_json::to_value(conf_serv.get_webservicer_config()).unwrap()
         );
     }
-
-    // `get_raw_config_data` requires MockConfig::get_raw_config, which is
-    // intentionally unimplemented, so it is not unit-tested here.
 }

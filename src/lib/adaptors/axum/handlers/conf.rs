@@ -1,7 +1,8 @@
 use crate::adaptors::axum::app_state::AppState;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::model::Config;
-use crate::domain::config::port::{MetaPort, ValidatedConfig};
+use crate::domain::config::model::ValidatedConfig;
+use crate::domain::config::port::ConfigPort;
 use crate::domain::database::port::DatabasePort;
 
 use axum::Json;
@@ -10,63 +11,59 @@ use axum::response::IntoResponse;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-/// Raw configuration dump returned by `/meta/raw_conf`.
+/// Raw configuration dump returned by `/conf/raw`.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RawConfResponse {
     #[schema(value_type = Object)]
     pub raw_conf: Config,
 }
 
-/// Processed configuration returned by `/meta/conf`.
+/// Processed configuration returned by `/conf/app`.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ConfResponse {
     #[schema(value_type = Object)]
     pub conf: ValidatedConfig,
 }
 
-/// Handler for GET /meta/raw_conf
+/// Handler for GET /conf/raw
 ///
 /// Returns the raw configuration combined data source from CLI, ENV, and config files as a JSON object.
 /// This endpoint is useful for debugging and inspecting the application's configuration.
 #[utoipa::path(
     get,
-    path = "/meta/raw_conf",
+    path = "/conf/raw",
     responses(
         (status = 200, description = "Raw configuration", body = RawConfResponse)
     ),
-    tag = "meta"
+    tag = "conf"
 )]
-pub(crate) async fn get_raw_app_config<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
-) -> impl IntoResponse
+pub(crate) async fn get_raw_config<C, DR>(State(state): State<AppState<C, DR>>) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let raw_conf = state.get_meta_port().get_raw_config_data();
+    let raw_conf = state.get_config_service().get_raw_config().clone();
 
     Json(RawConfResponse { raw_conf })
 }
 
-/// Handler for GET /meta/conf
+/// Handler for GET /conf/app
 ///
 /// Returns a validated configuration struct that is used by the application, which may differ from the raw configuration due to validation and default values.
 #[utoipa::path(
     get,
-    path = "/meta/conf",
+    path = "/conf/app",
     responses(
         (status = 200, description = "Processed configuration", body = ConfResponse)
     ),
-    tag = "meta"
+    tag = "conf"
 )]
-pub(crate) async fn get_app_config<MR, DR>(
-    State(state): State<AppState<MR, DR>>,
-) -> impl IntoResponse
+pub(crate) async fn get_app_config<C, DR>(State(state): State<AppState<C, DR>>) -> impl IntoResponse
 where
-    MR: MetaPort,
+    C: ConfigPort,
     DR: DatabasePort + AlertPort,
 {
-    let conf = state.get_meta_port().get_conf();
+    let conf = state.get_config_service().get_validated_app_conf();
 
     Json(ConfResponse { conf })
 }
@@ -82,10 +79,13 @@ mod tests {
     use crate::adaptors::axum::app_state::AppState;
     use crate::domain::alert::port::AlertPort;
     use crate::domain::config::model::*;
+    use crate::domain::config::service::ConfigService;
     use crate::domain::database::port::DatabasePort;
-    use crate::test_support::{MockDb, MockMeta, build_state, build_webserver};
+    use crate::test_support::{
+        MockConfig, MockDb, build_state, build_webserver, mock_config_service,
+    };
 
-    use super::{get_app_config, get_raw_app_config};
+    use super::{get_app_config, get_raw_config};
 
     fn raw_conf() -> Config {
         Config {
@@ -118,13 +118,13 @@ mod tests {
         }
     }
 
-    fn build_meta_app<D>(state: AppState<MockMeta, D>) -> axum::Router
+    fn build_conf_app<D>(state: AppState<MockConfig, D>) -> axum::Router
     where
         D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
     {
         axum::Router::new()
-            .route("/raw_conf", get(get_raw_app_config::<MockMeta, D>))
-            .route("/conf", get(get_app_config::<MockMeta, D>))
+            .route("/raw", get(get_raw_config::<MockConfig, D>))
+            .route("/app", get(get_app_config::<MockConfig, D>))
             .with_state(state)
     }
 
@@ -135,17 +135,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_raw_app_config() {
-        let meta = MockMeta::new(build_webserver(10, 100)).with_raw_config(raw_conf());
-        let state = build_state::<MockDb>(meta);
-        let app = build_meta_app::<MockDb>(state);
+    async fn test_get_raw_config() {
+        let config_service = ConfigService::from_config_port(
+            MockConfig::new()
+                .with_webserver_config(build_webserver(10, 100))
+                .with_raw_config(raw_conf()),
+        );
+        let state = build_state::<MockDb>(config_service);
+        let app = build_conf_app::<MockDb>(state);
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/raw_conf")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/raw").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), 200);
@@ -164,10 +163,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_app_config() {
-        let state = build_state::<MockDb>(MockMeta::new(build_webserver(10, 100)));
-        let app = build_meta_app::<MockDb>(state);
+        let state = build_state::<MockDb>(mock_config_service(10, 100));
+        let app = build_conf_app::<MockDb>(state);
         let response = app
-            .oneshot(Request::builder().uri("/conf").body(Body::empty()).unwrap())
+            .oneshot(Request::builder().uri("/app").body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(response.status(), 200);

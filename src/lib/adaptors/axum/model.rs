@@ -8,7 +8,8 @@ use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
 use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
+use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverPort;
@@ -32,19 +33,20 @@ impl WebserverPort for WebserverAxum {
         WebserverAxum::new(conf_webserv.clone())
     }
 
-    async fn start_server<D>(
+    async fn start_server<C, D>(
         &self,
         alert_service: &AlertService<D>,
-        meta_port: &impl MetaPort,
+        config_service: &ConfigService<C>,
     ) -> Result<ShutdownReason, std::io::Error>
     where
+        C: ConfigPort,
         D: DatabasePort + AlertPort,
     {
         // Database port for graceful shutdown is sourced from the alert service.
         let db_port = alert_service.get_database_port().clone();
 
         // Create the application state with the necessary services
-        let state = AppState::new(meta_port.clone(), alert_service.clone());
+        let state = AppState::new(config_service.clone(), alert_service.clone());
 
         // Create the Axum application with the defined routes and state
         let app = create_routes().with_state(state);

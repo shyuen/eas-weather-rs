@@ -2,7 +2,7 @@ use utoipa::OpenApi;
 
 /// The OpenAPI document for this service, collected from the annotated handlers.
 ///
-/// Response schemas live with their handlers (`handlers/alert.rs`, `handlers/meta.rs`,
+/// Response schemas live with their handlers (`handlers/alert.rs`, `handlers/conf.rs`,
 /// `handlers/test.rs`) or centrally for shared contracts (`handlers/error.rs`).
 #[derive(Debug, OpenApi)]
 #[openapi(
@@ -18,8 +18,8 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::put::update_alert,
         crate::adaptors::axum::handlers::alert::patch::patch_alert,
         crate::adaptors::axum::handlers::alert::delete::delete_alert,
-        crate::adaptors::axum::handlers::meta::get_app_config,
-        crate::adaptors::axum::handlers::meta::get_raw_app_config
+        crate::adaptors::axum::handlers::conf::get_app_config,
+        crate::adaptors::axum::handlers::conf::get_raw_config
     ),
     components(schemas(
         crate::adaptors::axum::handlers::alert::AlertsListResponse,
@@ -29,8 +29,8 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::alert::patch::PatchAlertRequest,
         crate::adaptors::axum::handlers::error::ApiErrorResponse,
         crate::adaptors::axum::handlers::error::ErrorCode,
-        crate::adaptors::axum::handlers::meta::RawConfResponse,
-        crate::adaptors::axum::handlers::meta::ConfResponse
+        crate::adaptors::axum::handlers::conf::RawConfResponse,
+        crate::adaptors::axum::handlers::conf::ConfResponse
     ))
 )]
 pub(crate) struct ApiDoc;

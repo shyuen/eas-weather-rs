@@ -1,6 +1,7 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::port::MetaPort;
+use crate::domain::config::port::ConfigPort;
+use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverPort;
@@ -33,12 +34,13 @@ where
         &self.repo
     }
 
-    pub async fn start_server<D>(
+    pub async fn start_server<C, D>(
         &self,
         alert_serv: &AlertService<D>,
-        meta_port: &impl MetaPort,
+        config_service: &ConfigService<C>,
     ) -> Result<(), std::io::Error>
     where
+        C: ConfigPort,
         D: DatabasePort + AlertPort,
     {
         debug!("start_server: starting server");
@@ -48,7 +50,7 @@ where
             self.conf.hostname.get(),
             self.conf.port.get()
         );
-        match self.repo.start_server(alert_serv, meta_port).await {
+        match self.repo.start_server(alert_serv, config_service).await {
             Ok(reason) => {
                 match reason {
                     ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),
