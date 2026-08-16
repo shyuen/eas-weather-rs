@@ -28,8 +28,8 @@ where
         }
     }
 
-    /// Get the Webserver repository
-    pub fn get_port(&self) -> &WP {
+    /// Get the Webserver port
+    pub fn get_webserver_port(&self) -> &WP {
         &self.repo
     }
 
