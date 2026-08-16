@@ -3,6 +3,7 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::meta::port::MetaPort;
 use crate::domain::meta::port::ValidatedConfig;
+use tracing::info;
 
 /// The MetaService provides access to application metadata, such as configuration data.
 #[derive(Debug, Clone)]
@@ -23,6 +24,10 @@ where
         C: ConfigPort,
     {
         let conf_port = conf_serv.get_port().clone();
+
+        // Log the initialization of the MetaService
+        info!("Initializing MetaService");
+
         Self { conf_port }
     }
 
