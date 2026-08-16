@@ -29,7 +29,7 @@ where
     }
 
     /// Get the Database port
-    pub fn get_port(&self) -> &D {
+    pub fn get_database_port(&self) -> &D {
         &self.db_port
     }
 
