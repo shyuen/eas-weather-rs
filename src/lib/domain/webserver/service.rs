@@ -9,16 +9,16 @@ use crate::domain::webserver::port::WebserverPort;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
-pub struct WebserverService<WR>
+pub struct WebserverService<WP>
 where
-    WR: WebserverPort,
+    WP: WebserverPort,
 {
-    pub repo: WR,
+    pub repo: WP,
 }
 
-impl<WR> WebserverService<WR>
+impl<WP> WebserverService<WP>
 where
-    WR: WebserverPort,
+    WP: WebserverPort,
 {
     /// Creates a new instance of WebserverService.
     pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
@@ -27,12 +27,12 @@ where
     {
         let conf_webserv = conf_serv.get_webservicer_config();
 
-        let repo = WR::new(conf_webserv);
+        let repo = WP::new(conf_webserv);
         Self { repo }
     }
 
     /// Get the Webserver repository
-    pub fn get_port(&self) -> &WR {
+    pub fn get_port(&self) -> &WP {
         &self.repo
     }
 
