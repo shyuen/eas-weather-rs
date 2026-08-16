@@ -110,6 +110,7 @@ fn base_figment(cli: &serde_json::Value) -> Figment {
     figment
 }
 
+/// Collect the raw configuration from all sources (CLI, ENV, FILE) and merge them into a single `Config` struct.
 fn collect_raw_input(cli: &serde_json::Value) -> Config {
     // This line loads the environment variables from the ".env" file.
     dotenv().ok();
@@ -161,6 +162,7 @@ impl ConfigFigment {
     /// Passing `serde_json::Value::Null` (or an object) is supported; a `null`
     /// value contributes no CLI layer, which is what [`ConfigPort::new`] uses.
     pub fn with_cli(cli: serde_json::Value) -> Self {
+        // Collect the raw configuration from all sources (CLI, ENV, FILE) and merge them into a single `Config` struct.
         let conf = collect_raw_input(&cli);
         Self {
             conf_raw: conf.clone(),
