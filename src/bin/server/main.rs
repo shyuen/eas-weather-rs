@@ -13,17 +13,16 @@ use eas_weather_rs::domain::webserver::service::WebserverService;
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     // Parse command-line arguments once and inject them into the config adaptor
-    let conf_service: ConfigService<ConfigFigment> = ConfigService::from_port(
+    let conf_service: ConfigService<ConfigFigment> =
         // Create a new instance of ConfigService with the Figment adaptor
-        ConfigFigment::with_cli(parse_cli()), // Inject parsed CLI arguments into the config adaptor
-    );
+        ConfigService::from_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
     let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
 
     // Output raw configuration information after logging service is initialized
-    conf_service.log_raw_config_input(); // Output raw config inputs with debug level set
-    conf_service.log_raw_config_validation(); // Validate raw configurations
+    conf_service.log_raw_config_input();
+    conf_service.log_raw_config_validation();
 
     // Output logging adaptor configuration
     conf_service.log_adaptor_config(logging_service.get_port());
@@ -33,9 +32,6 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Output database adaptor configuration
     conf_service.log_adaptor_config(database_service.get_port());
-
-    // Show the raw configuration in the logs after logging service is initialized
-    //conf_service.emit_raw_config(&logging_service);
 
     // Initialize database connection pool within the service
     if let Err(err) = database_service.create_pool().await {
@@ -51,9 +47,8 @@ async fn main() -> Result<(), std::io::Error> {
 
     // Initialize meta service
     let meta_service = MetaService::new(conf_service.clone());
-    //let meta_service = MetaService::new(&conf_service);
 
-    // Initalize alert service
+    // Initialize alert service
     let alert_service = AlertService::new(database_service.clone());
 
     // Start Web Server

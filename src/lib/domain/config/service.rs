@@ -7,8 +7,6 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;
-use crate::domain::logging::port::LoggingPort;
-use crate::domain::logging::service::LoggingService;
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
@@ -76,19 +74,6 @@ where
         debug!(source = "env", config = %render(&inputs.env));
         debug!(source = "files", config = %render(&inputs.files));
         debug!(source = "final_config", config = %render(&inputs.final_config));
-    }
-
-    /// Emit the raw configuration through the initialized logging service.
-    ///
-    /// Must be called after [`LoggingService::new`] so tracing is active.
-    /// The `&LoggingService` parameter enforces this ordering at compile time.
-    pub fn emit_raw_config<L>(&self, _logging_service: &LoggingService<L>)
-    where
-        L: LoggingPort,
-    {
-        let raw = serde_json::to_string_pretty(self.get_raw_config())
-            .unwrap_or_else(|_| "failed to serialize config".to_string());
-        info!("application configuration:\n{raw}");
     }
 
     /// Returns the raw configuration.
