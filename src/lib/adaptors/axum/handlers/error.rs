@@ -6,7 +6,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use crate::domain::alert::port::{
-    CreateAlertError, GetDailyAlertsError, GetLatestAlertsError, UpdateAlertError,
+    CreateAlertError, GetDailyAlertsError, GetLatestAlertsError, PatchAlertError, UpdateAlertError,
 };
 
 /// Machine-readable error code returned in every error response body.
@@ -119,6 +119,38 @@ impl From<GetLatestAlertsError> for ApiErrorResponse {
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
             GetLatestAlertsError::DataConversionError(msg) => ApiErrorResponse::new(
+                ErrorCode::InternalError,
+                msg,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+        }
+    }
+}
+
+impl From<PatchAlertError> for ApiErrorResponse {
+    fn from(err: PatchAlertError) -> Self {
+        match err {
+            PatchAlertError::ValidationError(msg) => ApiErrorResponse::new(
+                ErrorCode::AlertValidationFailed,
+                msg,
+                StatusCode::BAD_REQUEST,
+            ),
+            PatchAlertError::NotFound => ApiErrorResponse::new(
+                ErrorCode::AlertNotFound,
+                "alert not found",
+                StatusCode::NOT_FOUND,
+            ),
+            PatchAlertError::DatabaseError(msg) => ApiErrorResponse::new(
+                ErrorCode::DatabaseError,
+                msg,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            PatchAlertError::DatabaseConnectionError(msg) => ApiErrorResponse::new(
+                ErrorCode::DatabaseConnectionError,
+                msg,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+            PatchAlertError::DataConversionError(msg) => ApiErrorResponse::new(
                 ErrorCode::InternalError,
                 msg,
                 StatusCode::INTERNAL_SERVER_ERROR,

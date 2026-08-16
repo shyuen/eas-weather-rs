@@ -11,8 +11,9 @@ use crate::domain::alert::new_types::alert_source::AlertSource;
 use crate::domain::alert::new_types::alert_status::AlertStatus;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::port::{
-    CreateAlertError, CreateAlertResponse, GetDailyAlertsError, GetDailyAlertsResponse,
-    GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError, UpdateAlertResponse,
+    CreateAlertError, CreateAlertResponse, GetAlertError, GetAlertResponse, GetDailyAlertsError,
+    GetDailyAlertsResponse, GetLatestAlertsError, GetLatestAlertsResponse, UpdateAlertError,
+    UpdateAlertResponse,
 };
 
 use sqlx::FromRow;
@@ -429,6 +430,69 @@ impl AlertPort for DatabaseMySql {
             }
 
             None => Err(UpdateAlertError::DatabaseConnectionError(
+                "connection pool to MySQL is not initialized".to_string(),
+            )),
+        }
+    }
+
+    async fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> Result<GetAlertResponse, GetAlertError> {
+        match self.get_pool() {
+            Some(pool) => {
+                let alert_item = sqlx::query_as::<_, MySqlAlert>(
+                    r#"
+                    WITH ranked_alerts AS (
+                      SELECT
+                        alert.*, ROW_NUMBER()
+                      OVER (
+                        PARTITION BY
+                            `identifier`
+                        ORDER BY
+                            `sent`
+                        DESC
+                      ) AS rn
+                      FROM
+                        Alerts AS alert
+                      WHERE
+                        `identifier` = ?
+                    )
+                    SELECT
+                        `identifier`,
+                        `sender`,
+                        `sent`,
+                        `status`,
+                        `msgtype`,
+                        `source`,
+                        `scope`,
+                        `references`
+                    FROM
+                        ranked_alerts
+                    WHERE
+                        rn = 1
+                    "#,
+                )
+                .bind(identifier.as_str())
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| {
+                    GetAlertError::DatabaseConnectionError(format!(
+                        "failed to retrieve alert: {}",
+                        e
+                    ))
+                })?;
+
+                match alert_item {
+                    Some(item) => match Alert::try_from(item) {
+                        Ok(alert) => Ok(GetAlertResponse { alert }),
+                        Err(errors) => Err(GetAlertError::DataConversionError(errors.join("; "))),
+                    },
+                    None => Err(GetAlertError::NotFound),
+                }
+            }
+
+            None => Err(GetAlertError::DatabaseConnectionError(
                 "connection pool to MySQL is not initialized".to_string(),
             )),
         }

@@ -30,6 +30,12 @@ pub trait AlertPort: Clone + Send + Sync + 'static {
         identifier: &AlertIdentifier,
         alert: Alert,
     ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send;
+
+    // Get a single alert by identifier
+    fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send;
 }
 
 // Create Alert
@@ -39,6 +45,16 @@ pub struct CreateAlertResponse {
 
 // Update Alert
 pub struct UpdateAlertResponse {
+    pub alert: Alert,
+}
+
+// Get single alert by identifier
+pub struct GetAlertResponse {
+    pub alert: Alert,
+}
+
+// Patch (partially update) an alert
+pub struct PatchAlertResponse {
     pub alert: Alert,
 }
 
@@ -90,6 +106,32 @@ pub enum UpdateAlertError {
     DatabaseConnectionError(String),
     #[error("validation error: {0}")]
     ValidationError(String),
+    #[error("alert not found")]
+    NotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum GetAlertError {
+    #[error("database error: {0}")]
+    DatabaseError(String),
+    #[error("database error: {0}")]
+    DatabaseConnectionError(String),
+    #[error("conversion error: {0}")]
+    DataConversionError(String),
+    #[error("alert not found")]
+    NotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum PatchAlertError {
+    #[error("database error: {0}")]
+    DatabaseError(String),
+    #[error("database error: {0}")]
+    DatabaseConnectionError(String),
+    #[error("validation error: {0}")]
+    ValidationError(String),
+    #[error("conversion error: {0}")]
+    DataConversionError(String),
     #[error("alert not found")]
     NotFound,
 }

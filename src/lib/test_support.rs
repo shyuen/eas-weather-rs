@@ -155,6 +155,34 @@ impl ConfigPort for MockConfig {
 #[derive(Clone)]
 pub struct MockDb;
 
+/// Build a valid [`Alert`] with deterministic values, used by the success-path
+/// mocks (`MockDb`, `FlakyDb`) when an existing alert must be returned.
+fn mock_alert(identifier: AlertIdentifier) -> Alert {
+    use crate::domain::alert::new_types::alert_msg_type::AlertMsgType;
+    use crate::domain::alert::new_types::alert_references::AlertReferences;
+    use crate::domain::alert::new_types::alert_references::ExtendedMessageIdentifier;
+    use crate::domain::alert::new_types::alert_scope::AlertScope;
+    use crate::domain::alert::new_types::alert_sender::AlertSender;
+    use crate::domain::alert::new_types::alert_sent::AlertSent;
+    use crate::domain::alert::new_types::alert_source::AlertSource;
+    use crate::domain::alert::new_types::alert_status::AlertStatus;
+    use time::OffsetDateTime;
+
+    let sender = AlertSender::new("Sender123".to_string()).unwrap();
+    let sent = AlertSent::new(OffsetDateTime::now_utc()).unwrap();
+    let status = AlertStatus::new("Actual".to_string()).unwrap();
+    let msg_type = AlertMsgType::new("Alert".to_string()).unwrap();
+    let source = AlertSource::new("Weather Station 1").unwrap();
+    let scope = AlertScope::new("Public".to_string()).unwrap();
+    let reference =
+        ExtendedMessageIdentifier::new("Sender1,Alert123,2024-06-01T12:00:00-00:00").unwrap();
+    let references = AlertReferences::new(vec![reference]).unwrap();
+
+    Alert::new(
+        identifier, sender, sent, status, msg_type, source, scope, references,
+    )
+}
+
 impl DatabasePort for MockDb {
     fn new(_conf: &Database) -> Self {
         MockDb
@@ -214,6 +242,17 @@ impl AlertPort for MockDb {
     ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
         async move { Ok(UpdateAlertResponse { alert }) }
     }
+    fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        let identifier = identifier.clone();
+        async move {
+            Ok(GetAlertResponse {
+                alert: mock_alert(identifier),
+            })
+        }
+    }
 }
 
 /// `DatabasePort + AlertPort` double that always fails with a database error.
@@ -268,6 +307,12 @@ impl AlertPort for FailingDb {
         _alert: Alert,
     ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
         async move { Err(UpdateAlertError::DatabaseError("test error".into())) }
+    }
+    fn get_alert_data(
+        &self,
+        _identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        async move { Err(GetAlertError::DatabaseError("test error".into())) }
     }
 }
 
@@ -360,6 +405,17 @@ impl AlertPort for FlakyDb {
     ) -> impl Future<Output = Result<UpdateAlertResponse, UpdateAlertError>> + Send {
         async move { Ok(UpdateAlertResponse { alert }) }
     }
+    fn get_alert_data(
+        &self,
+        identifier: &AlertIdentifier,
+    ) -> impl Future<Output = Result<GetAlertResponse, GetAlertError>> + Send {
+        let identifier = identifier.clone();
+        async move {
+            Ok(GetAlertResponse {
+                alert: mock_alert(identifier),
+            })
+        }
+    }
 }
 
 /// Convenience: an `AppState` wired with the supplied `MockMeta` and a real
@@ -384,14 +440,15 @@ where
     D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
 {
     use crate::adaptors::axum::handlers::alert::{
-        create_alert, get_alerts, get_daily_alerts, update_alert,
+        create_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
     };
-    use axum::routing::{get, post, put};
+    use axum::routing::{get, patch, post, put};
 
     axum::Router::new()
         .route("/", get(get_alerts::<MockMeta, D>))
         .route("/", post(create_alert::<MockMeta, D>))
         .route("/{identifier}", put(update_alert::<MockMeta, D>))
+        .route("/{identifier}", patch(patch_alert::<MockMeta, D>))
         .route("/daily", get(get_daily_alerts::<MockMeta, D>))
         .with_state(state)
 }
