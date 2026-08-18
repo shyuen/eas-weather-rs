@@ -35,8 +35,8 @@ where
     D: AlertPort + DatabasePort,
 {
     /// Creates a new instance of AlertService.
-    pub fn new(db_serv: &DatabaseService<D>) -> Self {
-        let db_port = db_serv.get_database_port();
+    pub fn new(data_serv: &DatabaseService<D>) -> Self {
+        let db_port = data_serv.get_database_port();
 
         // Log the initialization of the AlertService
         info!("Initializing AlertService");
