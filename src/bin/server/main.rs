@@ -46,11 +46,15 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_adaptor_config(webserver_service.get_webserver_port());
 
     // Initialize alert service
-    let alert_service = AlertService::new(&database_service);
+    let alert_service = AlertService::new(database_service.get_database_port());
 
     // Start Web Server
     // The webserver consumes the config service for the /conf endpoints
     webserver_service
-        .start_server(&alert_service, &conf_service)
+        .start_server(
+            &alert_service,
+            &conf_service,
+            database_service.get_database_port(),
+        )
         .await
 }
