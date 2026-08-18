@@ -34,14 +34,16 @@ where
         &self.repo
     }
 
-    pub async fn start_server<C, D>(
+    pub async fn start_server<C, AP, DP>(
         &self,
-        alert_serv: &AlertService<D>,
+        alert_serv: &AlertService<AP>,
         config_serv: &ConfigService<C>,
+        db_port: &DP,
     ) -> Result<(), std::io::Error>
     where
         C: ConfigPort,
-        D: DatabasePort + AlertPort,
+        AP: AlertPort,
+        DP: DatabasePort,
     {
         debug!("start_server: starting server");
         info!(
@@ -50,7 +52,11 @@ where
             self.conf.hostname.get(),
             self.conf.port.get()
         );
-        match self.repo.start_server(alert_serv, config_serv).await {
+        match self
+            .repo
+            .start_server(alert_serv, config_serv, db_port)
+            .await
+        {
             Ok(reason) => {
                 match reason {
                     ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),

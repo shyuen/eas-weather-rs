@@ -14,8 +14,6 @@ use crate::domain::alert::port::{
     GetLatestAlertsResponse, PatchAlertError, PatchAlertResponse, UpdateAlertError,
     UpdateAlertResponse,
 };
-use crate::domain::database::port::DatabasePort;
-use crate::domain::database::service::DatabaseService;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use tracing::{debug, error, info, warn};
@@ -23,32 +21,23 @@ use tracing::{debug, error, info, warn};
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
 #[derive(Debug, Clone)]
-pub struct AlertService<D>
+pub struct AlertService<AP>
 where
-    D: AlertPort + DatabasePort,
+    AP: AlertPort,
 {
-    db_port: D,
+    alert_port: AP,
 }
 
-impl<D> AlertService<D>
+impl<AP> AlertService<AP>
 where
-    D: AlertPort + DatabasePort,
+    AP: AlertPort,
 {
     /// Creates a new instance of AlertService.
-    pub fn new(data_serv: &DatabaseService<D>) -> Self {
-        let db_port = data_serv.get_database_port();
-
-        // Log the initialization of the AlertService
+    pub fn new(alert_port: &AP) -> Self {
         info!("Initializing AlertService");
-
         Self {
-            db_port: db_port.clone(),
+            alert_port: alert_port.clone(),
         }
-    }
-
-    /// Get the Database port
-    pub fn get_database_port(&self) -> &D {
-        &self.db_port
     }
 
     /// Retrieve the latest alerts sent within the last 24 hours from the database.
@@ -58,7 +47,7 @@ where
         offset: u64,
     ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
         debug!("get_daily_alerts(limit={}, offset={})", limit, offset);
-        match self.db_port.get_daily_alerts_data(limit, offset).await {
+        match self.alert_port.get_daily_alerts_data(limit, offset).await {
             Ok(resp) => {
                 info!(
                     "get_daily_alerts returned {} of {} alerts",
@@ -81,7 +70,7 @@ where
         offset: u64,
     ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
         debug!("get_latest_alerts(limit={}, offset={})", limit, offset);
-        match self.db_port.get_latest_alerts_data(limit, offset).await {
+        match self.alert_port.get_latest_alerts_data(limit, offset).await {
             Ok(resp) => {
                 info!(
                     "get_latest_alerts returned {} of {} alerts",
@@ -111,7 +100,7 @@ where
         };
 
         debug!("create_alert(alert={:?})", alert);
-        match self.db_port.create_alert_data(alert).await {
+        match self.alert_port.create_alert_data(alert).await {
             Ok(resp) => {
                 info!("create_alert persisted successfully");
                 Ok(resp)
@@ -140,7 +129,7 @@ where
         debug!("update_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
-            .db_port
+            .alert_port
             .update_alert_data(&alert_identifier, alert)
             .await
         {
@@ -163,7 +152,7 @@ where
         identifier: AlertIdentifier,
         input: PatchAlertInput,
     ) -> Result<PatchAlertResponse, PatchAlertError> {
-        let existing = match self.db_port.get_alert_data(&identifier).await {
+        let existing = match self.alert_port.get_alert_data(&identifier).await {
             Ok(resp) => resp.alert,
             Err(err) => {
                 error!("patch_alert failed to fetch existing alert: {}", err);
@@ -191,7 +180,7 @@ where
         debug!("patch_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
-            .db_port
+            .alert_port
             .update_alert_data(&alert_identifier, alert)
             .await
         {
@@ -219,7 +208,7 @@ where
         identifier: AlertIdentifier,
     ) -> Result<DeleteAlertResponse, DeleteAlertError> {
         debug!("delete_alert(identifier={})", identifier.as_str());
-        match self.db_port.delete_alert_data(&identifier).await {
+        match self.alert_port.delete_alert_data(&identifier).await {
             Ok(resp) => {
                 info!("delete_alert removed successfully");
                 Ok(resp)
@@ -345,24 +334,19 @@ fn build_alert_for_patch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::database::service::DatabaseService;
-    use crate::test_support::{FailingDb, MockConfig, MockDb};
+    use crate::test_support::{FailingDb, MockDb};
 
-    /// Build an `AlertService<D>` over the supplied `DatabasePort + AlertPort` double.
-    fn build_service<D>() -> AlertService<D>
+    /// Build an `AlertService<AP>` over the supplied `AlertPort` double.
+    fn build_service<AP>(d: &AP) -> AlertService<AP>
     where
-        D: AlertPort + DatabasePort,
+        AP: AlertPort,
     {
-        let conf_service = crate::domain::config::service::ConfigService {
-            port: MockConfig::new(),
-        };
-        let db_service = DatabaseService::<D>::new(&conf_service);
-        AlertService::new(&db_service)
+        AlertService::new(d)
     }
 
     #[tokio::test]
     async fn get_latest_alerts_returns_port_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let resp = service.get_latest_alerts(10, 5).await.unwrap();
         assert_eq!(resp.total, 42);
         assert!(resp.alerts.is_empty());
@@ -370,7 +354,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_latest_alerts_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let result = service.get_latest_alerts(10, 5).await;
         assert!(matches!(
             result,
@@ -380,7 +364,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_daily_alerts_returns_port_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let resp = service.get_daily_alerts(10, 5).await.unwrap();
         assert_eq!(resp.total, 42);
         assert!(resp.alerts.is_empty());
@@ -388,7 +372,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_daily_alerts_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let result = service.get_daily_alerts(10, 5).await;
         assert!(matches!(
             result,
@@ -398,7 +382,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_alert_returns_port_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let input = build_test_input();
         let resp = service.create_alert(input).await.unwrap();
         assert_eq!(resp.alert.identifier().as_str(), "alert-123");
@@ -406,7 +390,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_alert_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let input = build_test_input();
         let result = service.create_alert(input).await;
         assert!(matches!(
@@ -417,7 +401,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_alert_rejects_invalid_input() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let mut input = build_test_input();
         input.sender = "Invalid Sender".to_string();
         let result = service.create_alert(input).await;
@@ -426,7 +410,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_alert_returns_port_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = build_test_update_input();
         let resp = service.update_alert(identifier, input).await.unwrap();
@@ -436,7 +420,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_alert_rejects_invalid_input() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let mut input = build_test_update_input();
         input.sender = "Invalid Sender".to_string();
@@ -446,7 +430,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_alert_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = build_test_update_input();
         let result = service.update_alert(identifier, input).await;
@@ -458,7 +442,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_alert_returns_merged_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
             sender: Some(Some("PatchedSender".to_string())),
@@ -477,7 +461,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_alert_rejects_invalid_input() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
             sender: Some(Some("Invalid Sender".to_string())),
@@ -494,7 +478,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_alert_rejects_null_required_field() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
             sender: Some(None),
@@ -515,7 +499,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_alert_clears_optional_fields() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
             sender: None,
@@ -533,7 +517,7 @@ mod tests {
 
     #[tokio::test]
     async fn patch_alert_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let input = PatchAlertInput {
             sender: None,
@@ -553,7 +537,7 @@ mod tests {
 
     #[tokio::test]
     async fn delete_alert_returns_port_data() {
-        let service = build_service::<MockDb>();
+        let service = build_service(&MockDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let resp = service.delete_alert(identifier).await;
         assert!(matches!(resp, Ok(DeleteAlertResponse)));
@@ -561,7 +545,7 @@ mod tests {
 
     #[tokio::test]
     async fn delete_alert_propagates_error() {
-        let service = build_service::<FailingDb>();
+        let service = build_service(&FailingDb);
         let identifier = AlertIdentifier::new("alert-123".to_string()).unwrap();
         let result = service.delete_alert(identifier).await;
         assert!(matches!(
