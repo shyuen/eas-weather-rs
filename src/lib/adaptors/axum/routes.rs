@@ -1,5 +1,5 @@
 use axum::Router;
-use axum::http::Response;
+use axum::http::{Response, StatusCode};
 use axum::routing::{delete, get, patch, post, put};
 use std::time::Duration;
 use tower_http::trace::{DefaultMakeSpan, OnResponse, TraceLayer};
@@ -24,6 +24,7 @@ where
 {
     Router::new()
         .route("/", get(|| async { "Hello, World!" }))
+        .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
         .nest("/health", create_health_routes())
         .nest("/conf", create_conf_routes())
         .nest("/alerts", create_alert_routes())
