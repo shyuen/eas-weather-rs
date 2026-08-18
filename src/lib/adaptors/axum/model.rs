@@ -33,17 +33,19 @@ impl WebserverPort for WebserverAxum {
         WebserverAxum::new(conf_webserv.clone())
     }
 
-    async fn start_server<C, D>(
+    async fn start_server<C, AP, DP>(
         &self,
-        alert_service: &AlertService<D>,
+        alert_service: &AlertService<AP>,
         config_service: &ConfigService<C>,
+        db_port: &DP,
     ) -> Result<ShutdownReason, std::io::Error>
     where
         C: ConfigPort,
-        D: DatabasePort + AlertPort,
+        AP: AlertPort,
+        DP: DatabasePort,
     {
-        // Database port for graceful shutdown is sourced from the alert service.
-        let db_port = alert_service.get_database_port().clone();
+        // Database port for graceful shutdown
+        let db_port = db_port.clone();
 
         // Create the application state with the necessary services
         let state = AppState::new(config_service.clone(), alert_service.clone());

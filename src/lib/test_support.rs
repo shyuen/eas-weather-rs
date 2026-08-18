@@ -20,7 +20,6 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
-use crate::domain::database::service::DatabaseService;
 use crate::domain::logging::model::Logging;
 use crate::domain::webserver::model::Webserver;
 
@@ -128,7 +127,7 @@ impl ConfigPort for MockConfig {
     }
 }
 
-/// `DatabasePort + AlertPort` double that always returns successful results.
+/// `AlertPort` double that always returns successful results.
 #[derive(Clone)]
 pub struct MockDb;
 
@@ -238,7 +237,7 @@ impl AlertPort for MockDb {
     }
 }
 
-/// `DatabasePort + AlertPort` double that always fails with a database error.
+/// `AlertPort` double that always fails with a database error.
 #[derive(Clone)]
 pub struct FailingDb;
 
@@ -305,7 +304,7 @@ impl AlertPort for FailingDb {
     }
 }
 
-/// `DatabasePort + AlertPort` double whose `create_pool` fails with a
+/// `AlertPort` double whose `create_pool` fails with a
 /// configurable error a configurable number of times before succeeding.
 #[derive(Clone)]
 pub struct FlakyDb {
@@ -413,7 +412,7 @@ impl AlertPort for FlakyDb {
     }
 }
 
-/// `DatabasePort + AlertPort` double that reports a missing alert: reads and
+/// `AlertPort` double that reports a missing alert: reads and
 /// deletes for a specific identifier return `NotFound`.
 #[derive(Clone)]
 pub struct MissingDb;
@@ -500,24 +499,24 @@ pub fn mock_config_service(dpl: u64, plm: u64) -> ConfigService<MockConfig> {
 }
 
 /// Convenience: an `AppState` wired with the supplied `ConfigService` and a real
-/// `AlertService` over the supplied `D: DatabasePort + AlertPort` double.
-pub fn build_state<D>(
+/// `AlertService` over the supplied `AP: AlertPort` double.
+pub fn build_state<AP>(
     config_service: ConfigService<MockConfig>,
-) -> crate::adaptors::axum::app_state::AppState<MockConfig, D>
+    d: &AP,
+) -> crate::adaptors::axum::app_state::AppState<MockConfig, AP>
 where
-    D: DatabasePort + AlertPort + Clone,
+    AP: AlertPort + Clone,
 {
-    let db_service = DatabaseService::new(&config_service);
-    let alert_service = AlertService::new(&db_service);
+    let alert_service = AlertService::new(d);
     crate::adaptors::axum::app_state::AppState::new(config_service, alert_service)
 }
 
 /// Convenience: the router for the alert handlers, bound to `MockConfig`.
-pub fn build_alert_app<D>(
-    state: crate::adaptors::axum::app_state::AppState<MockConfig, D>,
+pub fn build_alert_app<AP>(
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP>,
 ) -> axum::Router
 where
-    D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
+    AP: AlertPort + Clone + Send + Sync + 'static,
 {
     use crate::adaptors::axum::handlers::alert::{
         create_alert, delete_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
@@ -525,21 +524,21 @@ where
     use axum::routing::{delete, get, patch, post, put};
 
     axum::Router::new()
-        .route("/", get(get_alerts::<MockConfig, D>))
-        .route("/", post(create_alert::<MockConfig, D>))
-        .route("/{identifier}", put(update_alert::<MockConfig, D>))
-        .route("/{identifier}", patch(patch_alert::<MockConfig, D>))
-        .route("/{identifier}", delete(delete_alert::<MockConfig, D>))
-        .route("/daily", get(get_daily_alerts::<MockConfig, D>))
+        .route("/", get(get_alerts::<MockConfig, AP>))
+        .route("/", post(create_alert::<MockConfig, AP>))
+        .route("/{identifier}", put(update_alert::<MockConfig, AP>))
+        .route("/{identifier}", patch(patch_alert::<MockConfig, AP>))
+        .route("/{identifier}", delete(delete_alert::<MockConfig, AP>))
+        .route("/daily", get(get_daily_alerts::<MockConfig, AP>))
         .with_state(state)
 }
 
 /// Convenience: the full router (all route groups) bound to `MockConfig`.
-pub fn build_full_app<D>(
-    state: crate::adaptors::axum::app_state::AppState<MockConfig, D>,
+pub fn build_full_app<AP>(
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP>,
 ) -> axum::Router
 where
-    D: DatabasePort + AlertPort + Clone + Send + Sync + 'static,
+    AP: AlertPort + Clone + Send + Sync + 'static,
 {
-    crate::adaptors::axum::routes::create_routes::<MockConfig, D>().with_state(state)
+    crate::adaptors::axum::routes::create_routes::<MockConfig, AP>().with_state(state)
 }

@@ -12,7 +12,6 @@ use crate::domain::alert::model::UpdateAlertInput;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
-use crate::domain::database::port::DatabasePort;
 
 /// Request body for replacing an existing alert. The identifier comes from the
 /// URL path, not the body.
@@ -64,14 +63,14 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn update_alert<C, DR>(
-    State(state): State<AppState<C, DR>>,
+pub(crate) async fn update_alert<C, AP>(
+    State(state): State<AppState<C, AP>>,
     Path(identifier): Path<String>,
     JsonBody(req): JsonBody<UpdateAlertRequest>,
 ) -> impl IntoResponse
 where
     C: ConfigPort,
-    DR: DatabasePort + AlertPort,
+    AP: AlertPort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
         Ok(id) => id,
@@ -119,7 +118,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_alert_success() {
-        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -141,7 +143,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_alert_invalid_identifier() {
-        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -159,7 +164,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_alert_validation_error() {
-        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
         let app = build_alert_app(state);
         let mut body = valid_update_body();
         body["sender"] = serde_json::json!("Invalid Sender");
@@ -182,8 +190,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_alert_db_error() {
-        let state =
-            build_state::<FailingDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
+        let state = build_state::<FailingDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &FailingDb,
+        );
         let app = build_alert_app(state);
         let response = app
             .oneshot(
@@ -201,7 +211,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_alert_missing_field_returns_422() {
-        let state = build_state::<MockDb>(mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX));
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
         let app = build_alert_app(state);
         let mut body = valid_update_body();
         body.as_object_mut().unwrap().remove("sender");
