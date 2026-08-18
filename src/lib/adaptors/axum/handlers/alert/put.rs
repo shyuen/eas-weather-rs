@@ -63,13 +63,13 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn update_alert<C, AP>(
-    State(state): State<AppState<C, AP>>,
+pub(crate) async fn update_alert<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
     Path(identifier): Path<String>,
     JsonBody(req): JsonBody<UpdateAlertRequest>,
 ) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let identifier = match AlertIdentifier::new(identifier) {

@@ -13,14 +13,14 @@ pub trait WebserverPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// Start the web server. The returned `ShutdownReason` indicates why the
     /// server stopped so the caller (service) can log it; the adaptor performs
     /// the shutdown but does not own the logging.
-    fn start_server<C, AP, DP>(
+    fn start_server<CP, AP, DP>(
         &self,
         alert_service: &AlertService<AP>,
-        config_service: &ConfigService<C>,
+        config_service: &ConfigService<CP>,
         db_port: &DP,
     ) -> impl std::future::Future<Output = Result<ShutdownReason, std::io::Error>> + Send
     where
-        C: ConfigPort,
+        CP: ConfigPort,
         AP: AlertPort,
         DP: DatabasePort;
 }

@@ -23,12 +23,12 @@ use crate::domain::config::port::ConfigPort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_alerts<C, AP>(
-    State(state): State<AppState<C, AP>>,
+pub(crate) async fn get_alerts<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let conf = state.get_config_service().get_validated_app_conf();
@@ -69,12 +69,12 @@ where
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_daily_alerts<C, AP>(
-    State(state): State<AppState<C, AP>>,
+pub(crate) async fn get_daily_alerts<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let conf = state.get_config_service().get_validated_app_conf();

@@ -18,9 +18,9 @@ where
     D: DatabasePort,
 {
     /// Creates a new instance of DatabaseService.
-    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
+    pub fn new<CP>(conf_serv: &ConfigService<CP>) -> Self
     where
-        C: ConfigPort,
+        CP: ConfigPort,
     {
         let conf = conf_serv.get_database_config().clone();
         let db_port = D::new(&conf);

@@ -26,12 +26,12 @@ use crate::domain::config::port::ConfigPort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn delete_alert<C, AP>(
-    State(state): State<AppState<C, AP>>,
+pub(crate) async fn delete_alert<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
     Path(identifier): Path<String>,
 ) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
