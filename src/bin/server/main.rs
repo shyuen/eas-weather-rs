@@ -17,7 +17,7 @@ async fn main() -> Result<(), std::io::Error> {
         ConfigService::from_config_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
-    let logging_port = LoggingTracing::init(conf_service.get_logging_config());
+    let logging_port = LoggingTracing::new(conf_service.get_logging_config());
 
     // Output raw configuration information after logging service is initialized
     conf_service.log_raw_config_input();

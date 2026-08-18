@@ -9,5 +9,5 @@ use crate::domain::logging::model::Logging;
 /// target/module-path/file:line reflect the true origin rather than this adaptor.
 pub trait LoggingPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// Configure and install the logging backend from the given configuration.
-    fn init(conf: &Logging) -> Self;
+    fn new(conf: &Logging) -> Self;
 }
