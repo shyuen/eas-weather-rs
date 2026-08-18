@@ -6,22 +6,22 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 /// The global application state shared between all request handlers.
-pub struct AppState<C, AP>
+pub struct AppState<CP, AP>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
-    config_service: Arc<ConfigService<C>>,
+    config_service: Arc<ConfigService<CP>>,
     alert_service: Arc<AlertService<AP>>,
 }
 
-impl<C, AP> AppState<C, AP>
+impl<CP, AP> AppState<CP, AP>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     /// Create a new AppState with the given services.
-    pub fn new(config_service: ConfigService<C>, alert_service: AlertService<AP>) -> Self {
+    pub fn new(config_service: ConfigService<CP>, alert_service: AlertService<AP>) -> Self {
         Self {
             config_service: Arc::new(config_service),
             alert_service: Arc::new(alert_service),
@@ -29,7 +29,7 @@ where
     }
 
     /// Get a reference to the ConfigService.
-    pub fn get_config_service(&self) -> Arc<ConfigService<C>> {
+    pub fn get_config_service(&self) -> Arc<ConfigService<CP>> {
         self.config_service.clone()
     }
 
