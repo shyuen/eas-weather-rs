@@ -58,12 +58,12 @@ impl From<CreateAlertRequest> for CreateAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn create_alert<C, AP>(
-    State(state): State<AppState<C, AP>>,
+pub(crate) async fn create_alert<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
     JsonBody(req): JsonBody<CreateAlertRequest>,
 ) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let alert_service = state.get_alert_service();
