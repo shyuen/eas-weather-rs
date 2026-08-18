@@ -19,8 +19,9 @@ pub struct DatabaseMySql {
     pool: Option<sqlx::MySqlPool>, // This is optional to allow application startup without immediate DB connection
 }
 
-/// Implementation of the DatabaseRepo trait for MySQL using sqlx
+/// Implementation of the DatabaseMySql struct
 impl DatabaseMySql {
+    // Getter for the connection pool
     pub fn get_pool(&self) -> Option<&sqlx::MySqlPool> {
         self.pool.as_ref()
     }

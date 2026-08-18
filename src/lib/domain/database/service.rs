@@ -1,4 +1,3 @@
-use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
@@ -8,7 +7,7 @@ use tracing::{debug, error, info, warn};
 #[derive(Debug, Clone)]
 pub struct DatabaseService<D>
 where
-    D: DatabasePort + AlertPort,
+    D: DatabasePort,
 {
     db_port: D,
     conf: Database,
@@ -16,7 +15,7 @@ where
 
 impl<D> DatabaseService<D>
 where
-    D: DatabasePort + AlertPort,
+    D: DatabasePort,
 {
     /// Creates a new instance of DatabaseService.
     pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
