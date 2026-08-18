@@ -17,9 +17,9 @@ use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 
-pub fn create_routes<C, AP>() -> Router<AppState<C, AP>>
+pub fn create_routes<CP, AP>() -> Router<AppState<CP, AP>>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     Router::new()
@@ -65,9 +65,9 @@ impl<B> OnResponse<B> for StatusOnResponse {
     }
 }
 
-pub fn create_health_routes<C, AP>() -> Router<AppState<C, AP>>
+pub fn create_health_routes<CP, AP>() -> Router<AppState<CP, AP>>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     Router::new()
@@ -76,9 +76,9 @@ where
         .route("/liveness", get(liveness))
 }
 
-pub fn create_conf_routes<C, AP>() -> Router<AppState<C, AP>>
+pub fn create_conf_routes<CP, AP>() -> Router<AppState<CP, AP>>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     Router::new()
@@ -86,9 +86,9 @@ where
         .route("/app", get(get_app_config))
 }
 
-pub fn create_alert_routes<C, AP>() -> Router<AppState<C, AP>>
+pub fn create_alert_routes<CP, AP>() -> Router<AppState<CP, AP>>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     Router::new()

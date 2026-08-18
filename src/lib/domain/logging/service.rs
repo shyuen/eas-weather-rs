@@ -15,9 +15,9 @@ where
     L: LoggingPort,
 {
     /// Creates a new instance of LoggingService, installing the logging backend.
-    pub fn new<C>(conf_serv: &ConfigService<C>) -> Self
+    pub fn new<CP>(conf_serv: &ConfigService<CP>) -> Self
     where
-        C: ConfigPort,
+        CP: ConfigPort,
     {
         let conf_log = conf_serv.get_logging_config();
         let log_port = L::init(conf_log);

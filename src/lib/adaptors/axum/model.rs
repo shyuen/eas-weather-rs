@@ -33,14 +33,14 @@ impl WebserverPort for WebserverAxum {
         WebserverAxum::new(conf_webserv.clone())
     }
 
-    async fn start_server<C, AP, DP>(
+    async fn start_server<CP, AP, DP>(
         &self,
         alert_service: &AlertService<AP>,
-        config_service: &ConfigService<C>,
+        config_service: &ConfigService<CP>,
         db_port: &DP,
     ) -> Result<ShutdownReason, std::io::Error>
     where
-        C: ConfigPort,
+        CP: ConfigPort,
         AP: AlertPort,
         DP: DatabasePort,
     {

@@ -34,14 +34,14 @@ where
         &self.repo
     }
 
-    pub async fn start_server<C, AP, DP>(
+    pub async fn start_server<CP, AP, DP>(
         &self,
         alert_serv: &AlertService<AP>,
-        config_serv: &ConfigService<C>,
+        config_serv: &ConfigService<CP>,
         db_port: &DP,
     ) -> Result<(), std::io::Error>
     where
-        C: ConfigPort,
+        CP: ConfigPort,
         AP: AlertPort,
         DP: DatabasePort,
     {

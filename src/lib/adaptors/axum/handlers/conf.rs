@@ -36,9 +36,11 @@ pub struct ConfResponse {
     ),
     tag = "conf"
 )]
-pub(crate) async fn get_raw_config<C, AP>(State(state): State<AppState<C, AP>>) -> impl IntoResponse
+pub(crate) async fn get_raw_config<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
+) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let raw_conf = state.get_config_service().get_raw_config().clone();
@@ -57,9 +59,11 @@ where
     ),
     tag = "conf"
 )]
-pub(crate) async fn get_app_config<C, AP>(State(state): State<AppState<C, AP>>) -> impl IntoResponse
+pub(crate) async fn get_app_config<CP, AP>(
+    State(state): State<AppState<CP, AP>>,
+) -> impl IntoResponse
 where
-    C: ConfigPort,
+    CP: ConfigPort,
     AP: AlertPort,
 {
     let conf = state.get_config_service().get_validated_app_conf();

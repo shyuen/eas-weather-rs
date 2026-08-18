@@ -10,29 +10,29 @@ use crate::domain::logging::new_types::lg_format::LoggingFormatType;
 use crate::domain::webserver::model::Webserver;
 
 #[derive(Debug, Clone)]
-pub struct ConfigService<C>
+pub struct ConfigService<CP>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
 {
-    pub port: C,
+    pub port: CP,
 }
 
-impl<C> Default for ConfigService<C>
+impl<CP> Default for ConfigService<CP>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<C> ConfigService<C>
+impl<CP> ConfigService<CP>
 where
-    C: ConfigPort,
+    CP: ConfigPort,
 {
     /// Creates a new instance of ConfigService.
     pub fn new() -> Self {
-        let port = C::new();
+        let port = CP::new();
         Self { port }
     }
 
@@ -41,12 +41,12 @@ where
     /// Lets the composition root inject adaptor-specific construction inputs
     /// (e.g. pre-parsed CLI arguments) that the parameterless [`ConfigPort::new`]
     /// cannot express.
-    pub fn from_config_port(port: C) -> Self {
+    pub fn from_config_port(port: CP) -> Self {
         Self { port }
     }
 
     /// Get the Config port
-    pub fn get_config_port(&self) -> &C {
+    pub fn get_config_port(&self) -> &CP {
         &self.port
     }
 
