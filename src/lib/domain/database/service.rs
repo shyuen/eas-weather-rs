@@ -1,5 +1,3 @@
-use crate::domain::config::port::ConfigPort;
-use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
 use tracing::{debug, error, info, warn};
@@ -18,11 +16,7 @@ where
     D: DatabasePort,
 {
     /// Creates a new instance of DatabaseService.
-    pub fn new<CP>(conf_serv: &ConfigService<CP>) -> Self
-    where
-        CP: ConfigPort,
-    {
-        let conf = conf_serv.get_database_config().clone();
+    pub fn new(conf: Database) -> Self {
         let db_port = D::new(&conf);
         Self { db_port, conf }
     }
