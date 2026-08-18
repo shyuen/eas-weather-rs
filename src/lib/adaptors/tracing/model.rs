@@ -41,7 +41,7 @@ impl AdaptorConfigRepr for LoggingTracing {
 }
 
 impl LoggingPort for LoggingTracing {
-    fn init(conf_log: &Logging) -> Self {
+    fn new(conf_log: &Logging) -> Self {
         let format = conf_log.format.clone();
         let trace_level = conf_log.trace_level.clone();
 
