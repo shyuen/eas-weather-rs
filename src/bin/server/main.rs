@@ -27,7 +27,8 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_adaptor_config(&logging_port);
 
     // Initialize the database service
-    let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(&conf_service);
+    let db_conf = conf_service.get_database_config().clone();
+    let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(db_conf);
 
     // Output database adaptor configuration
     conf_service.log_adaptor_config(database_service.get_database_port());
