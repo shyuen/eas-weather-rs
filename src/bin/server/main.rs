@@ -6,7 +6,7 @@ use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
 use eas_weather_rs::domain::alert::service::AlertService;
 use eas_weather_rs::domain::config::service::ConfigService;
 use eas_weather_rs::domain::database::service::DatabaseService;
-use eas_weather_rs::domain::logging::service::LoggingService;
+use eas_weather_rs::domain::logging::port::LoggingPort;
 use eas_weather_rs::domain::webserver::service::WebserverService;
 
 #[tokio::main]
@@ -17,14 +17,14 @@ async fn main() -> Result<(), std::io::Error> {
         ConfigService::from_config_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
-    let logging_service: LoggingService<LoggingTracing> = LoggingService::new(&conf_service);
+    let logging_port = LoggingTracing::init(conf_service.get_logging_config());
 
     // Output raw configuration information after logging service is initialized
     conf_service.log_raw_config_input();
     conf_service.log_raw_config_validation();
 
     // Output logging adaptor configuration
-    conf_service.log_adaptor_config(logging_service.get_logging_port());
+    conf_service.log_adaptor_config(&logging_port);
 
     // Initialize the database service
     let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(&conf_service);
