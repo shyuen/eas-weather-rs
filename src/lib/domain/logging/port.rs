@@ -1,4 +1,3 @@
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::logging::model::Logging;
 
 /// Port for the logging backend.
@@ -7,7 +6,7 @@ use crate::domain::logging::model::Logging;
 /// backend from config and reporting what was applied. Emission is performed by
 /// calling the `tracing` macros directly at each call site, so that the captured
 /// target/module-path/file:line reflect the true origin rather than this adaptor.
-pub trait LoggingPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
+pub trait LoggingPort: Clone + Send + Sync + 'static {
     /// Configure and install the logging backend from the given configuration.
     fn new(conf: &Logging) -> Self;
 }

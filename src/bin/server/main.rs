@@ -6,6 +6,7 @@ use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
 use eas_weather_rs::domain::alert::service::AlertService;
 use eas_weather_rs::domain::config::service::ConfigService;
 use eas_weather_rs::domain::database::service::DatabaseService;
+use eas_weather_rs::domain::logging::adaptor_logger::log_adaptor_config;
 use eas_weather_rs::domain::logging::port::LoggingPort;
 use eas_weather_rs::domain::webserver::service::WebserverService;
 
@@ -24,14 +25,17 @@ async fn main() -> Result<(), std::io::Error> {
     conf_service.log_raw_config_validation();
 
     // Output logging adaptor configuration
-    conf_service.log_adaptor_config(&logging_port);
+    log_adaptor_config(conf_service.get_logging_config(), &logging_port);
 
     // Initialize the database service
     let db_conf = conf_service.get_database_config().clone();
     let mut database_service: DatabaseService<DatabaseMySql> = DatabaseService::new(db_conf);
 
     // Output database adaptor configuration
-    conf_service.log_adaptor_config(database_service.get_database_port());
+    log_adaptor_config(
+        conf_service.get_logging_config(),
+        database_service.get_database_port(),
+    );
 
     // Initialize database connection pool within the service
     if let Err(err) = database_service.create_pool().await {
@@ -44,7 +48,10 @@ async fn main() -> Result<(), std::io::Error> {
         WebserverService::new(conf_service.get_webservicer_config());
 
     // Output webserver adaptor configuration
-    conf_service.log_adaptor_config(webserver_service.get_webserver_port());
+    log_adaptor_config(
+        conf_service.get_logging_config(),
+        webserver_service.get_webserver_port(),
+    );
 
     // Initialize alert service
     let alert_service = AlertService::new(database_service.get_database_port());

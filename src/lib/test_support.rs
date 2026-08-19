@@ -14,24 +14,19 @@ use crate::domain::alert::model::Alert;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::*;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
+use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::logging::model::Logging;
+use crate::domain::logging::new_types::lg_format::LoggingFormat;
+use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevel;
 use crate::domain::webserver::model::Webserver;
 
 pub const DEFAULT_PAGE_LIMIT: u64 = 10;
 pub const PAGE_LIMIT_MAX: u64 = 50;
-
-fn raw_logging() -> ConfigLogging {
-    ConfigLogging {
-        format: None,
-        trace_level: None,
-    }
-}
 
 fn raw_database() -> ConfigDatabase {
     ConfigDatabase {
@@ -78,7 +73,7 @@ pub struct MockConfig {
 impl MockConfig {
     pub fn new() -> Self {
         Self {
-            logging: Logging::new(&raw_logging()),
+            logging: Logging::new(LoggingFormat::default(), LoggingTraceLevel::default()),
             database: Database::new(&raw_database()),
             webserver: Webserver::new(&raw_webserver(None, None)),
             raw_conf: None,
