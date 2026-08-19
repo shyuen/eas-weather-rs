@@ -1,7 +1,7 @@
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
+use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormat;
 use crate::domain::logging::new_types::lg_format::LoggingFormatType;

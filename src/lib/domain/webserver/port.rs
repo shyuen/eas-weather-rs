@@ -1,9 +1,9 @@
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
+use crate::domain::logging::adaptor_config::AdaptorConfigRepr;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 
 pub trait WebserverPort: AdaptorConfigRepr + Clone + Send + Sync + 'static {

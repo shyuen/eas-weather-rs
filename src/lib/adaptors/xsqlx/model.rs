@@ -1,10 +1,10 @@
 use sqlx::mysql::{MySqlConnectOptions, MySqlPoolOptions};
 use std::time::Duration;
 
-use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::database::model::Database;
 use crate::domain::database::new_types::db_conn_string::DbConnectionString;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
+use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseMySql {
