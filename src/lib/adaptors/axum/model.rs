@@ -7,10 +7,10 @@ use tokio::sync::oneshot;
 use crate::adaptors::axum::routes::create_routes;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::alert::service::AlertService;
-use crate::domain::config::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
+use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
 use crate::domain::webserver::port::WebserverPort;
 

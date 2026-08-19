@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-use crate::domain::config::adaptor_config::AdaptorConfigRepr;
 use crate::domain::database::model::Database;
+use crate::domain::logging::adaptor_config::AdaptorConfigRepr;
 
 /// Errors that can occur while establishing a database connection pool.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

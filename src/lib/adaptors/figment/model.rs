@@ -10,6 +10,8 @@ use crate::domain::config::model::{Config, RawConfigInputs};
 use crate::domain::config::port::ConfigPort;
 use crate::domain::database::model::Database;
 use crate::domain::logging::model::Logging;
+use crate::domain::logging::new_types::lg_format::LoggingFormat;
+use crate::domain::logging::new_types::lg_trace_level::LoggingTraceLevel;
 use crate::domain::webserver::model::Webserver;
 
 /// The app-name component of the env-var namespace, matching the crate name
@@ -165,9 +167,23 @@ impl ConfigFigment {
     pub fn with_cli(cli: serde_json::Value) -> Self {
         // Collect the raw configuration from all sources (CLI, ENV, FILE) and merge them into a single `Config` struct.
         let conf = collect_raw_input(&cli);
+
+        // Convert raw logging config to validated domain model
+        let log_format = match &conf.logging.format {
+            Some(raw_log_format) => {
+                LoggingFormat::new(raw_log_format).unwrap_or_else(|_| LoggingFormat::default())
+            }
+            None => LoggingFormat::default(),
+        };
+        let log_trace_level = match &conf.logging.trace_level {
+            Some(raw_trace_level) => LoggingTraceLevel::new(raw_trace_level)
+                .unwrap_or_else(|_| LoggingTraceLevel::default()),
+            None => LoggingTraceLevel::default(),
+        };
+
         Self {
             conf_raw: conf.clone(),
-            conf_logging: Logging::new(&conf.logging),
+            conf_logging: Logging::new(log_format, log_trace_level),
             conf_database: Database::new(&conf.database),
             conf_webserver: Webserver::new(&conf.webserver),
             cli,
@@ -252,18 +268,55 @@ impl ConfigPort for ConfigFigment {
     /// Run validation over the effective configuration, collecting detected issues
     fn validate_raw_config(&self) -> Vec<ConfigIssue> {
         let mut issues = Vec::new();
-        issues.extend(
-            self.conf_logging
-                .validate_raw_config(&self.conf_raw.logging),
-        );
+
+        // Validate logging config
+        match &self.conf_raw.logging.format {
+            Some(raw_log_format) => {
+                if LoggingFormat::new(raw_log_format).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.format",
+                        value: raw_log_format.to_string(),
+                        default: LoggingFormat::default().to_string(),
+                    });
+                }
+            }
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.format",
+                    default: LoggingFormat::default().to_string(),
+                });
+            }
+        }
+        match &self.conf_raw.logging.trace_level {
+            Some(raw_trace_level) => {
+                if LoggingTraceLevel::new(raw_trace_level).is_err() {
+                    issues.push(ConfigIssue::Invalid {
+                        key: "logging.trace_level",
+                        value: raw_trace_level.to_string(),
+                        default: LoggingTraceLevel::default().to_string(),
+                    });
+                }
+            }
+            None => {
+                issues.push(ConfigIssue::NotSpecified {
+                    key: "logging.trace_level",
+                    default: LoggingTraceLevel::default().to_string(),
+                });
+            }
+        }
+
+        // Validate database config
         issues.extend(
             self.conf_database
                 .validate_raw_config(&self.conf_raw.database),
         );
+
+        // Validate webserver config
         issues.extend(
             self.conf_webserver
                 .validate_raw_config(&self.conf_raw.webserver),
         );
+
         issues
     }
 }
