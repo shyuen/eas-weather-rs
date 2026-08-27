@@ -31,7 +31,12 @@ async fn main() {
 
     let migrations = sqlx::migrate!("./migrations");
 
-    match migrations.run_direct(&mut conn).await {
+    println!("Found {} migration(s):", migrations.iter().count());
+    for m in migrations.iter() {
+        println!("  v{} — {}", m.version, m.description);
+    }
+
+    match migrations.run(&mut conn).await {
         Ok(()) => {
             println!("Migrations complete");
         }
