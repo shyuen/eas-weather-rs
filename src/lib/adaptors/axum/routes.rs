@@ -5,7 +5,6 @@ use axum::routing::{delete, get, patch, post, put};
 use std::time::Duration;
 use tower_http::trace::{DefaultMakeSpan, OnResponse, TraceLayer};
 use tracing::{Level, Span};
-use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::adaptors::axum::app_state::AppState;
@@ -15,7 +14,7 @@ use crate::adaptors::axum::handlers::alert::{
 };
 use crate::adaptors::axum::handlers::conf::{get_app_config, get_raw_config};
 use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
-use crate::adaptors::axum::openapi::ApiDoc;
+use crate::adaptors::axum::openapi::api_doc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 
@@ -33,16 +32,21 @@ where
         .nest("/health", create_health_routes())
         .nest("/conf", create_conf_routes(api_key))
         .nest("/alerts", create_alert_routes())
-        .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", api_doc(base_path)),
+        )
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
                 .on_response(StatusOnResponse),
         );
 
-    match base_path {
-        Some(path) if !path.is_empty() => Router::new().nest(path, routes),
-        _ => routes,
+    match base_path
+        .as_deref()
+        .filter(|p| !p.is_empty() && *p != "/")
+    {
+        Some(path) => Router::new().nest(path, routes),
+        None => routes,
     }
 }
 
@@ -115,7 +119,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::test_support::{
-        DEFAULT_PAGE_LIMIT, MockDb, PAGE_LIMIT_MAX, build_full_app, build_state,
+        DEFAULT_PAGE_LIMIT, MockConfig, MockDb, PAGE_LIMIT_MAX, build_full_app, build_state,
         mock_config_service,
     };
     use axum::body::Body;
@@ -162,6 +166,34 @@ mod tests {
     #[tokio::test]
     async fn test_routes_are_mounted() {
         assert_eq!(get_status("/conf/app").await, 200);
+    }
+
+    #[tokio::test]
+    async fn routes_nested_under_base_path() {
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
+        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/api".into()))
+            .with_state(state);
+
+        async fn status(app: &axum::Router, uri: &str) -> u16 {
+            app.clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+                .status()
+                .as_u16()
+        }
+
+        // Root-level paths are not served when base_path is set
+        assert_eq!(status(&app, "/alerts").await, 404);
+        // Everything is nested under the base path
+        assert_eq!(status(&app, "/api/alerts").await, 200);
+        assert_eq!(status(&app, "/api/conf/app").await, 200);
+        assert_eq!(status(&app, "/api/health/startup").await, 200);
+        // Swagger UI is served under the base path
+        assert_eq!(status(&app, "/api/swagger-ui/index.html").await, 200);
     }
 
     #[test]

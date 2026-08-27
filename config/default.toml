@@ -9,7 +9,7 @@ trace_level = "info"          # Log level ["error", "warn", "info", "debug", "tr
 
 [webserver]
 hostname = "localhost"      # Server host
-#base_path = "/"             # Base path for API
+base_path = "/dino"             # Base path for API
 port = 8080                 # Server port
 
 shutdown_timeout_secs = 5   # Graceful shutdown timeout in seconds
