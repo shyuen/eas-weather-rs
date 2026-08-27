@@ -45,17 +45,17 @@ The configuration is loaded in the following order, with later values overriding
 1. Command line arguments (e.g., `--log-format`)
 
 ### Environment Variables
-All environment variables share the `EAS_WEATHER_RS` base prefix (derived from the package name `eas-weather-rs`), followed by a section, then the key — each part separated by `__`. This is the same naming shown in `cargo run -- --help` next to each flag (e.g. `[env: EAS_WEATHER_RS__SERVER__PORT=]`). Any value may also be set via the `.env` file (see below).
+All environment variables share the `EAS_WEATHER_RS` base prefix (derived from the package name `eas-weather-rs`), followed by a section, then the key — each part separated by `__`. This is the same naming shown in `cargo run -- --help` next to each flag (e.g. `[env: EAS_WEATHER_RS__WEBSERVER__PORT=]`). Any value may also be set via the `.env` file (see below).
 
 The prefixes are:
 - `EAS_WEATHER_RS__APP__` — application-level settings (e.g. `EAS_WEATHER_RS__APP__CONFIG_FILE`)
 - `EAS_WEATHER_RS__LOGGING__` — logging (`EAS_WEATHER_RS__LOGGING__FORMAT`, `EAS_WEATHER_RS__LOGGING__TRACE_LEVEL`)
-- `EAS_WEATHER_RS__SERVER__` — web server (`EAS_WEATHER_RS__SERVER__HOSTNAME`, `EAS_WEATHER_RS__SERVER__PORT`, ...)
+- `EAS_WEATHER_RS__WEBSERVER__` — web server (`EAS_WEATHER_RS__WEBSERVER__HOSTNAME`, `EAS_WEATHER_RS__WEBSERVER__PORT`, ...)
 - `EAS_WEATHER_RS__DATABASE__` — database (`EAS_WEATHER_RS__DATABASE__CONN_URL_FILE`, `EAS_WEATHER_RS__DATABASE__CONN_MAX_RETRIES`, ...)
 
 Example:
 ```bash
-export EAS_WEATHER_RS__SERVER__PORT=8080
+export EAS_WEATHER_RS__WEBSERVER__PORT=8080
 export EAS_WEATHER_RS__LOGGING__FORMAT="json"
 ```
 
@@ -63,11 +63,64 @@ export EAS_WEATHER_RS__LOGGING__FORMAT="json"
 
 **.env file:** a `.env` file in the project root can set any of these variables. It uses the same keys without the leading `export`:
 ```
-EAS_WEATHER_RS__SERVER__HOSTNAME="localhost"
+EAS_WEATHER_RS__WEBSERVER__HOSTNAME="localhost"
 EAS_WEATHER_RS__LOGGING__FORMAT="json"
 ```
 
 The defaults for every key are defined in `config/default.toml`.
+
+### Database Migrations
+
+Migrations are managed by SQLx and live in the `migrations/` directory. Each migration has an `up.sql` (apply) and `down.sql` (revert) file.
+
+#### Building the Migration Binary
+```bash
+cargo build --bin eas-migrate
+```
+
+#### Running Migrations
+The migration runner uses the same config precedence as the main server (CLI → env → file → defaults). It reads the database connection string from the configured source.
+
+```bash
+# Using default config (reads from ./config/mysql_conn_url)
+cargo run --bin eas-migrate
+
+# With explicit connection URL file
+cargo run --bin eas-migrate -- --database-conn-url-file ./config/mysql_conn_url
+
+# Via environment variable
+EAS_WEATHER_RS__DATABASE__CONN_URL_FILE=./config/mysql_conn_url cargo run --bin eas-migrate
+```
+
+#### Running Rollbacks
+To revert the last N migrations, use the SQLx CLI:
+```bash
+cargo install sqlx-cli
+sqlx migrate revert --step N
+```
+
+Or programmatically via the `Migrator::revert` method.
+
+#### Kubernetes Usage
+In a k8s deployment, run `eas-migrate` as an **init container** before the main app container starts:
+
+```yaml
+initContainers:
+  - name: migrate
+    image: your-registry/eas-migrate:tag
+    command: ["eas-migrate"]
+    env:
+      - name: EAS_WEATHER_RS__DATABASE__CONN_URL_FILE
+        value: /etc/eas/conn_url
+    volumeMounts:
+      - name: db-credentials
+        mountPath: /etc/eas
+        readOnly: true
+containers:
+  - name: app
+    image: your-registry/eas-weather-rs:tag
+    # ...
+```
 
 ### Logging
 https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/

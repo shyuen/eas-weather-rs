@@ -7,6 +7,10 @@ edition = "2024"
 name = "eas-weather-rs"
 path = "src/bin/server/main.rs"
 
+[[bin]]
+name = "eas-migrate"
+path = "src/bin/migrate/main.rs"
+
 [lib]
 name = "eas_weather_rs"
 path = "src/lib/lib.rs"
@@ -27,7 +31,7 @@ strum_macros = "0.27"
 
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
-sqlx = { version = "0.8", features = [ "mysql", "runtime-tokio", "time"] }
+sqlx = { version = "0.8", features = [ "mysql", "runtime-tokio", "time", "migrate"] }
 tokio = {version="1", features = ["macros", "rt-multi-thread", "signal"]}
 serde_json = "1.0"
 axum = {version = "0.8.8"}
