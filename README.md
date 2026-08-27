@@ -123,6 +123,37 @@ containers:
 ### Logging
 https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/
 
+### Container Images
+
+#### Using Docker (Dockerfile)
+```bash
+# Build server image
+docker build -t eas-weather-rs .
+
+# Build migration image (override entrypoint)
+docker build -t eas-migrate --build-arg BINARY=eas-migrate .
+```
+
+#### Using Nix (flake)
+```bash
+# Build server image
+nix build .#docker
+docker load < result
+
+# Build migration image
+nix build .#migrate
+docker load < result
+```
+
+#### Running Containers
+```bash
+# Server
+docker run -p 8080:8080 eas-weather-rs
+
+# Migrations (run as init container or manually)
+docker run --entrypoint /app/eas-migrate eas-weather-rs
+```
+
 ### Coverage Report
 Run the following command to generate an html report
 ```
