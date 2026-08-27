@@ -1,5 +1,6 @@
 use axum::Router;
 use axum::http::{Response, StatusCode};
+use axum::middleware;
 use axum::routing::{delete, get, patch, post, put};
 use std::time::Duration;
 use tower_http::trace::{DefaultMakeSpan, OnResponse, TraceLayer};
@@ -8,6 +9,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::adaptors::axum::app_state::AppState;
+use crate::adaptors::axum::auth::require_api_key;
 use crate::adaptors::axum::handlers::alert::{
     create_alert, delete_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
 };
@@ -17,7 +19,7 @@ use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 
-pub fn create_routes<CP, AP>() -> Router<AppState<CP, AP>>
+pub fn create_routes<CP, AP>(api_key: Option<String>) -> Router<AppState<CP, AP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
@@ -26,7 +28,7 @@ where
         .route("/", get(|| async { "Hello, World!" }))
         .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
         .nest("/health", create_health_routes())
-        .nest("/conf", create_conf_routes())
+        .nest("/conf", create_conf_routes(api_key))
         .nest("/alerts", create_alert_routes())
         .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(
@@ -77,7 +79,7 @@ where
         .route("/liveness", get(liveness))
 }
 
-pub fn create_conf_routes<CP, AP>() -> Router<AppState<CP, AP>>
+pub fn create_conf_routes<CP, AP>(api_key: Option<String>) -> Router<AppState<CP, AP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
@@ -85,6 +87,7 @@ where
     Router::new()
         .route("/raw", get(get_raw_config))
         .route("/app", get(get_app_config))
+        .layer(middleware::from_fn_with_state(api_key, require_api_key))
 }
 
 pub fn create_alert_routes<CP, AP>() -> Router<AppState<CP, AP>>

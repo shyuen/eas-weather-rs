@@ -1,4 +1,5 @@
-use utoipa::OpenApi;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::{Modify, OpenApi};
 
 /// The OpenAPI document for this service, collected from the annotated handlers.
 ///
@@ -31,6 +32,26 @@ use utoipa::OpenApi;
         crate::adaptors::axum::handlers::error::ErrorCode,
         crate::adaptors::axum::handlers::conf::RawConfResponse,
         crate::adaptors::axum::handlers::conf::ConfResponse
-    ))
+    )),
+    modifiers(&SecurityAddon)
 )]
 pub(crate) struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi
+            .components
+            .get_or_insert_with(utoipa::openapi::Components::new);
+        components.security_schemes.insert(
+            "ApiKeyAuth".to_string(),
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("API Key")
+                    .build(),
+            ),
+        );
+    }
+}

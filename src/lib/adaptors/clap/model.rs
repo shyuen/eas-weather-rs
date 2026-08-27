@@ -48,48 +48,48 @@ struct Webserver {
     #[arg(
         short = 'n',
         long = "hostname",
-        env = "EAS_WEATHER_RS__SERVER__HOSTNAME"
+        env = "EAS_WEATHER_RS__WEBSERVER__HOSTNAME"
     )]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) hostname: Option<String>,
 
     /// Port number to be used by the server
-    #[arg(short = 'p', long, env = "EAS_WEATHER_RS__SERVER__PORT")]
+    #[arg(short = 'p', long, env = "EAS_WEATHER_RS__WEBSERVER__PORT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) port: Option<u16>,
 
     /// Subdir path to be used by the server
-    #[arg(short = 'b', long, env = "EAS_WEATHER_RS__SERVER__BASE_PATH")]
+    #[arg(short = 'b', long, env = "EAS_WEATHER_RS__WEBSERVER__BASE_PATH")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) base_path: Option<String>,
 
     /// Graceful shutdown timeout in seconds
-    #[arg(long, env = "EAS_WEATHER_RS__SERVER__SHUTDOWN_TIMEOUT_SECS")]
+    #[arg(long, env = "EAS_WEATHER_RS__WEBSERVER__SHUTDOWN_TIMEOUT_SECS")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) shutdown_timeout_secs: Option<u64>,
 
     /// Path to the API key file
-    #[arg(short = 'k', long, env = "EAS_WEATHER_RS__SERVER__API_KEY_FILE")]
+    #[arg(short = 'k', long, env = "EAS_WEATHER_RS__WEBSERVER__API_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) api_key_file: Option<String>,
 
     /// Path to the JWT key file
-    #[arg(short = 'j', long, env = "EAS_WEATHER_RS__SERVER__JWT_KEY_FILE")]
+    #[arg(short = 'j', long, env = "EAS_WEATHER_RS__WEBSERVER__JWT_KEY_FILE")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwt_key_file: Option<String>,
 
     /// JWT access token expiry in seconds
-    #[arg(long, env = "EAS_WEATHER_RS__SERVER__JWT_ACCESS_TOKEN_EXPIRY_SECS")]
+    #[arg(long, env = "EAS_WEATHER_RS__WEBSERVER__JWT_ACCESS_TOKEN_EXPIRY_SECS")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) jwt_access_token_expiry_secs: Option<u64>,
 
     /// Default page limit for paginated endpoints
-    #[arg(long, env = "EAS_WEATHER_RS__SERVER__DEFAULT_PAGE_LIMIT")]
+    #[arg(long, env = "EAS_WEATHER_RS__WEBSERVER__DEFAULT_PAGE_LIMIT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) default_page_limit: Option<u64>,
 
     /// Maximum page limit for paginated endpoints
-    #[arg(long, env = "EAS_WEATHER_RS__SERVER__PAGE_LIMIT_MAX")]
+    #[arg(long, env = "EAS_WEATHER_RS__WEBSERVER__PAGE_LIMIT_MAX")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) page_limit_max: Option<u64>,
 }
