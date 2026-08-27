@@ -27,11 +27,23 @@
           cargoLock.lockFile = ./Cargo.lock;
         };
 
+        # Filter to only the server binary
+        serverOnly = pkgs.runCommand "server-only" {} ''
+          mkdir -p $out/bin
+          cp ${myRustBuild}/bin/eas-weather-rs $out/bin/
+        '';
+
+        # Filter to only the migrate binary
+        migrateOnly = pkgs.runCommand "migrate-only" {} ''
+          mkdir -p $out/bin
+          cp ${myRustBuild}/bin/eas-migrate $out/bin/
+        '';
+
         # Server image
         serverImage = pkgs.dockerTools.buildLayeredImage {
           name = "eas-weather-rs";
           tag = "latest";
-          contents = [ myRustBuild ];
+          contents = [ serverOnly ];
           extraCommands = ''
             mkdir -p home/eas
             echo "eas:x:1000:1000::/home/eas:/bin/sh" > etc/passwd
@@ -39,7 +51,7 @@
           '';
           config = {
             User = "1000:1000";
-            Cmd = [ "${myRustBuild}/bin/eas-weather-rs" ];
+            Cmd = [ "${serverOnly}/bin/eas-weather-rs" ];
             ExposedPorts = {
               "8080/tcp" = { };
             };
@@ -50,7 +62,7 @@
         migrateImage = pkgs.dockerTools.buildLayeredImage {
           name = "eas-migrate";
           tag = "latest";
-          contents = [ myRustBuild ];
+          contents = [ migrateOnly ];
           extraCommands = ''
             mkdir -p home/eas
             echo "eas:x:1000:1000::/home/eas:/bin/sh" > etc/passwd
@@ -58,7 +70,7 @@
           '';
           config = {
             User = "1000:1000";
-            Cmd = [ "${myRustBuild}/bin/eas-migrate" ];
+            Cmd = [ "${migrateOnly}/bin/eas-migrate" ];
           };
         };
 
