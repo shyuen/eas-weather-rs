@@ -34,6 +34,9 @@ pub struct ConfResponse {
     responses(
         (status = 200, description = "Raw configuration", body = RawConfResponse)
     ),
+    security(
+        ("ApiKeyAuth" = [])
+    ),
     tag = "conf"
 )]
 pub(crate) async fn get_raw_config<CP, AP>(
@@ -56,6 +59,9 @@ where
     path = "/conf/app",
     responses(
         (status = 200, description = "Processed configuration", body = ConfResponse)
+    ),
+    security(
+        ("ApiKeyAuth" = [])
     ),
     tag = "conf"
 )]

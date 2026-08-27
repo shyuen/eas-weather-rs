@@ -31,12 +31,14 @@ macro_rules! env_prefix {
     };
 }
 
-/// Section-scoped prefixes used for the per-section figment joins and the
-/// `raw_config_input` env filter.
+/// Base prefix for all environment variables. Each env var includes the
+/// struct section name (e.g. `EAS_WEATHER_RS__WEBSERVER__PORT`) so that
+/// after prefix stripping and `__` splitting, figment maps the key into the
+/// correct nested `Config` field.
+const BASE_ENV_PREFIX: &str = env_prefix!("");
+
+/// Prefix for app-level env vars (top-level `config_file` field).
 const APP_SECTION_ENV_PREFIX: &str = env_prefix!("APP__");
-const LOGGING_ENV_PREFIX: &str = env_prefix!("LOGGING__");
-const SERVER_ENV_PREFIX: &str = env_prefix!("SERVER__");
-const DATABASE_ENV_PREFIX: &str = env_prefix!("DATABASE__");
 
 /// Const-equality of the crate name and a prefix, treating `-` in the name and
 /// `_` in the prefix as skip characters, so `eas-weather-rs` matches
@@ -141,9 +143,7 @@ fn collect_raw_input(cli: &serde_json::Value) -> Config {
     // Use Figment to load configuration from multiple sources the following priority
     // CLI > ENV > FILE > DEFAULT FILE > CODE
     let conf: Config = match base_figment(cli)
-        .join(Env::prefixed(LOGGING_ENV_PREFIX).split("__"))
-        .join(Env::prefixed(SERVER_ENV_PREFIX).split("__"))
-        .join(Env::prefixed(DATABASE_ENV_PREFIX).split("__"))
+        .join(Env::prefixed(BASE_ENV_PREFIX).split("__"))
         .join(Toml::file(config_file))
         .join(Toml::file("./config/default.toml"))
         .extract()
@@ -224,12 +224,7 @@ impl ConfigPort for ConfigFigment {
         // Gather config from ENV
         let env = serde_json::to_value(
             env::vars()
-                .filter(|(k, _)| {
-                    k.starts_with(APP_SECTION_ENV_PREFIX)
-                        || k.starts_with(LOGGING_ENV_PREFIX)
-                        || k.starts_with(SERVER_ENV_PREFIX)
-                        || k.starts_with(DATABASE_ENV_PREFIX)
-                })
+                .filter(|(k, _)| k.starts_with(BASE_ENV_PREFIX))
                 .map(|(k, v)| (k.replace("__", "."), v))
                 .collect::<Vec<_>>(),
         )

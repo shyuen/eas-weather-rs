@@ -24,6 +24,7 @@ figment = { version = "0.10", features = ["toml", "env"] }
 thiserror = "2.0"
 strum = "0.27"
 strum_macros = "0.27"
+subtle = "2.6"
 
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
