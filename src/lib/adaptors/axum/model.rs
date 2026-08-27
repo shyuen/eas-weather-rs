@@ -54,7 +54,8 @@ impl WebserverPort for WebserverAxum {
         let api_key = self.config.api_key.get().clone();
 
         // Create the Axum application with the defined routes and state
-        let app = create_routes(api_key).with_state(state);
+        let base_path = self.config.base_path.get().clone();
+        let app = create_routes(api_key, &base_path).with_state(state);
 
         let addr = format!("{}:{}", self.config.hostname.get(), self.config.port.get());
 

@@ -19,12 +19,15 @@ use crate::adaptors::axum::openapi::ApiDoc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
 
-pub fn create_routes<CP, AP>(api_key: Option<String>) -> Router<AppState<CP, AP>>
+pub fn create_routes<CP, AP>(
+    api_key: Option<String>,
+    base_path: &Option<String>,
+) -> Router<AppState<CP, AP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
 {
-    Router::new()
+    let routes = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
         .nest("/health", create_health_routes())
@@ -35,7 +38,12 @@ where
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
                 .on_response(StatusOnResponse),
-        )
+        );
+
+    match base_path {
+        Some(path) if !path.is_empty() => Router::new().nest(path, routes),
+        _ => routes,
+    }
 }
 
 /// Logs each completed request, using `WARN` for client/server error statuses
