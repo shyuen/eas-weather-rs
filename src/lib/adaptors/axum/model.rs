@@ -50,8 +50,11 @@ impl WebserverPort for WebserverAxum {
         // Create the application state with the necessary services
         let state = AppState::new(config_service.clone(), alert_service.clone());
 
+        // Guard the configuration endpoints with the configured API key.
+        let api_key = self.config.api_key.get().clone();
+
         // Create the Axum application with the defined routes and state
-        let app = create_routes().with_state(state);
+        let app = create_routes(api_key).with_state(state);
 
         let addr = format!("{}:{}", self.config.hostname.get(), self.config.port.get());
 
