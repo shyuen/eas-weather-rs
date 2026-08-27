@@ -71,7 +71,7 @@ The defaults for every key are defined in `config/default.toml`.
 
 ### Database Migrations
 
-Migrations are managed by SQLx and live in the `migrations/` directory. Each migration has an `up.sql` (apply) and `down.sql` (revert) file.
+Migrations are managed by SQLx and live in the `migrations/` directory. Each file contains both `-- +migrate up` and `-- +migrate down` sections.
 
 #### Building the Migration Binary
 ```bash
@@ -98,8 +98,6 @@ To revert the last N migrations, use the SQLx CLI:
 cargo install sqlx-cli
 sqlx migrate revert --step N
 ```
-
-Or programmatically via the `Migrator::revert` method.
 
 #### Kubernetes Usage
 In a k8s deployment, run `eas-migrate` as an **init container** before the main app container starts:
