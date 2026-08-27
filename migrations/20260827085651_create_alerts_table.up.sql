@@ -1,3 +1,4 @@
+-- Add up migration script here
 CREATE TABLE IF NOT EXISTS `Alerts` (
   `Identifier` varchar(128) NOT NULL,
   `Sender` longtext DEFAULT NULL,
