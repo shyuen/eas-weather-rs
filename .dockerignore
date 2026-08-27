@@ -1,0 +1,7 @@
+target/
+.git/
+.mysql_data/
+.direnv/
+.env
+.envrc
+*.md
