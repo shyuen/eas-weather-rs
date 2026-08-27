@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::process;
 
 use sqlx::Connection;
+use sqlx::Row;
 use sqlx::mysql::MySqlConnection;
 
 use eas_weather_rs::adaptors::clap::model::parse_cli;
@@ -31,9 +33,28 @@ async fn main() {
 
     let migrations = sqlx::migrate!("./migrations");
 
-    println!("Found {} migration(s):", migrations.iter().count());
-    for m in migrations.iter() {
-        println!("  v{} — {}", m.version, m.description);
+    // Collect applied migration versions from the database
+    let applied: HashSet<i64> = sqlx::query("SELECT version FROM _sqlx_migrations")
+        .fetch_all(&mut conn)
+        .await
+        .map(|rows| rows.iter().map(|r| r.get::<i64, _>("version")).collect())
+        .unwrap_or_default();
+
+    let pending: Vec<_> = migrations
+        .iter()
+        .filter(|m| !applied.contains(&m.version))
+        .collect();
+
+    if pending.is_empty() {
+        println!(
+            "All {} migration(s) already applied.",
+            migrations.iter().count()
+        );
+    } else {
+        println!("{} pending migration(s):", pending.len());
+        for m in &pending {
+            println!("  v{} — {}", m.version, m.description);
+        }
     }
 
     match migrations.run(&mut conn).await {
