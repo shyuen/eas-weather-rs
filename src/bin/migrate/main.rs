@@ -31,7 +31,8 @@ async fn main() {
         }
     };
 
-    let migrations = sqlx::migrate!("./migrations");
+    let mut migrations = sqlx::migrate!("./migrations");
+    migrations.set_ignore_missing(true);
 
     // Collect applied migration versions from the database
     let applied: HashSet<i64> = sqlx::query("SELECT version FROM _sqlx_migrations")
