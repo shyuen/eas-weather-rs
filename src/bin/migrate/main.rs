@@ -51,10 +51,7 @@ async fn main() {
         .collect();
 
     if pending_up.is_empty() {
-        println!(
-            "All {} migration(s) already applied.",
-            total_up
-        );
+        println!("All {} migration(s) already applied.", total_up);
     } else {
         println!("{} pending migration(s):", pending_up.len());
         for m in &pending_up {

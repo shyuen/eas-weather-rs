@@ -16,7 +16,8 @@ use crate::domain::alert::port::{
 };
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
-use tracing::{debug, error, info, warn};
+use tracing::field::Empty;
+use tracing::{error, info};
 
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
@@ -34,22 +35,25 @@ where
 {
     /// Creates a new instance of AlertService.
     pub fn new(alert_port: &AP) -> Self {
-        info!("Initializing AlertService");
+        info!(event_kind = "service", "Initializing AlertService");
         Self {
             alert_port: alert_port.clone(),
         }
     }
 
     /// Retrieve the latest alerts sent within the last 24 hours from the database.
+    #[tracing::instrument(skip(self), fields(operation = "get_daily_alerts", limit, offset, result = Empty), level = "debug")]
     pub async fn get_daily_alerts(
         &self,
         limit: u64,
         offset: u64,
     ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
-        debug!("get_daily_alerts(limit={}, offset={})", limit, offset);
+        let span = tracing::Span::current();
         match self.alert_port.get_daily_alerts_data(limit, offset).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!(
+                    event_kind = "service",
                     "get_daily_alerts returned {} of {} alerts",
                     resp.alerts.len(),
                     resp.total
@@ -57,22 +61,25 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("get_daily_alerts failed: {}", err);
+                error!(event_kind = "service", error_code = err.code(), message = %err, "get_daily_alerts failed");
                 Err(err)
             }
         }
     }
 
     /// Retrieve the latest alerts from the database.
+    #[tracing::instrument(skip(self), fields(operation = "get_latest_alerts", limit, offset, result = Empty), level = "debug")]
     pub async fn get_latest_alerts(
         &self,
         limit: u64,
         offset: u64,
     ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
-        debug!("get_latest_alerts(limit={}, offset={})", limit, offset);
+        let span = tracing::Span::current();
         match self.alert_port.get_latest_alerts_data(limit, offset).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!(
+                    event_kind = "service",
                     "get_latest_alerts returned {} of {} alerts",
                     resp.alerts.len(),
                     resp.total
@@ -80,53 +87,60 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("get_latest_alerts failed: {}", err);
+                error!(event_kind = "service", error_code = err.code(), message = %err, "get_latest_alerts failed");
                 Err(err)
             }
         }
     }
 
     /// Validate and persist a new alert to the database.
+    #[tracing::instrument(skip(self, input), fields(operation = "create_alert", result = Empty), level = "debug")]
     pub async fn create_alert(
         &self,
         input: CreateAlertInput,
     ) -> Result<CreateAlertResponse, CreateAlertError> {
+        let span = tracing::Span::current();
         let alert = match build_alert(input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("create_alert rejected invalid input: {}", err);
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "create_alert rejected invalid input");
                 return Err(CreateAlertError::ValidationError(err));
             }
         };
 
-        debug!("create_alert(alert={:?})", alert);
         match self.alert_port.create_alert_data(alert).await {
             Ok(resp) => {
-                info!("create_alert persisted successfully");
+                span.record("result", "ok");
+                info!(
+                    event_kind = "service",
+                    "create_alert persisted successfully"
+                );
                 Ok(resp)
             }
             Err(err) => {
-                error!("create_alert failed: {}", err);
+                error!(event_kind = "service", error_code = err.code(), message = %err, "create_alert failed");
                 Err(err)
             }
         }
     }
 
     /// Validate and replace an existing alert (identified by `identifier`).
+    #[tracing::instrument(skip(self, input), fields(operation = "update_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn update_alert(
         &self,
         identifier: AlertIdentifier,
         input: UpdateAlertInput,
     ) -> Result<UpdateAlertResponse, UpdateAlertError> {
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         let alert = match build_alert_for_update(identifier, input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("update_alert rejected invalid input: {}", err);
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "update_alert rejected invalid input");
                 return Err(UpdateAlertError::ValidationError(err));
             }
         };
 
-        debug!("update_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
             .alert_port
@@ -134,11 +148,15 @@ where
             .await
         {
             Ok(resp) => {
-                info!("update_alert persisted successfully");
+                span.record("result", "ok");
+                info!(
+                    event_kind = "service",
+                    "update_alert persisted successfully"
+                );
                 Ok(resp)
             }
             Err(err) => {
-                error!("update_alert failed: {}", err);
+                error!(event_kind = "service", error_code = err.code(), message = %err, "update_alert failed");
                 Err(err)
             }
         }
@@ -147,16 +165,18 @@ where
     /// Validate and partially update an existing alert (identified by
     /// `identifier`). Fields present in `input` override the stored value;
     /// fields absent are left untouched.
+    #[tracing::instrument(skip(self, input), fields(operation = "patch_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn patch_alert(
         &self,
         identifier: AlertIdentifier,
         input: PatchAlertInput,
     ) -> Result<PatchAlertResponse, PatchAlertError> {
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         let existing = match self.alert_port.get_alert_data(&identifier).await {
             Ok(resp) => resp.alert,
             Err(err) => {
-                error!("patch_alert failed to fetch existing alert: {}", err);
-                return Err(match err {
+                let patch_err = match err {
                     GetAlertError::NotFound => PatchAlertError::NotFound,
                     GetAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
                     GetAlertError::DatabaseConnectionError(msg) => {
@@ -165,19 +185,20 @@ where
                     GetAlertError::DataConversionError(msg) => {
                         PatchAlertError::DataConversionError(msg)
                     }
-                });
+                };
+                error!(event_kind = "service", error_code = patch_err.code(), message = %patch_err, "patch_alert failed to fetch existing alert");
+                return Err(patch_err);
             }
         };
 
         let alert = match build_alert_for_patch(identifier, &existing, input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("patch_alert rejected invalid input: {}", err);
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "patch_alert rejected invalid input");
                 return Err(PatchAlertError::ValidationError(err));
             }
         };
 
-        debug!("patch_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
             .alert_port
@@ -185,36 +206,41 @@ where
             .await
         {
             Ok(resp) => {
-                info!("patch_alert persisted successfully");
+                span.record("result", "ok");
+                info!(event_kind = "service", "patch_alert persisted successfully");
                 Ok(PatchAlertResponse { alert: resp.alert })
             }
             Err(err) => {
-                error!("patch_alert failed: {}", err);
-                Err(match err {
+                let patch_err = match err {
                     UpdateAlertError::NotFound => PatchAlertError::NotFound,
                     UpdateAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
                     UpdateAlertError::DatabaseConnectionError(msg) => {
                         PatchAlertError::DatabaseConnectionError(msg)
                     }
                     UpdateAlertError::ValidationError(msg) => PatchAlertError::ValidationError(msg),
-                })
+                };
+                error!(event_kind = "service", error_code = patch_err.code(), message = %patch_err, "patch_alert failed");
+                Err(patch_err)
             }
         }
     }
 
     /// Delete an existing alert (identified by `identifier`).
+    #[tracing::instrument(skip(self), fields(operation = "delete_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn delete_alert(
         &self,
         identifier: AlertIdentifier,
     ) -> Result<DeleteAlertResponse, DeleteAlertError> {
-        debug!("delete_alert(identifier={})", identifier.as_str());
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         match self.alert_port.delete_alert_data(&identifier).await {
             Ok(resp) => {
-                info!("delete_alert removed successfully");
+                span.record("result", "ok");
+                info!(event_kind = "service", "delete_alert removed successfully");
                 Ok(resp)
             }
             Err(err) => {
-                error!("delete_alert failed: {}", err);
+                error!(event_kind = "service", error_code = err.code(), message = %err, "delete_alert failed");
                 Err(err)
             }
         }
@@ -552,6 +578,79 @@ mod tests {
             result,
             Err(DeleteAlertError::DatabaseError(msg)) if msg == "test error"
         ));
+    }
+
+    #[test]
+    fn error_logs_carry_error_code_field() {
+        use std::sync::{Arc, Mutex};
+        use tracing::field::Visit;
+        use tracing::subscriber::with_default;
+
+        #[derive(Default)]
+        struct FieldCapture {
+            error_codes: Vec<String>,
+            event_kinds: Vec<String>,
+        }
+
+        impl Visit for FieldCapture {
+            fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                match field.name() {
+                    "error_code" => self.error_codes.push(value.to_string()),
+                    "event_kind" => self.event_kinds.push(value.to_string()),
+                    _ => {}
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                if field.name() == "error_code" {
+                    self.error_codes.push(format!("{value:?}"));
+                }
+            }
+        }
+
+        struct CapturingSubscriber(Arc<Mutex<(Vec<String>, Vec<String>)>>);
+
+        impl tracing::Subscriber for CapturingSubscriber {
+            fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+                true
+            }
+            fn new_span(&self, _span: &tracing::span::Attributes<'_>) -> tracing::Id {
+                tracing::Id::from_u64(1)
+            }
+            fn record(&self, _span: &tracing::Id, _values: &tracing::span::Record<'_>) {}
+            fn record_follows_from(&self, _span: &tracing::Id, _follows: &tracing::Id) {}
+            fn event(&self, event: &tracing::Event<'_>) {
+                let mut capture = FieldCapture::default();
+                event.record(&mut capture);
+                let (codes, kinds) = &mut *self.0.lock().unwrap();
+                codes.extend(capture.error_codes);
+                kinds.extend(capture.event_kinds);
+            }
+            fn enter(&self, _span: &tracing::Id) {}
+            fn exit(&self, _span: &tracing::Id) {}
+        }
+
+        let captured = Arc::new(Mutex::new((Vec::new(), Vec::new())));
+        let subscriber = CapturingSubscriber(captured.clone());
+
+        with_default(subscriber, || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let service = rt.block_on(async { build_service(&FailingDb) });
+            rt.block_on(async {
+                let _ = service.get_latest_alerts(10, 5).await;
+                let _ = service.create_alert(build_test_input()).await;
+            });
+        });
+
+        let (codes, kinds) = &*captured.lock().unwrap();
+        assert!(codes.contains(&"database_error".to_string()));
+        // Every service-logged event is tagged with the `event_kind = "service"`
+        // key so aggregators can distinguish application (service) events from
+        // transport (http) events.
+        assert!(kinds.iter().all(|k| k == "service"));
+        assert!(!kinds.is_empty());
     }
 
     fn build_test_input() -> CreateAlertInput {

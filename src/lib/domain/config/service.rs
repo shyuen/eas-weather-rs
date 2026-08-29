@@ -69,10 +69,10 @@ where
             }
         };
 
-        debug!(source = "cli", config = %render(&inputs.cli));
-        debug!(source = "env", config = %render(&inputs.env));
-        debug!(source = "files", config = %render(&inputs.files));
-        debug!(source = "final_config", config = %render(&inputs.final_config));
+        debug!(event_kind = "service", source = "cli", config = %render(&inputs.cli));
+        debug!(event_kind = "service", source = "env", config = %render(&inputs.env));
+        debug!(event_kind = "service", source = "files", config = %render(&inputs.files));
+        debug!(event_kind = "service", source = "final_config", config = %render(&inputs.final_config));
     }
 
     /// Returns the raw configuration.
@@ -90,6 +90,7 @@ where
                 ConfigIssue::NotSpecified { key, default } => {
                     warn!(
                         target: module_path!(),
+                        event_kind = "service",
                         config = key,
                         default = %default,
                         "{} was not specified; defaulting to `{}`",
@@ -104,6 +105,7 @@ where
                 } => {
                     warn!(
                         target: module_path!(),
+                        event_kind = "service",
                         config = key,
                         invalid = %value,
                         default = %default,
@@ -121,6 +123,7 @@ where
                 } => {
                     warn!(
                         target: module_path!(),
+                        event_kind = "service",
                         config = key,
                         path = %path,
                         default = %default,

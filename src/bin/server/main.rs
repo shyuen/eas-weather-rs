@@ -8,10 +8,11 @@ use eas_weather_rs::domain::config::service::ConfigService;
 use eas_weather_rs::domain::database::service::DatabaseService;
 use eas_weather_rs::domain::logging::adaptor_logger::log_adaptor_config;
 use eas_weather_rs::domain::logging::port::LoggingPort;
+use eas_weather_rs::domain::webserver::port::WebserverStartError;
 use eas_weather_rs::domain::webserver::service::WebserverService;
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() -> Result<(), WebserverStartError> {
     // Parse command-line arguments once and inject them into the config adaptor
     let conf_service: ConfigService<ConfigFigment> =
         // Create a new instance of ConfigService with the Figment adaptor
