@@ -4,10 +4,13 @@ use std::process;
 use sqlx::Connection;
 use sqlx::Row;
 use sqlx::mysql::MySqlConnection;
+use tracing::{error, info};
 
-use eas_weather_rs::adaptors::clap::model::parse_cli;
+use eas_weather_rs::adaptors::clap::model::parse_cli_migrate;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
+use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::domain::config::port::ConfigPort;
+use eas_weather_rs::domain::logging::port::LoggingPort;
 
 /// Standalone migration runner for the eas-weather-rs database.
 ///
@@ -17,16 +20,25 @@ use eas_weather_rs::domain::config::port::ConfigPort;
 /// Designed to run as a k8s init container before the main app starts.
 #[tokio::main]
 async fn main() {
-    let cli = parse_cli();
+    let cli = parse_cli_migrate();
     let config = ConfigFigment::with_cli(cli);
+
+    // Initialize logging from config so container logs honour the format
+    // (text/json) and trace_level used by the rest of the app.
+    let _logging_port = LoggingTracing::new(config.get_logging_config());
+
     let conn_url = config.get_database_config().conn_string.get().to_owned();
 
-    println!("Running database migrations…");
+    info!("Running database migrations…");
 
     let mut conn = match MySqlConnection::connect(&conn_url).await {
         Ok(conn) => conn,
         Err(err) => {
-            eprintln!("Failed to connect to database: {err}");
+            error!(
+                error_code = "database_connection_error",
+                message = %err,
+                "Failed to connect to database"
+            );
             process::exit(1);
         }
     };
@@ -51,20 +63,24 @@ async fn main() {
         .collect();
 
     if pending_up.is_empty() {
-        println!("All {} migration(s) already applied.", total_up);
+        info!("All {} migration(s) already applied.", total_up);
     } else {
-        println!("{} pending migration(s):", pending_up.len());
+        info!("{} pending migration(s):", pending_up.len());
         for m in &pending_up {
-            println!("  v{} — {}", m.version, m.description);
+            info!("  v{} — {}", m.version, m.description);
         }
     }
 
     match migrations.run(&mut conn).await {
         Ok(()) => {
-            println!("Migrations complete");
+            info!("Migrations complete");
         }
         Err(err) => {
-            eprintln!("Migration failed: {err}");
+            error!(
+                error_code = "migration_failed",
+                message = %err,
+                "Migration failed"
+            );
             process::exit(1);
         }
     }

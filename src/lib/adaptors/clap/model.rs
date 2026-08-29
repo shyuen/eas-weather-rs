@@ -1,11 +1,12 @@
 use clap::Parser;
 use serde_derive::Serialize;
 
-/// CLI Configuration for the application. Please refer to `config/default.toml` for default values.
+/// CLI Configuration for the server binary (`src/bin/server/main.rs`).
+/// Please refer to `config/default.toml` for default values.
 /// Should closely follow the structure of the `Config` struct in `crate::domain::config::model`.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
-pub(crate) struct Cli {
+pub(crate) struct CliServer {
     #[clap(flatten)]
     logging: Logging,
     #[clap(flatten)]
@@ -25,18 +26,66 @@ pub(crate) struct Cli {
 /// Called once by the composition root (`src/bin/server/main.rs`); the figment
 /// adaptor consumes the serialized value, so the two adaptors never reference
 /// each other.
-pub fn parse_cli() -> serde_json::Value {
-    serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null)
+pub fn parse_cli_server() -> serde_json::Value {
+    serde_json::to_value(CliServer::parse()).unwrap_or(serde_json::Value::Null)
+}
+
+/// CLI configuration for the migration binary (`src/bin/migrate/main.rs`).
+///
+/// A subset of [`CliServer`]: only the options the migration runner actually
+/// consumes (logging, database connection source, and config file). The
+/// server-only options (webserver, etc.) are deliberately excluded so
+/// `eas-migrate --help` doesn't advertise flags it will ignore.
+///
+/// Env-var namespace: the `EAS_WEATHER_RS__` prefix is deliberately shared with
+/// the server binary — it namespaces the application, not the binary. Both run
+/// in the same deployment, so one ConfigMap/Secret serves both containers;
+/// env is per-container in K8s, so the shared keys can still carry different
+/// values per container.
+#[derive(Debug, Parser, Serialize)]
+#[command(version)]
+pub(crate) struct CliMigrate {
+    #[clap(flatten)]
+    logging: Logging,
+    #[clap(flatten)]
+    database: DatabaseMigrate,
+
+    /// Config file path location to be used by the migration binary.
+    #[arg(short = 'c', long, env = "EAS_WEATHER_RS__APP__CONFIG_FILE")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) config_file: Option<String>,
+}
+
+/// Parse the process command-line arguments for the migration binary and
+/// serialize them to a neutral JSON value for the config adaptor.
+pub fn parse_cli_migrate() -> serde_json::Value {
+    let mut value = serde_json::to_value(CliMigrate::parse()).unwrap_or(serde_json::Value::Null);
+    // The raw `Config` struct requires every top-level section, including
+    // `webserver`. The migration binary exposes no webserver flags (it never
+    // reads server settings), so contribute an empty section to satisfy the
+    // config extraction; all of its fields fall back to defaults.
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("webserver".to_string(), serde_json::json!({}));
+    }
+    value
+}
+
+#[derive(Debug, Parser, Serialize)]
+struct DatabaseMigrate {
+    /// Database connection string file path
+    #[arg(short = 'D', long, env = "EAS_WEATHER_RS__DATABASE__CONN_URL_FILE")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) conn_url_file: Option<String>,
 }
 
 #[derive(Debug, Parser, Serialize)]
 struct Logging {
-    /// Log format to be used by the server
+    /// Log format to be used by the application
     #[arg(short = 'l', long, env = "EAS_WEATHER_RS__LOGGING__FORMAT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) format: Option<String>,
 
-    /// Log trace level to be used by the server
+    /// Log trace level to be used by the application
     #[arg(short = 't', long, env = "EAS_WEATHER_RS__LOGGING__TRACE_LEVEL")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) trace_level: Option<String>,

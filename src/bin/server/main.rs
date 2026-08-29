@@ -1,5 +1,5 @@
 use eas_weather_rs::adaptors::axum::model::WebserverAxum;
-use eas_weather_rs::adaptors::clap::model::parse_cli;
+use eas_weather_rs::adaptors::clap::model::parse_cli_server;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
 use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::adaptors::xsqlx::model::DatabaseMySql;
@@ -16,7 +16,7 @@ async fn main() -> Result<(), WebserverStartError> {
     // Parse command-line arguments once and inject them into the config adaptor
     let conf_service: ConfigService<ConfigFigment> =
         // Create a new instance of ConfigService with the Figment adaptor
-        ConfigService::from_config_port(ConfigFigment::with_cli(parse_cli())); // Inject parsed CLI arguments into the config adaptor
+        ConfigService::from_config_port(ConfigFigment::with_cli(parse_cli_server())); // Inject parsed CLI arguments into the config adaptor
 
     // Initialize logging service with the loaded configuration so we can start logging messages
     let logging_port = LoggingTracing::new(conf_service.get_logging_config());
