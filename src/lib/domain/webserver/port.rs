@@ -19,7 +19,12 @@ impl WebserverStartError {
     /// Stable machine-readable code for this error, usable as a log key.
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Io(_) => "webserver_start_io_error",
+            Self::Io(err) => match err.kind() {
+                std::io::ErrorKind::AddrInUse => "webserver_start_addr_in_use",
+                std::io::ErrorKind::AddrNotAvailable => "webserver_start_addr_not_available",
+                std::io::ErrorKind::PermissionDenied => "webserver_start_permission_denied",
+                _ => "webserver_start_io_error",
+            },
         }
     }
 }
@@ -50,6 +55,18 @@ mod code_tests {
 
     #[test]
     fn webserver_start_error_codes() {
+        assert_eq!(
+            WebserverStartError::Io(io::Error::from(io::ErrorKind::AddrInUse)).code(),
+            "webserver_start_addr_in_use"
+        );
+        assert_eq!(
+            WebserverStartError::Io(io::Error::from(io::ErrorKind::AddrNotAvailable)).code(),
+            "webserver_start_addr_not_available"
+        );
+        assert_eq!(
+            WebserverStartError::Io(io::Error::from(io::ErrorKind::PermissionDenied)).code(),
+            "webserver_start_permission_denied"
+        );
         assert_eq!(
             WebserverStartError::Io(io::Error::other("boom")).code(),
             "webserver_start_io_error"
