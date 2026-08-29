@@ -97,6 +97,7 @@
             cargo-nextest
             cargo-tarpaulin
             mariadb
+            sqlx-cli
           ];
 
           shellHook = ''
