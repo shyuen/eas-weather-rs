@@ -16,7 +16,8 @@ use crate::domain::alert::port::{
 };
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
-use tracing::{debug, error, info};
+use tracing::field::Empty;
+use tracing::{error, info};
 
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
@@ -41,14 +42,16 @@ where
     }
 
     /// Retrieve the latest alerts sent within the last 24 hours from the database.
+    #[tracing::instrument(skip(self), fields(operation = "get_daily_alerts", limit, offset, result = Empty), level = "debug")]
     pub async fn get_daily_alerts(
         &self,
         limit: u64,
         offset: u64,
     ) -> Result<GetDailyAlertsResponse, GetDailyAlertsError> {
-        debug!("get_daily_alerts(limit={}, offset={})", limit, offset);
+        let span = tracing::Span::current();
         match self.alert_port.get_daily_alerts_data(limit, offset).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!(
                     "get_daily_alerts returned {} of {} alerts",
                     resp.alerts.len(),
@@ -64,14 +67,16 @@ where
     }
 
     /// Retrieve the latest alerts from the database.
+    #[tracing::instrument(skip(self), fields(operation = "get_latest_alerts", limit, offset, result = Empty), level = "debug")]
     pub async fn get_latest_alerts(
         &self,
         limit: u64,
         offset: u64,
     ) -> Result<GetLatestAlertsResponse, GetLatestAlertsError> {
-        debug!("get_latest_alerts(limit={}, offset={})", limit, offset);
+        let span = tracing::Span::current();
         match self.alert_port.get_latest_alerts_data(limit, offset).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!(
                     "get_latest_alerts returned {} of {} alerts",
                     resp.alerts.len(),
@@ -87,10 +92,12 @@ where
     }
 
     /// Validate and persist a new alert to the database.
+    #[tracing::instrument(skip(self, input), fields(operation = "create_alert", result = Empty), level = "debug")]
     pub async fn create_alert(
         &self,
         input: CreateAlertInput,
     ) -> Result<CreateAlertResponse, CreateAlertError> {
+        let span = tracing::Span::current();
         let alert = match build_alert(input) {
             Ok(alert) => alert,
             Err(err) => {
@@ -99,9 +106,9 @@ where
             }
         };
 
-        debug!("create_alert(alert={:?})", alert);
         match self.alert_port.create_alert_data(alert).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!("create_alert persisted successfully");
                 Ok(resp)
             }
@@ -113,11 +120,14 @@ where
     }
 
     /// Validate and replace an existing alert (identified by `identifier`).
+    #[tracing::instrument(skip(self, input), fields(operation = "update_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn update_alert(
         &self,
         identifier: AlertIdentifier,
         input: UpdateAlertInput,
     ) -> Result<UpdateAlertResponse, UpdateAlertError> {
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         let alert = match build_alert_for_update(identifier, input) {
             Ok(alert) => alert,
             Err(err) => {
@@ -126,7 +136,6 @@ where
             }
         };
 
-        debug!("update_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
             .alert_port
@@ -134,6 +143,7 @@ where
             .await
         {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!("update_alert persisted successfully");
                 Ok(resp)
             }
@@ -147,11 +157,14 @@ where
     /// Validate and partially update an existing alert (identified by
     /// `identifier`). Fields present in `input` override the stored value;
     /// fields absent are left untouched.
+    #[tracing::instrument(skip(self, input), fields(operation = "patch_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn patch_alert(
         &self,
         identifier: AlertIdentifier,
         input: PatchAlertInput,
     ) -> Result<PatchAlertResponse, PatchAlertError> {
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         let existing = match self.alert_port.get_alert_data(&identifier).await {
             Ok(resp) => resp.alert,
             Err(err) => {
@@ -178,7 +191,6 @@ where
             }
         };
 
-        debug!("patch_alert(alert={:?})", alert);
         let alert_identifier = alert.identifier().clone();
         match self
             .alert_port
@@ -186,6 +198,7 @@ where
             .await
         {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!("patch_alert persisted successfully");
                 Ok(PatchAlertResponse { alert: resp.alert })
             }
@@ -205,13 +218,16 @@ where
     }
 
     /// Delete an existing alert (identified by `identifier`).
+    #[tracing::instrument(skip(self), fields(operation = "delete_alert", identifier = tracing::field::Empty, result = Empty), level = "debug")]
     pub async fn delete_alert(
         &self,
         identifier: AlertIdentifier,
     ) -> Result<DeleteAlertResponse, DeleteAlertError> {
-        debug!("delete_alert(identifier={})", identifier.as_str());
+        let span = tracing::Span::current();
+        span.record("identifier", identifier.as_str());
         match self.alert_port.delete_alert_data(&identifier).await {
             Ok(resp) => {
+                span.record("result", "ok");
                 info!("delete_alert removed successfully");
                 Ok(resp)
             }
