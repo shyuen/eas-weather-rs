@@ -4,6 +4,7 @@ use std::process;
 use sqlx::Connection;
 use sqlx::Row;
 use sqlx::mysql::MySqlConnection;
+use tracing;
 
 use eas_weather_rs::adaptors::clap::model::parse_cli_migrate;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
@@ -28,12 +29,12 @@ async fn main() {
 
     let conn_url = config.get_database_config().conn_string.get().to_owned();
 
-    tracing::info!("Running database migrations…");
+    info!("Running database migrations…");
 
     let mut conn = match MySqlConnection::connect(&conn_url).await {
         Ok(conn) => conn,
         Err(err) => {
-            tracing::error!(
+            error!(
                 error_code = "database_connection_error",
                 message = %err,
                 "Failed to connect to database"
@@ -62,20 +63,20 @@ async fn main() {
         .collect();
 
     if pending_up.is_empty() {
-        tracing::info!("All {} migration(s) already applied.", total_up);
+        info!("All {} migration(s) already applied.", total_up);
     } else {
-        tracing::info!("{} pending migration(s):", pending_up.len());
+        info!("{} pending migration(s):", pending_up.len());
         for m in &pending_up {
-            tracing::info!("  v{} — {}", m.version, m.description);
+            info!("  v{} — {}", m.version, m.description);
         }
     }
 
     match migrations.run(&mut conn).await {
         Ok(()) => {
-            tracing::info!("Migrations complete");
+            info!("Migrations complete");
         }
         Err(err) => {
-            tracing::error!(
+            error!(
                 error_code = "migration_failed",
                 message = %err,
                 "Migration failed"
