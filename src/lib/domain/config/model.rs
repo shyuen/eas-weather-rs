@@ -16,7 +16,7 @@ pub struct Config {
 /// The gathered, pre-validation configuration inputs, split by source.
 ///
 /// Serialized to JSON values so the domain port stays decoupled from the
-/// adaptor-specific source types (e.g. the figment `Cli`). The config service
+/// adaptor-specific source types (e.g. the figment `CliServer`). The config service
 /// decides how to render them (text vs JSON, masking).
 #[derive(Debug, Clone)]
 pub struct RawConfigInputs {
