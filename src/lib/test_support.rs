@@ -535,5 +535,5 @@ pub fn build_full_app<AP>(
 where
     AP: AlertPort + Clone + Send + Sync + 'static,
 {
-    crate::adaptors::axum::routes::create_routes::<MockConfig, AP>(None).with_state(state)
+    crate::adaptors::axum::routes::create_routes::<MockConfig, AP>(None, &None).with_state(state)
 }

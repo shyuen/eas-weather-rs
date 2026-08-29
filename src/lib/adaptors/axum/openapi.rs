@@ -1,4 +1,5 @@
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::openapi::Server;
 use utoipa::{Modify, OpenApi};
 
 /// The OpenAPI document for this service, collected from the annotated handlers.
@@ -36,6 +37,20 @@ use utoipa::{Modify, OpenApi};
     modifiers(&SecurityAddon)
 )]
 pub(crate) struct ApiDoc;
+
+/// Build the OpenAPI document, annotating the server URL with the configured
+/// base path (if any) so Swagger UI resolves paths correctly when the service
+/// is mounted under a sub-path.
+pub(crate) fn api_doc(base_path: &Option<String>) -> utoipa::openapi::OpenApi {
+    let mut doc = ApiDoc::openapi();
+    if let Some(path) = base_path
+        .as_deref()
+        .filter(|p| !p.is_empty() && *p != "/")
+    {
+        doc.servers = Some(vec![Server::new(path)]);
+    }
+    doc
+}
 
 struct SecurityAddon;
 
