@@ -572,6 +572,69 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn error_logs_carry_error_code_field() {
+        use std::sync::{Arc, Mutex};
+        use tracing::field::Visit;
+        use tracing::subscriber::with_default;
+
+        #[derive(Default)]
+        struct FieldCapture {
+            error_codes: Vec<String>,
+        }
+
+        impl Visit for FieldCapture {
+            fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                if field.name() == "error_code" {
+                    self.error_codes.push(value.to_string());
+                }
+            }
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                if field.name() == "error_code" {
+                    self.error_codes.push(format!("{value:?}"));
+                }
+            }
+        }
+
+        struct CapturingSubscriber(Arc<Mutex<Vec<String>>>);
+
+        impl tracing::Subscriber for CapturingSubscriber {
+            fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+                true
+            }
+            fn new_span(&self, _span: &tracing::span::Attributes<'_>) -> tracing::Id {
+                tracing::Id::from_u64(1)
+            }
+            fn record(&self, _span: &tracing::Id, _values: &tracing::span::Record<'_>) {}
+            fn record_follows_from(&self, _span: &tracing::Id, _follows: &tracing::Id) {}
+            fn event(&self, event: &tracing::Event<'_>) {
+                let mut capture = FieldCapture::default();
+                event.record(&mut capture);
+                self.0.lock().unwrap().extend(capture.error_codes);
+            }
+            fn enter(&self, _span: &tracing::Id) {}
+            fn exit(&self, _span: &tracing::Id) {}
+        }
+
+        let codes = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = CapturingSubscriber(codes.clone());
+
+        with_default(subscriber, || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let service = rt.block_on(async { build_service(&FailingDb) });
+            rt.block_on(async {
+                let _ = service.get_latest_alerts(10, 5).await;
+                let _ = service.create_alert(build_test_input()).await;
+            });
+        });
+
+        let codes = codes.lock().unwrap();
+        assert!(codes.contains(&"database_error".to_string()));
+    }
+
     fn build_test_input() -> CreateAlertInput {
         CreateAlertInput {
             identifier: "alert-123".to_string(),
