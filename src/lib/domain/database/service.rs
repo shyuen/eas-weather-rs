@@ -1,5 +1,6 @@
 use crate::domain::database::model::Database;
 use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
+use tracing::field::Empty;
 use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
@@ -26,31 +27,43 @@ where
         &self.db_port
     }
 
+    #[tracing::instrument(skip(self), fields(operation = "create_pool", max_retries, result = Empty), level = "debug")]
     pub async fn create_pool(&mut self) -> Result<(), DatabaseConnectError> {
         let max_retries = self.conf.conn_max_retries.get();
         let mut current_backoff = self.conf.conn_retry_init_delay_secs.get();
+        let span = tracing::Span::current();
+        span.record("max_retries", max_retries);
 
         debug!(
-            "create_pool: creating database connection pool (max_retries={})",
-            max_retries
+            event_kind = "service",
+            "create_pool: creating database connection pool"
         );
 
         for attempt in 1..=max_retries {
             match self.db_port.create_pool().await {
                 Ok(()) => {
+                    span.record("result", "ok");
                     info!(
-                        attempt,
-                        "create_pool: database connection pool created successfully"
+                        event_kind = "service",
+                        attempt, "create_pool: database connection pool created successfully"
                     );
                     return Ok(());
                 }
                 Err(DatabaseConnectError::Fatal(msg)) => {
-                    error!(attempt, error = %msg, "create_pool: fatal error; aborting");
+                    error!(
+                        event_kind = "service",
+                        error_code = "database_connect_fatal",
+                        attempt,
+                        error = %msg,
+                        "create_pool: fatal error; aborting"
+                    );
                     return Err(DatabaseConnectError::Fatal(msg));
                 }
                 Err(DatabaseConnectError::Retryable(msg)) => {
                     if attempt == max_retries {
                         error!(
+                            event_kind = "service",
+                            error_code = "database_connect_retryable",
                             attempt,
                             max_retries,
                             error = %msg,
@@ -59,6 +72,8 @@ where
                         return Err(DatabaseConnectError::Retryable(msg));
                     }
                     warn!(
+                        event_kind = "service",
+                        error_code = "database_connect_retryable",
                         attempt,
                         max_retries,
                         backoff_secs = current_backoff,
@@ -79,15 +94,29 @@ where
     }
 
     /// Close the database connection pool.
+    #[tracing::instrument(skip(self), fields(operation = "close_pool", result = Empty), level = "debug")]
     pub async fn close_pool(&self) -> Result<(), DatabaseCloseError> {
-        debug!("close_pool: closing database connection pool");
+        let span = tracing::Span::current();
+        debug!(
+            event_kind = "service",
+            "close_pool: closing database connection pool"
+        );
         match self.db_port.close_pool().await {
             Ok(()) => {
-                info!("close_pool: database connection pool closed successfully");
+                span.record("result", "ok");
+                info!(
+                    event_kind = "service",
+                    "close_pool: database connection pool closed successfully"
+                );
                 Ok(())
             }
             Err(err) => {
-                warn!("close_pool: {}", err);
+                warn!(
+                    event_kind = "service",
+                    error_code = err.code(),
+                    message = %err,
+                    "close_pool failed"
+                );
                 Err(err)
             }
         }
