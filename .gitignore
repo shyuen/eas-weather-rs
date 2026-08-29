@@ -8,3 +8,5 @@ mysql_conn_url
 mysql_conn_url_bk
 .mysql_data
 tarpaulin-report.html
+test_key
+config/mysql_conn_url
