@@ -7,7 +7,9 @@ use sqlx::mysql::MySqlConnection;
 
 use eas_weather_rs::adaptors::clap::model::parse_cli;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
+use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::domain::config::port::ConfigPort;
+use eas_weather_rs::domain::logging::port::LoggingPort;
 
 /// Standalone migration runner for the eas-weather-rs database.
 ///
@@ -19,14 +21,23 @@ use eas_weather_rs::domain::config::port::ConfigPort;
 async fn main() {
     let cli = parse_cli();
     let config = ConfigFigment::with_cli(cli);
+
+    // Initialize logging from config so container logs honour the format
+    // (text/json) and trace_level used by the rest of the app.
+    let _logging_port = LoggingTracing::new(config.get_logging_config());
+
     let conn_url = config.get_database_config().conn_string.get().to_owned();
 
-    println!("Running database migrations…");
+    tracing::info!("Running database migrations…");
 
     let mut conn = match MySqlConnection::connect(&conn_url).await {
         Ok(conn) => conn,
         Err(err) => {
-            eprintln!("Failed to connect to database: {err}");
+            tracing::error!(
+                error_code = "database_connection_error",
+                message = %err,
+                "Failed to connect to database"
+            );
             process::exit(1);
         }
     };
@@ -51,20 +62,24 @@ async fn main() {
         .collect();
 
     if pending_up.is_empty() {
-        println!("All {} migration(s) already applied.", total_up);
+        tracing::info!("All {} migration(s) already applied.", total_up);
     } else {
-        println!("{} pending migration(s):", pending_up.len());
+        tracing::info!("{} pending migration(s):", pending_up.len());
         for m in &pending_up {
-            println!("  v{} — {}", m.version, m.description);
+            tracing::info!("  v{} — {}", m.version, m.description);
         }
     }
 
     match migrations.run(&mut conn).await {
         Ok(()) => {
-            println!("Migrations complete");
+            tracing::info!("Migrations complete");
         }
         Err(err) => {
-            eprintln!("Migration failed: {err}");
+            tracing::error!(
+                error_code = "migration_failed",
+                message = %err,
+                "Migration failed"
+            );
             process::exit(1);
         }
     }
