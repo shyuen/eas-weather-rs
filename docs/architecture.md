@@ -9,7 +9,7 @@ delivery design.
 
 Two applications, split by lifecycle (plus a planned auth microservice):
 
-1. **`eas-weather-rs`** (this crate) — a read-only query API serving alert data
+1. **`eas-weather-rs-server`** (binary from the `eas-weather-rs` crate) — a read-only query API serving alert data
    over HTTP from a database.
 2. **Listener (new, separate)** — a long-running consumer that receives alert
    data over a socket connection (Plemorex), validates, archives, deduplicates,

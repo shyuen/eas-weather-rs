@@ -71,16 +71,16 @@ EAS_WEATHER_RS__LOGGING__FORMAT="json"
 The defaults for every key are defined in `config/default.toml`.
 
 ### Running the Main Application
-You can run the main eas-weather-rs application using Cargo:
+You can run the main eas-weather-rs-server application using Cargo:
 ```bash
-cargo run --bin eas-weather-rs
+cargo run --bin eas-weather-rs-server
 ```
 
-This starts the `eas-weather-rs` binary, which serves EAS alert data via HTTP. The application will load configuration according to the priority order described above.
+This starts the `eas-weather-rs-server` binary, which serves EAS alert data via HTTP. The application will load configuration according to the priority order described above.
 
 You can add CLI arguments to customize the runtime behavior. For example, to see all available options:
 ```bash
-cargo run --bin eas-weather-rs --help
+cargo run --bin eas-weather-rs-server --help
 ```
 
 Common usage patterns include:
@@ -95,7 +95,7 @@ Migrations are managed by SQLx and live in the `migrations/` directory. Each mig
 
 #### Building the Migration Binary
 ```bash
-cargo build --bin eas-migrate
+cargo build --bin eas-weather-rs-migrate
 ```
 
 #### Running Migrations
@@ -103,13 +103,13 @@ The migration runner uses the same config precedence as the main server (CLI →
 
 ```bash
 # Using default config (reads from ./config/mysql_conn_url)
-cargo run --bin eas-migrate
+cargo run --bin eas-weather-rs-migrate
 
 # With explicit connection URL file
-cargo run --bin eas-migrate -- --database-conn-url-file ./config/mysql_conn_url
+cargo run --bin eas-weather-rs-migrate -- --database-conn-url-file ./config/mysql_conn_url
 
 # Via environment variable
-EAS_WEATHER_RS__DATABASE__CONN_URL_FILE=./config/mysql_conn_url cargo run --bin eas-migrate
+EAS_WEATHER_RS__DATABASE__CONN_URL_FILE=./config/mysql_conn_url cargo run --bin eas-weather-rs-migrate
 ```
 
 #### Running Rollbacks
@@ -120,13 +120,13 @@ sqlx migrate revert --step N
 ```
 
 #### Kubernetes Usage
-In a k8s deployment, run `eas-migrate` as an **init container** before the main app container starts:
+In a k8s deployment, run `eas-weather-rs-migrate` as an **init container** before the main app container starts:
 
 ```yaml
 initContainers:
   - name: migrate
-    image: your-registry/eas-migrate:tag
-    command: ["eas-migrate"]
+    image: your-registry/eas-weather-rs-migrate:tag
+    command: ["eas-weather-rs-migrate"]
     env:
       - name: EAS_WEATHER_RS__DATABASE__CONN_URL_FILE
         value: /etc/eas/conn_url
@@ -136,7 +136,7 @@ initContainers:
         readOnly: true
 containers:
   - name: app
-    image: your-registry/eas-weather-rs:tag
+    image: your-registry/eas-weather-rs-server:tag
     # ...
 ```
 
@@ -148,10 +148,10 @@ https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-mic
 #### Using Docker (Dockerfile)
 ```bash
 # Build server image
-docker build -t eas-weather-rs .
+docker build -t eas-weather-rs-server .
 
-# Build migration image (override entrypoint)
-docker build -t eas-migrate --build-arg BINARY=eas-migrate .
+# Build migration image
+docker build -t eas-weather-rs-migrate .
 ```
 
 #### Using Nix (flake)
@@ -168,10 +168,10 @@ docker load < result
 #### Running Containers
 ```bash
 # Server
-docker run -p 8080:8080 eas-weather-rs
+docker run -p 8080:8080 eas-weather-rs-server
 
 # Migrations (run as init container or manually)
-docker run --entrypoint /app/eas-migrate eas-weather-rs
+docker run --entrypoint /app/eas-weather-rs-migrate eas-weather-rs-server
 ```
 
 ### Coverage Report
