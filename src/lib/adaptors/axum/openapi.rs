@@ -1,5 +1,5 @@
-use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::openapi::Server;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
 /// The OpenAPI document for this service, collected from the annotated handlers.
@@ -43,10 +43,7 @@ pub(crate) struct ApiDoc;
 /// is mounted under a sub-path.
 pub(crate) fn api_doc(base_path: &Option<String>) -> utoipa::openapi::OpenApi {
     let mut doc = ApiDoc::openapi();
-    if let Some(path) = base_path
-        .as_deref()
-        .filter(|p| !p.is_empty() && *p != "/")
-    {
+    if let Some(path) = base_path.as_deref().filter(|p| !p.is_empty() && *p != "/") {
         doc.servers = Some(vec![Server::new(path)]);
     }
     doc

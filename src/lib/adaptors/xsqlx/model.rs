@@ -117,7 +117,9 @@ impl DatabasePort for DatabaseMySql {
 
     async fn check_health(&self) -> Result<(), DatabaseHealthError> {
         let pool = self.get_pool().ok_or(DatabaseHealthError::NotInitialized)?;
-        sqlx::query("SELECT 1").execute(pool).await
+        sqlx::query("SELECT 1")
+            .execute(pool)
+            .await
             .map_err(|e| DatabaseHealthError::Unreachable(e.to_string()))?;
         Ok(())
     }

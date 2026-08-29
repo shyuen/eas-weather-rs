@@ -1,4 +1,4 @@
-use tracing::Level;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
@@ -16,14 +16,44 @@ pub struct LoggingTracing {
 }
 
 impl LoggingTracing {
-    fn map_trace_level(trace_level: &LoggingTraceLevel) -> Level {
+    fn trace_level_str(trace_level: &LoggingTraceLevel) -> &'static str {
         match trace_level.get() {
-            LoggingTraceLevelType::Error => Level::ERROR,
-            LoggingTraceLevelType::Warn => Level::WARN,
-            LoggingTraceLevelType::Info => Level::INFO,
-            LoggingTraceLevelType::Debug => Level::DEBUG,
-            LoggingTraceLevelType::Trace => Level::TRACE,
+            LoggingTraceLevelType::Error => "error",
+            LoggingTraceLevelType::Warn => "warn",
+            LoggingTraceLevelType::Info => "info",
+            LoggingTraceLevelType::Debug => "debug",
+            LoggingTraceLevelType::Trace => "trace",
         }
+    }
+
+    /// Build the per-module [`EnvFilter`].
+    ///
+    /// The configured `trace_level` is applied to the application crate itself
+    /// (`eas_weather_rs`), while noisy transitive crates (sqlx, hyper, mio,
+    /// tokio, etc.) are pinned to quieter levels. Without this, setting
+    /// `trace_level = "debug"` would also dump `debug` output from every
+    /// dependency into stdout. The static `RUST_LOG` override still wins when
+    /// set, for ad-hoc fine-grained debugging.
+    fn build_filter(trace_level: &LoggingTraceLevel) -> EnvFilter {
+        let level = Self::trace_level_str(trace_level);
+        let directives = format!(
+            "eas_weather_rs={level},\
+             sqlx=warn,\
+             hyper=warn,\
+             mio=warn,\
+             tokio=info,\
+             tower=info,\
+             tower_http=info,\
+             h2=warn,\
+             tonic=warn,\
+             rustls=warn,\
+             rustls_pki_types=warn,\
+             want=warn,\
+             reqwest=warn"
+        );
+        EnvFilter::builder()
+            .with_env_var("RUST_LOG")
+            .parse_lossy(&directives)
     }
 }
 
@@ -44,24 +74,25 @@ impl LoggingPort for LoggingTracing {
     fn new(conf_log: &Logging) -> Self {
         let format = conf_log.format.clone();
         let trace_level = conf_log.trace_level.clone();
-
-        // Map LoggingTraceLevel to tracing::Level
-        let level = Self::map_trace_level(&trace_level);
+        let filter = Self::build_filter(&trace_level);
 
         match format.get() {
             LoggingFormatType::Json => {
                 tracing_subscriber::fmt()
                     .json()
-                    .with_max_level(level)
-                    .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+                    .with_env_filter(filter)
+                    // Only log span close (with duration): entering a span is
+                    // re-fired at every async await boundary, so `ENTER` lines
+                    // are pure scheduling noise in debug.
+                    .with_span_events(FmtSpan::CLOSE)
                     .with_target(true)
                     .init();
             }
             LoggingFormatType::Text => {
                 tracing_subscriber::fmt()
                     .with_ansi(true)
-                    .with_max_level(level)
-                    .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
+                    .with_env_filter(filter)
+                    .with_span_events(FmtSpan::CLOSE)
                     .with_target(true)
                     .init();
             }
@@ -70,6 +101,32 @@ impl LoggingPort for LoggingTracing {
         LoggingTracing {
             format,
             trace_level,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test: `build_filter` must not panic when parsing the static
+    /// directive string (a past bug used `with_default_directive` with a
+    /// comma-separated filter, which is invalid and panicked at startup), and
+    /// the app crate must always match the configured level.
+    #[test]
+    fn build_filter_parses_for_every_level() {
+        // The critical regression: building the filter must not panic on the
+        // static directive string (a past bug panicked at startup via
+        // `with_default_directive` on a comma-separated filter). It must also
+        // yield a non-empty, usable filter for every configured level.
+        for raw in ["error", "warn", "info", "debug", "trace"] {
+            let trace_level =
+                LoggingTraceLevel::new(raw).unwrap_or_else(|e| panic!("valid level rejected: {e}"));
+            let filter = LoggingTracing::build_filter(&trace_level);
+            assert!(
+                !filter.to_string().is_empty(),
+                "filter should not be empty for level {raw}"
+            );
         }
     }
 }

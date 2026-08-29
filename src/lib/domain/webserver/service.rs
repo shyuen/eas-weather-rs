@@ -4,7 +4,8 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
-use crate::domain::webserver::port::WebserverPort;
+use crate::domain::webserver::port::{WebserverPort, WebserverStartError};
+use tracing::field::Empty;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Clone)]
@@ -34,19 +35,26 @@ where
         &self.repo
     }
 
+    #[tracing::instrument(
+        skip(self, alert_serv, config_serv, db_port),
+        fields(operation = "start_server", result = Empty),
+        level = "debug"
+    )]
     pub async fn start_server<CP, AP, DP>(
         &self,
         alert_serv: &AlertService<AP>,
         config_serv: &ConfigService<CP>,
         db_port: &DP,
-    ) -> Result<(), std::io::Error>
+    ) -> Result<(), WebserverStartError>
     where
         CP: ConfigPort,
         AP: AlertPort,
         DP: DatabasePort,
     {
-        debug!("start_server: starting server");
+        let span = tracing::Span::current();
+        debug!(event_kind = "service", "start_server: starting server");
         info!(
+            event_kind = "service",
             "start_server: starting {} server at {}:{}",
             self.repo.adaptor_name(),
             self.conf.hostname.get(),
@@ -58,19 +66,33 @@ where
             .await
         {
             Ok(reason) => {
+                span.record("result", "ok");
                 match reason {
-                    ShutdownReason::CtrlC => info!("start_server: received Ctrl+C, shutting down"),
+                    ShutdownReason::CtrlC => {
+                        info!(
+                            event_kind = "service",
+                            "start_server: received Ctrl+C, shutting down"
+                        )
+                    }
                     ShutdownReason::Terminate => {
-                        info!("start_server: received terminate signal, shutting down")
+                        info!(
+                            event_kind = "service",
+                            "start_server: received terminate signal, shutting down"
+                        )
                     }
                     ShutdownReason::Stopped => {
-                        info!("start_server: server stopped")
+                        info!(event_kind = "service", "start_server: server stopped")
                     }
                 }
                 Ok(())
             }
             Err(err) => {
-                error!("start_server: server failed to start: {}", err);
+                error!(
+                    event_kind = "service",
+                    error_code = err.code(),
+                    message = %err,
+                    "start_server: server failed to start"
+                );
                 Err(err)
             }
         }
