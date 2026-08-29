@@ -26,7 +26,7 @@ where
     CP: ConfigPort,
     AP: AlertPort,
 {
-    // API routes (optionally nested under base_path) and the docs at root.
+    // API routes (optionally nested under base_path).
     let api_routes = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/favicon.ico", get(|| async { StatusCode::NO_CONTENT }))
@@ -34,24 +34,35 @@ where
         .nest("/conf", create_conf_routes(api_key))
         .nest("/alerts", create_alert_routes());
 
-    // Apply base_path to the API routes only; Swagger UI + OpenAPI spec stay
-    // at /swagger-ui and /api-docs/openapi.json (paths are embedded in the
-    // served Swagger UI page, so they must match the actual mount point).
-    let api_routes = match base_path
-        .as_deref()
-        .filter(|p| !p.is_empty() && *p != "/")
-    {
+    // Apply base_path to the API routes.
+    let active_base_path: Option<&str> =
+        base_path.as_deref().filter(|p| !p.is_empty() && *p != "/");
+
+    let api_routes = match active_base_path {
         Some(path) => Router::new().nest(path, api_routes),
         None => api_routes,
     };
 
-    api_routes
-        .merge(SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", api_doc(base_path)))
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
-                .on_response(StatusOnResponse),
-        )
+    // Serve Swagger UI and the OpenAPI spec under the same base path, so the
+    // whole app (docs included) is reachable from a single location when the
+    // service is deployed behind a shared-root router (e.g. Istio) that only
+    // forwards the base-path location. The spec URL embedded in the served
+    // swagger-initializer.js is the absolute, base-prefixed path, so the
+    // browser fetches it correctly from the proxied location.
+    let docs = match active_base_path {
+        Some(path) => {
+            let path = path.trim_end_matches('/');
+            SwaggerUi::new(format!("{path}/swagger-ui/"))
+                .url(format!("{path}/api-docs/openapi.json"), api_doc(base_path))
+        }
+        None => SwaggerUi::new("/swagger-ui/").url("/api-docs/openapi.json", api_doc(base_path)),
+    };
+
+    api_routes.merge(docs).layer(
+        TraceLayer::new_for_http()
+            .make_span_with(DefaultMakeSpan::new().level(Level::DEBUG))
+            .on_response(StatusOnResponse),
+    )
 }
 
 /// Logs each completed request, using `WARN` for client/server error statuses
@@ -198,9 +209,59 @@ mod tests {
         assert_eq!(status(&app, "/api/alerts").await, 200);
         assert_eq!(status(&app, "/api/conf/app").await, 200);
         assert_eq!(status(&app, "/api/health/startup").await, 200);
-        // Swagger UI + OpenAPI spec are served at the root
-        assert_eq!(status(&app, "/swagger-ui/index.html").await, 200);
-        assert_eq!(status(&app, "/api-docs/openapi.json").await, 200);
+        // Swagger UI + OpenAPI spec are served under the base path too, so the
+        // whole app is reachable from one location behind a shared-root router
+        assert_eq!(status(&app, "/api/swagger-ui/index.html").await, 200);
+        assert_eq!(status(&app, "/api/api-docs/openapi.json").await, 200);
+    }
+
+    #[tokio::test]
+    async fn trailing_slash_base_path_mounts_docs() {
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
+        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/api/".into()))
+            .with_state(state);
+
+        async fn status(app: &axum::Router, uri: &str) -> u16 {
+            app.clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap()
+                .status()
+                .as_u16()
+        }
+
+        // A trailing slash on the configured base path must not double up in
+        // the API routes or the docs mount points.
+        assert_eq!(status(&app, "/api/alerts").await, 200);
+        assert_eq!(status(&app, "/api/swagger-ui/index.html").await, 200);
+        assert_eq!(status(&app, "/api/api-docs/openapi.json").await, 200);
+    }
+
+    #[tokio::test]
+    async fn openapi_doc_with_base_path_annotates_server_url() {
+        let state = build_state::<MockDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &MockDb,
+        );
+        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/dino".into()))
+            .with_state(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/dino/api-docs/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let doc: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(doc["servers"][0]["url"], "/dino");
     }
 
     #[test]
