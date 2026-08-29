@@ -1,8 +1,14 @@
 # eas-weather-rs
 
-A web microservice service that provides emergency alert system (EAS) information.
+eas-weather-rs is a Rust-based microservice that provides emergency alert system (EAS) information via an HTTP API.
 
-## Nix Environment
+Built with a hexagonal architecture, it features SQLx database migrations, OpenAPI (Swagger) integration for API documentation, and follows a domain-driven design with clear separation of concerns.
+
+This project was created to help learn Rust and the hexagonal pattern, originally started without AI assistance as an opportunity to learn to use AI effectively for coding. 
+
+## General Setup Information
+
+### Nix Development Environment
 *You may skip this section if you are not using Nix.*
 
 This project includes a `flake.nix` file for setting up the development environment on a NixOS machine.
@@ -17,24 +23,17 @@ use flake
 ```
 This will require `direnv` to be installed and enabled in your shell.
 
-## Rust Workspace
+### Rust Workspace
 
-### Running the Project
-You generally run Rust projects using Cargo, Rust's package manager and build system. You can run the project with the following command:
-```bash
-cargo run
-```
 
-You can add more CLI arguments to your application as needed in the command line. For example, to see the help message for the application, you can run:
-```bash
-cargo run -- --help
-```
 
-### Unit Testing the Project
+#### Unit Testing Rust Projects
 You can run the unit tests for the project using Cargo with the following command:
 ```
 cargo test
 ```
+
+## Project Specific Information
 
 ### Priority Configuration Order
 The configuration is loaded in the following order, with later values overriding earlier ones:
@@ -46,6 +45,8 @@ The configuration is loaded in the following order, with later values overriding
 
 ### Environment Variables
 All environment variables share the `EAS_WEATHER_RS` base prefix (derived from the package name `eas-weather-rs`), followed by a section, then the key — each part separated by `__`. This is the same naming shown in `cargo run -- --help` next to each flag (e.g. `[env: EAS_WEATHER_RS__WEBSERVER__PORT=]`). Any value may also be set via the `.env` file (see below).
+
+To see all available environment variables with examples and descriptions, please reference the `.env.example` file in the project root. This file contains commented-out examples for every configurable option.
 
 The prefixes are:
 - `EAS_WEATHER_RS__APP__` — application-level settings (e.g. `EAS_WEATHER_RS__APP__CONFIG_FILE`)
@@ -69,9 +70,28 @@ EAS_WEATHER_RS__LOGGING__FORMAT="json"
 
 The defaults for every key are defined in `config/default.toml`.
 
+### Running the Main Application
+You can run the main eas-weather-rs application using Cargo:
+```bash
+cargo run --bin eas-weather-rs
+```
+
+This starts the `eas-weather-rs` binary, which serves EAS alert data via HTTP. The application will load configuration according to the priority order described above.
+
+You can add CLI arguments to customize the runtime behavior. For example, to see all available options:
+```bash
+cargo run --bin eas-weather-rs --help
+```
+
+Common usage patterns include:
+- Using default configuration (loads from `config/default.toml`): `cargo run`
+- Specifying a custom config file: `cargo run -- --config-file ./config/custom.toml`
+- Overriding specific settings via environment variables: `EAS_WEATHER_RS__WEBSERVER__PORT=3000 cargo run`
+- Using a .env file: create a `.env` file in the project root and run `cargo run`
+
 ### Database Migrations
 
-Migrations are managed by SQLx and live in the `migrations/` directory. Each file contains both `-- +migrate up` and `-- +migrate down` sections. When creating new migrations, use `sqlx migrate add --reversible` (or `-r`) to generate reversible migrations.
+Migrations are managed by SQLx and live in the `migrations/` directory. Each migration consists of two separate files: `{timestamp}_name.up.sql` for the migration and `{timestamp}_name.down.sql` for the rollback. When creating new migrations, use `sqlx migrate add --reversible` (or `-r`) to generate both files.
 
 #### Building the Migration Binary
 ```bash
