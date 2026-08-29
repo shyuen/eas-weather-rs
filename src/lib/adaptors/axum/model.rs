@@ -12,7 +12,7 @@ use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
-use crate::domain::webserver::port::WebserverPort;
+use crate::domain::webserver::port::{WebserverPort, WebserverStartError};
 
 #[derive(Debug, Clone)]
 pub struct WebserverAxum {
@@ -38,7 +38,7 @@ impl WebserverPort for WebserverAxum {
         alert_service: &AlertService<AP>,
         config_service: &ConfigService<CP>,
         db_port: &DP,
-    ) -> Result<ShutdownReason, std::io::Error>
+    ) -> Result<ShutdownReason, WebserverStartError>
     where
         CP: ConfigPort,
         AP: AlertPort,
@@ -72,7 +72,8 @@ impl WebserverPort for WebserverAxum {
         // Start the Axum server
         axum::serve(listener, app)
             .with_graceful_shutdown(WebserverAxum::shutdown_signal(db_port, shutdown_tx))
-            .await?;
+            .await
+            .map_err(WebserverStartError::Io)?;
 
         Ok(shutdown_rx.await.unwrap_or(ShutdownReason::Stopped))
     }

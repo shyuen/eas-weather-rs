@@ -4,7 +4,7 @@ use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::port::DatabasePort;
 use crate::domain::webserver::model::{ShutdownReason, Webserver};
-use crate::domain::webserver::port::WebserverPort;
+use crate::domain::webserver::port::{WebserverPort, WebserverStartError};
 use tracing::field::Empty;
 use tracing::{debug, error, info};
 
@@ -45,7 +45,7 @@ where
         alert_serv: &AlertService<AP>,
         config_serv: &ConfigService<CP>,
         db_port: &DP,
-    ) -> Result<(), std::io::Error>
+    ) -> Result<(), WebserverStartError>
     where
         CP: ConfigPort,
         AP: AlertPort,
@@ -89,7 +89,7 @@ where
             Err(err) => {
                 error!(
                     event_kind = "service",
-                    error_code = "start_server_io_error",
+                    error_code = err.code(),
                     message = %err,
                     "start_server: server failed to start"
                 );
