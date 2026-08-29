@@ -16,10 +16,11 @@ shutdown_timeout_secs = 5   # Graceful shutdown timeout in seconds
 
 default_page_limit = 10    # Default page size for paginated endpoints
 page_limit_max = 100       # Maximum page size for paginated endpoints
+api_key_file = ""          # Path to the API key file
+jwt_key_file = ""          # Path to the JWT key file (not currently used)
+jwt_access_token_expiry_secs = 900  # JWT access token expiry in seconds (not currently used)
 
 [database]
-# If the conn_url_file is not found, then the program will use the following value for
-# the connection string.
 conn_url_file = "./config/mysql_conn_url"   # Database connection URL file path
 
 conn_max_retries = 5                        # Maximum number of connection retries
