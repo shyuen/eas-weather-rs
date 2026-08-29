@@ -28,8 +28,9 @@ impl LoggingTracing {
 
     /// Build the per-module [`EnvFilter`].
     ///
-    /// The configured `trace_level` is applied to the application crate itself
-    /// (`eas_weather_rs`), while noisy transitive crates (sqlx, hyper, mio,
+    /// The configured `trace_level` is applied to the application crates
+    /// themselves (`eas_weather_rs` lib + server binary, `eas_migrate`
+    /// migration binary), while noisy transitive crates (sqlx, hyper, mio,
     /// tokio, etc.) are pinned to quieter levels. Without this, setting
     /// `trace_level = "debug"` would also dump `debug` output from every
     /// dependency into stdout. The static `RUST_LOG` override still wins when
@@ -38,6 +39,7 @@ impl LoggingTracing {
         let level = Self::trace_level_str(trace_level);
         let directives = format!(
             "eas_weather_rs={level},\
+             eas_migrate={level},\
              sqlx=warn,\
              hyper=warn,\
              mio=warn,\
@@ -118,14 +120,24 @@ mod tests {
         // The critical regression: building the filter must not panic on the
         // static directive string (a past bug panicked at startup via
         // `with_default_directive` on a comma-separated filter). It must also
-        // yield a non-empty, usable filter for every configured level.
+        // yield a non-empty, usable filter for every configured level, matching
+        // both the lib/server crate and the migration binary crate.
         for raw in ["error", "warn", "info", "debug", "trace"] {
             let trace_level =
                 LoggingTraceLevel::new(raw).unwrap_or_else(|e| panic!("valid level rejected: {e}"));
             let filter = LoggingTracing::build_filter(&trace_level);
+            let text = filter.to_string();
             assert!(
-                !filter.to_string().is_empty(),
+                !text.is_empty(),
                 "filter should not be empty for level {raw}"
+            );
+            assert!(
+                text.contains(&format!("eas_weather_rs={raw}")),
+                "filter for {raw} should match the lib/server crate, got: {text}"
+            );
+            assert!(
+                text.contains(&format!("eas_migrate={raw}")),
+                "filter for {raw} should match the migration crate, got: {text}"
             );
         }
     }
