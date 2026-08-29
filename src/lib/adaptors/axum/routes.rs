@@ -337,9 +337,9 @@ mod tests {
 
         with_default(subscriber, || {
             let rt = tokio::runtime::Builder::new_current_thread()
-             .enable_all()
-             .build()
-             .unwrap();
+                .enable_all()
+                .build()
+                .unwrap();
             rt.block_on(async {
                 let state = build_state::<MockDb>(
                     mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),

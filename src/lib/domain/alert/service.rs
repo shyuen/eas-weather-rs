@@ -16,7 +16,7 @@ use crate::domain::alert::port::{
 };
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 /// The AlertService struct provides methods for managing alerts.
 /// Contains ports to interact with other services
@@ -57,7 +57,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("get_daily_alerts failed: {}", err);
+                error!(error_code = err.code(), message = %err, "get_daily_alerts failed");
                 Err(err)
             }
         }
@@ -80,7 +80,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("get_latest_alerts failed: {}", err);
+                error!(error_code = err.code(), message = %err, "get_latest_alerts failed");
                 Err(err)
             }
         }
@@ -94,7 +94,7 @@ where
         let alert = match build_alert(input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("create_alert rejected invalid input: {}", err);
+                error!(error_code = "validation_error", message = %err, "create_alert rejected invalid input");
                 return Err(CreateAlertError::ValidationError(err));
             }
         };
@@ -106,7 +106,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("create_alert failed: {}", err);
+                error!(error_code = err.code(), message = %err, "create_alert failed");
                 Err(err)
             }
         }
@@ -121,7 +121,7 @@ where
         let alert = match build_alert_for_update(identifier, input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("update_alert rejected invalid input: {}", err);
+                error!(error_code = "validation_error", message = %err, "update_alert rejected invalid input");
                 return Err(UpdateAlertError::ValidationError(err));
             }
         };
@@ -138,7 +138,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("update_alert failed: {}", err);
+                error!(error_code = err.code(), message = %err, "update_alert failed");
                 Err(err)
             }
         }
@@ -155,8 +155,7 @@ where
         let existing = match self.alert_port.get_alert_data(&identifier).await {
             Ok(resp) => resp.alert,
             Err(err) => {
-                error!("patch_alert failed to fetch existing alert: {}", err);
-                return Err(match err {
+                let patch_err = match err {
                     GetAlertError::NotFound => PatchAlertError::NotFound,
                     GetAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
                     GetAlertError::DatabaseConnectionError(msg) => {
@@ -165,14 +164,16 @@ where
                     GetAlertError::DataConversionError(msg) => {
                         PatchAlertError::DataConversionError(msg)
                     }
-                });
+                };
+                error!(error_code = patch_err.code(), message = %patch_err, "patch_alert failed to fetch existing alert");
+                return Err(patch_err);
             }
         };
 
         let alert = match build_alert_for_patch(identifier, &existing, input) {
             Ok(alert) => alert,
             Err(err) => {
-                warn!("patch_alert rejected invalid input: {}", err);
+                error!(error_code = "validation_error", message = %err, "patch_alert rejected invalid input");
                 return Err(PatchAlertError::ValidationError(err));
             }
         };
@@ -189,15 +190,16 @@ where
                 Ok(PatchAlertResponse { alert: resp.alert })
             }
             Err(err) => {
-                error!("patch_alert failed: {}", err);
-                Err(match err {
+                let patch_err = match err {
                     UpdateAlertError::NotFound => PatchAlertError::NotFound,
                     UpdateAlertError::DatabaseError(msg) => PatchAlertError::DatabaseError(msg),
                     UpdateAlertError::DatabaseConnectionError(msg) => {
                         PatchAlertError::DatabaseConnectionError(msg)
                     }
                     UpdateAlertError::ValidationError(msg) => PatchAlertError::ValidationError(msg),
-                })
+                };
+                error!(error_code = patch_err.code(), message = %patch_err, "patch_alert failed");
+                Err(patch_err)
             }
         }
     }
@@ -214,7 +216,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!("delete_alert failed: {}", err);
+                error!(error_code = err.code(), message = %err, "delete_alert failed");
                 Err(err)
             }
         }
