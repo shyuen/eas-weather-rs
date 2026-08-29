@@ -77,12 +77,11 @@
       in {
         packages = {
           rustPackage = myRustBuild;
-          docker = serverImage;
-          server = serverImage;
-          migrate = migrateImage;
+          docker-server = serverImage;
+          docker-migrate = migrateImage;
         };
 
-        # Build with: nix build .#docker (server) or nix build .#migrate
+        # Build with: nix build .#docker-server or nix build .#docker-migrate
         # Load with: docker load < result
         defaultPackage = serverImage;
 
