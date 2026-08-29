@@ -22,6 +22,17 @@ pub enum DatabaseCloseError {
     PoolNotInitialized,
 }
 
+/// Errors that can occur while checking database health.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum DatabaseHealthError {
+    /// The connection pool has not been initialized.
+    #[error("database connection pool is not initialized")]
+    NotInitialized,
+    /// The database is unreachable or returned an error.
+    #[error("database is unreachable: {0}")]
+    Unreachable(String),
+}
+
 //#[async_trait]
 pub trait DatabasePort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
     /// Create a new instance of the database repository with the given configuration
@@ -32,4 +43,7 @@ pub trait DatabasePort: AdaptorConfigRepr + Clone + Send + Sync + 'static {
 
     /// Close the database connection pool
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send;
+
+    /// Check the health of the database connection.
+    fn check_health(&self) -> impl Future<Output = Result<(), DatabaseHealthError>> + Send;
 }

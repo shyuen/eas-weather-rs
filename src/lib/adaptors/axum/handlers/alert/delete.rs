@@ -7,6 +7,7 @@ use crate::adaptors::axum::handlers::error::{ApiErrorResponse, ErrorCode};
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 /// Handler for DELETE /alerts/{identifier}
 ///
@@ -26,13 +27,14 @@ use crate::domain::config::port::ConfigPort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn delete_alert<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn delete_alert<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     Path(identifier): Path<String>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
         Ok(id) => id,

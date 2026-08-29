@@ -3,7 +3,9 @@ use std::time::Duration;
 
 use crate::domain::database::model::Database;
 use crate::domain::database::new_types::db_conn_string::DbConnectionString;
-use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
+use crate::domain::database::port::{
+    DatabaseCloseError, DatabaseConnectError, DatabaseHealthError, DatabasePort,
+};
 use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 
 #[derive(Debug, Clone)]
@@ -111,5 +113,12 @@ impl DatabasePort for DatabaseMySql {
             }
             None => Err(DatabaseCloseError::PoolNotInitialized),
         }
+    }
+
+    async fn check_health(&self) -> Result<(), DatabaseHealthError> {
+        let pool = self.get_pool().ok_or(DatabaseHealthError::NotInitialized)?;
+        sqlx::query("SELECT 1").execute(pool).await
+            .map_err(|e| DatabaseHealthError::Unreachable(e.to_string()))?;
+        Ok(())
     }
 }

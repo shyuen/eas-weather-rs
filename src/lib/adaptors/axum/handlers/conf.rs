@@ -3,6 +3,7 @@ use crate::domain::alert::port::AlertPort;
 use crate::domain::config::model::Config;
 use crate::domain::config::model::ValidatedConfig;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 use axum::Json;
 use axum::extract::State;
@@ -39,12 +40,13 @@ pub struct ConfResponse {
     ),
     tag = "conf"
 )]
-pub(crate) async fn get_raw_config<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn get_raw_config<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let raw_conf = state.get_config_service().get_raw_config().clone();
 
@@ -65,12 +67,13 @@ where
     ),
     tag = "conf"
 )]
-pub(crate) async fn get_app_config<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn get_app_config<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let conf = state.get_config_service().get_validated_app_conf();
 
@@ -89,6 +92,7 @@ mod tests {
     use crate::domain::alert::port::AlertPort;
     use crate::domain::config::model::*;
     use crate::domain::config::service::ConfigService;
+    use crate::domain::database::port::DatabasePort;
     use crate::test_support::{
         MockConfig, MockDb, build_state, build_webserver, mock_config_service,
     };
@@ -126,13 +130,13 @@ mod tests {
         }
     }
 
-    fn build_conf_app<D>(state: AppState<MockConfig, D>) -> axum::Router
+    fn build_conf_app<D>(state: AppState<MockConfig, D, D>) -> axum::Router
     where
-        D: AlertPort + Clone + Send + Sync + 'static,
+        D: AlertPort + DatabasePort + Clone + Send + Sync + 'static,
     {
         axum::Router::new()
-            .route("/raw", get(get_raw_config::<MockConfig, D>))
-            .route("/app", get(get_app_config::<MockConfig, D>))
+            .route("/raw", get(get_raw_config::<MockConfig, D, D>))
+            .route("/app", get(get_app_config::<MockConfig, D, D>))
             .with_state(state)
     }
 

@@ -17,14 +17,16 @@ use crate::adaptors::axum::handlers::health::{liveness, readiness, startup};
 use crate::adaptors::axum::openapi::api_doc;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
-pub fn create_routes<CP, AP>(
+pub fn create_routes<CP, AP, DP>(
     api_key: Option<String>,
     base_path: &Option<String>,
-) -> Router<AppState<CP, AP>>
+) -> Router<AppState<CP, AP, DP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     // API routes (optionally nested under base_path).
     let api_routes = Router::new()
@@ -95,10 +97,11 @@ impl<B> OnResponse<B> for StatusOnResponse {
     }
 }
 
-pub fn create_health_routes<CP, AP>() -> Router<AppState<CP, AP>>
+pub fn create_health_routes<CP, AP, DP>() -> Router<AppState<CP, AP, DP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     Router::new()
         .route("/startup", get(startup))
@@ -106,10 +109,11 @@ where
         .route("/liveness", get(liveness))
 }
 
-pub fn create_conf_routes<CP, AP>(api_key: Option<String>) -> Router<AppState<CP, AP>>
+pub fn create_conf_routes<CP, AP, DP>(api_key: Option<String>) -> Router<AppState<CP, AP, DP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     Router::new()
         .route("/raw", get(get_raw_config))
@@ -117,10 +121,11 @@ where
         .layer(middleware::from_fn_with_state(api_key, require_api_key))
 }
 
-pub fn create_alert_routes<CP, AP>() -> Router<AppState<CP, AP>>
+pub fn create_alert_routes<CP, AP, DP>() -> Router<AppState<CP, AP, DP>>
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     Router::new()
         .route("/", get(get_alerts))
@@ -168,6 +173,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn readiness_fails_when_database_is_down() {
+        // FailingDb's `check_health` always reports the DB as unreachable.
+        let state = build_state::<crate::test_support::FailingDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &crate::test_support::FailingDb,
+        );
+        let app = build_full_app::<crate::test_support::FailingDb>(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health/readiness")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status().as_u16(), 503);
+
+        // Liveness must NOT fail on a db outage.
+        let state = build_state::<crate::test_support::FailingDb>(
+            mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
+            &crate::test_support::FailingDb,
+        );
+        let app = build_full_app::<crate::test_support::FailingDb>(state);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/health/liveness")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status().as_u16(), 200);
+    }
+
+    #[tokio::test]
     async fn conf_routes_are_mounted() {
         assert_eq!(get_status("/conf/app").await, 200);
     }
@@ -189,7 +231,7 @@ mod tests {
             mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
             &MockDb,
         );
-        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/api".into()))
+        let app = super::create_routes::<MockConfig, MockDb, MockDb>(None, &Some("/api".into()))
             .with_state(state);
 
         async fn status(app: &axum::Router, uri: &str) -> u16 {
@@ -221,7 +263,7 @@ mod tests {
             mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
             &MockDb,
         );
-        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/api/".into()))
+        let app = super::create_routes::<MockConfig, MockDb, MockDb>(None, &Some("/api/".into()))
             .with_state(state);
 
         async fn status(app: &axum::Router, uri: &str) -> u16 {
@@ -246,7 +288,7 @@ mod tests {
             mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
             &MockDb,
         );
-        let app = super::create_routes::<MockConfig, MockDb>(None, &Some("/dino".into()))
+        let app = super::create_routes::<MockConfig, MockDb, MockDb>(None, &Some("/dino".into()))
             .with_state(state);
 
         let response = app
@@ -294,7 +336,10 @@ mod tests {
         let subscriber = CountingSubscriber(warn_count.clone());
 
         with_default(subscriber, || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Builder::new_current_thread()
+             .enable_all()
+             .build()
+             .unwrap();
             rt.block_on(async {
                 let state = build_state::<MockDb>(
                     mock_config_service(DEFAULT_PAGE_LIMIT, PAGE_LIMIT_MAX),
@@ -316,7 +361,10 @@ mod tests {
             });
         });
 
-        assert_eq!(warn_count.load(Ordering::SeqCst), 1);
+        // >=1 because other tests running in parallel may also emit warn events
+        // (e.g. readiness probe 503 from TraceLayer). We only need to confirm
+        // that malformed JSON *does* log a warning.
+        assert!(warn_count.load(Ordering::SeqCst) >= 1);
     }
 
     #[tokio::test]

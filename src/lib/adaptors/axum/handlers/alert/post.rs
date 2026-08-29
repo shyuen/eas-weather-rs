@@ -11,6 +11,7 @@ use crate::adaptors::axum::handlers::error::{ApiErrorResponse, JsonBody};
 use crate::domain::alert::model::CreateAlertInput;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 /// Request body for creating a new alert.
 #[derive(Debug, Clone, Deserialize, ToSchema)]
@@ -58,13 +59,14 @@ impl From<CreateAlertRequest> for CreateAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn create_alert<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn create_alert<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     JsonBody(req): JsonBody<CreateAlertRequest>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let alert_service = state.get_alert_service();
 
