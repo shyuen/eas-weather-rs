@@ -4,7 +4,7 @@ use std::process;
 use sqlx::Connection;
 use sqlx::Row;
 use sqlx::mysql::MySqlConnection;
-use tracing;
+use tracing::{error, info};
 
 use eas_weather_rs::adaptors::clap::model::parse_cli_migrate;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
