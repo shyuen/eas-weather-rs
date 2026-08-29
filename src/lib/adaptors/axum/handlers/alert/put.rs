@@ -12,6 +12,7 @@ use crate::domain::alert::model::UpdateAlertInput;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 /// Request body for replacing an existing alert. The identifier comes from the
 /// URL path, not the body.
@@ -63,14 +64,15 @@ impl From<UpdateAlertRequest> for UpdateAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn update_alert<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn update_alert<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     Path(identifier): Path<String>,
     JsonBody(req): JsonBody<UpdateAlertRequest>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
         Ok(id) => id,

@@ -48,7 +48,11 @@ impl WebserverPort for WebserverAxum {
         let db_port = db_port.clone();
 
         // Create the application state with the necessary services
-        let state = AppState::new(config_service.clone(), alert_service.clone());
+        let state = AppState::new(
+            config_service.clone(),
+            alert_service.clone(),
+            db_port.clone(),
+        );
 
         // Guard the configuration endpoints with the configured API key.
         let api_key = self.config.api_key.get().clone();
