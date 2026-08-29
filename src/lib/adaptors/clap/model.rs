@@ -26,7 +26,7 @@ pub(crate) struct CliServer {
 /// Called once by the composition root (`src/bin/server/main.rs`); the figment
 /// adaptor consumes the serialized value, so the two adaptors never reference
 /// each other.
-pub fn parse_cli() -> serde_json::Value {
+pub fn parse_cli_server() -> serde_json::Value {
     serde_json::to_value(CliServer::parse()).unwrap_or(serde_json::Value::Null)
 }
 
