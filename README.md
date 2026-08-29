@@ -2,7 +2,7 @@
 
 eas-weather-rs is a Rust-based microservice that provides emergency alert system (EAS) information via an HTTP API.
 
-Built with a hexagonal architecture, it features SQLx database migrations, OpenAPI (Swagger) integration for API documentation, and follows a domain-driven design with clear separation of concerns.
+Built with a hexagonal architecture, it features SQLx database migrations, OpenAPI (Swagger) integration for API documentation, and follows a domain-driven design with clear separation of concerns, utilizing the new type pattern for domain modeling.
 
 This project was created to help learn Rust and the hexagonal pattern, originally started without AI assistance as an opportunity to learn to use AI effectively for coding. 
 
