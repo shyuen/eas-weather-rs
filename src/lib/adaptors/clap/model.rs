@@ -29,6 +29,48 @@ pub fn parse_cli() -> serde_json::Value {
     serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null)
 }
 
+/// CLI configuration for the migration binary (`src/bin/migrate/main.rs`).
+///
+/// A subset of [`Cli`]: only the options the migration runner actually
+/// consumes (logging, database connection source, and config file). The
+/// server-only options (webserver, etc.) are deliberately excluded so
+/// `eas-migrate --help` doesn't advertise flags it will ignore.
+#[derive(Debug, Parser, Serialize)]
+#[command(version)]
+pub(crate) struct CliMigrate {
+    #[clap(flatten)]
+    logging: Logging,
+    #[clap(flatten)]
+    database: DatabaseMigrate,
+
+    /// Config file path location to be used by the migration binary.
+    #[arg(short = 'c', long, env = "EAS_WEATHER_RS__APP__CONFIG_FILE")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) config_file: Option<String>,
+}
+
+/// Parse the process command-line arguments for the migration binary and
+/// serialize them to a neutral JSON value for the config adaptor.
+pub fn parse_cli_migrate() -> serde_json::Value {
+    let mut value = serde_json::to_value(CliMigrate::parse()).unwrap_or(serde_json::Value::Null);
+    // The raw `Config` struct requires every top-level section, including
+    // `webserver`. The migration binary exposes no webserver flags (it never
+    // reads server settings), so contribute an empty section to satisfy the
+    // config extraction; all of its fields fall back to defaults.
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("webserver".to_string(), serde_json::json!({}));
+    }
+    value
+}
+
+#[derive(Debug, Parser, Serialize)]
+struct DatabaseMigrate {
+    /// Database connection string file path
+    #[arg(short = 'D', long, env = "EAS_WEATHER_RS__DATABASE__CONN_URL_FILE")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub(crate) conn_url_file: Option<String>,
+}
+
 #[derive(Debug, Parser, Serialize)]
 struct Logging {
     /// Log format to be used by the server
