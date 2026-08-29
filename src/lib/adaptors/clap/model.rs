@@ -1,11 +1,12 @@
 use clap::Parser;
 use serde_derive::Serialize;
 
-/// CLI Configuration for the application. Please refer to `config/default.toml` for default values.
+/// CLI Configuration for the server binary (`src/bin/server/main.rs`).
+/// Please refer to `config/default.toml` for default values.
 /// Should closely follow the structure of the `Config` struct in `crate::domain::config::model`.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
-pub(crate) struct Cli {
+pub(crate) struct CliServer {
     #[clap(flatten)]
     logging: Logging,
     #[clap(flatten)]
@@ -26,12 +27,12 @@ pub(crate) struct Cli {
 /// adaptor consumes the serialized value, so the two adaptors never reference
 /// each other.
 pub fn parse_cli() -> serde_json::Value {
-    serde_json::to_value(Cli::parse()).unwrap_or(serde_json::Value::Null)
+    serde_json::to_value(CliServer::parse()).unwrap_or(serde_json::Value::Null)
 }
 
 /// CLI configuration for the migration binary (`src/bin/migrate/main.rs`).
 ///
-/// A subset of [`Cli`]: only the options the migration runner actually
+/// A subset of [`CliServer`]: only the options the migration runner actually
 /// consumes (logging, database connection source, and config file). The
 /// server-only options (webserver, etc.) are deliberately excluded so
 /// `eas-migrate --help` doesn't advertise flags it will ignore.
