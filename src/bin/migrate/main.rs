@@ -41,19 +41,23 @@ async fn main() {
         .map(|rows| rows.iter().map(|r| r.get::<i64, _>("version")).collect())
         .unwrap_or_default();
 
-    let pending: Vec<_> = migrations
+    let total_up = migrations
         .iter()
-        .filter(|m| !applied.contains(&m.version))
+        .filter(|m| m.migration_type.is_up_migration())
+        .count();
+    let pending_up: Vec<_> = migrations
+        .iter()
+        .filter(|m| m.migration_type.is_up_migration() && !applied.contains(&m.version))
         .collect();
 
-    if pending.is_empty() {
+    if pending_up.is_empty() {
         println!(
             "All {} migration(s) already applied.",
-            migrations.iter().count()
+            total_up
         );
     } else {
-        println!("{} pending migration(s):", pending.len());
-        for m in &pending {
+        println!("{} pending migration(s):", pending_up.len());
+        for m in &pending_up {
             println!("  v{} — {}", m.version, m.description);
         }
     }
