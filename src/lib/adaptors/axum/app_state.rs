@@ -25,7 +25,11 @@ where
     DP: DatabasePort,
 {
     /// Create a new AppState with the given services.
-    pub fn new(config_service: ConfigService<CP>, alert_service: AlertService<AP>, db_port: DP) -> Self {
+    pub fn new(
+        config_service: ConfigService<CP>,
+        alert_service: AlertService<AP>,
+        db_port: DP,
+    ) -> Self {
         Self {
             config_service: Arc::new(config_service),
             alert_service: Arc::new(alert_service),
