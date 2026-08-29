@@ -5,7 +5,7 @@ use sqlx::Connection;
 use sqlx::Row;
 use sqlx::mysql::MySqlConnection;
 
-use eas_weather_rs::adaptors::clap::model::parse_cli;
+use eas_weather_rs::adaptors::clap::model::parse_cli_migrate;
 use eas_weather_rs::adaptors::figment::model::ConfigFigment;
 use eas_weather_rs::adaptors::tracing::model::LoggingTracing;
 use eas_weather_rs::domain::config::port::ConfigPort;
@@ -19,7 +19,7 @@ use eas_weather_rs::domain::logging::port::LoggingPort;
 /// Designed to run as a k8s init container before the main app starts.
 #[tokio::main]
 async fn main() {
-    let cli = parse_cli();
+    let cli = parse_cli_migrate();
     let config = ConfigFigment::with_cli(cli);
 
     // Initialize logging from config so container logs honour the format
