@@ -18,7 +18,9 @@ use crate::domain::config::model::*;
 use crate::domain::config::port::ConfigPort;
 use crate::domain::config::service::ConfigService;
 use crate::domain::database::model::Database;
-use crate::domain::database::port::{DatabaseCloseError, DatabaseConnectError, DatabasePort};
+use crate::domain::database::port::{
+    DatabaseCloseError, DatabaseConnectError, DatabaseHealthError, DatabasePort,
+};
 use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
 use crate::domain::logging::model::Logging;
 use crate::domain::logging::new_types::lg_format::LoggingFormat;
@@ -164,6 +166,9 @@ impl DatabasePort for MockDb {
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
     }
+    fn check_health(&self) -> impl Future<Output = Result<(), DatabaseHealthError>> + Send {
+        async { Ok(()) }
+    }
 }
 
 impl AdaptorConfigRepr for MockDb {
@@ -245,6 +250,13 @@ impl DatabasePort for FailingDb {
     }
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
+    }
+    fn check_health(&self) -> impl Future<Output = Result<(), DatabaseHealthError>> + Send {
+        async {
+            Err(DatabaseHealthError::Unreachable(
+                "test db is down".to_string(),
+            ))
+        }
     }
 }
 
@@ -339,6 +351,9 @@ impl DatabasePort for FlakyDb {
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
     }
+    fn check_health(&self) -> impl Future<Output = Result<(), DatabaseHealthError>> + Send {
+        async { Ok(()) }
+    }
 }
 
 impl AdaptorConfigRepr for FlakyDb {
@@ -422,6 +437,9 @@ impl DatabasePort for MissingDb {
     fn close_pool(&self) -> impl Future<Output = Result<(), DatabaseCloseError>> + Send {
         async { Ok(()) }
     }
+    fn check_health(&self) -> impl Future<Output = Result<(), DatabaseHealthError>> + Send {
+        async { Ok(()) }
+    }
 }
 
 impl AdaptorConfigRepr for MissingDb {
@@ -494,24 +512,25 @@ pub fn mock_config_service(dpl: u64, plm: u64) -> ConfigService<MockConfig> {
 }
 
 /// Convenience: an `AppState` wired with the supplied `ConfigService` and a real
-/// `AlertService` over the supplied `AP: AlertPort` double.
+/// `AlertService` over the supplied `AP: AlertPort` double. The same mock type
+/// is used as the `DatabasePort` (the mock DB types implement both ports).
 pub fn build_state<AP>(
     config_service: ConfigService<MockConfig>,
     d: &AP,
-) -> crate::adaptors::axum::app_state::AppState<MockConfig, AP>
+) -> crate::adaptors::axum::app_state::AppState<MockConfig, AP, AP>
 where
-    AP: AlertPort + Clone,
+    AP: AlertPort + DatabasePort + Clone,
 {
     let alert_service = AlertService::new(d);
-    crate::adaptors::axum::app_state::AppState::new(config_service, alert_service)
+    crate::adaptors::axum::app_state::AppState::new(config_service, alert_service, d.clone())
 }
 
 /// Convenience: the router for the alert handlers, bound to `MockConfig`.
 pub fn build_alert_app<AP>(
-    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP>,
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP, AP>,
 ) -> axum::Router
 where
-    AP: AlertPort + Clone + Send + Sync + 'static,
+    AP: AlertPort + DatabasePort + Clone + Send + Sync + 'static,
 {
     use crate::adaptors::axum::handlers::alert::{
         create_alert, delete_alert, get_alerts, get_daily_alerts, patch_alert, update_alert,
@@ -519,21 +538,22 @@ where
     use axum::routing::{delete, get, patch, post, put};
 
     axum::Router::new()
-        .route("/", get(get_alerts::<MockConfig, AP>))
-        .route("/", post(create_alert::<MockConfig, AP>))
-        .route("/{identifier}", put(update_alert::<MockConfig, AP>))
-        .route("/{identifier}", patch(patch_alert::<MockConfig, AP>))
-        .route("/{identifier}", delete(delete_alert::<MockConfig, AP>))
-        .route("/daily", get(get_daily_alerts::<MockConfig, AP>))
+        .route("/", get(get_alerts::<MockConfig, AP, AP>))
+        .route("/", post(create_alert::<MockConfig, AP, AP>))
+        .route("/{identifier}", put(update_alert::<MockConfig, AP, AP>))
+        .route("/{identifier}", patch(patch_alert::<MockConfig, AP, AP>))
+        .route("/{identifier}", delete(delete_alert::<MockConfig, AP, AP>))
+        .route("/daily", get(get_daily_alerts::<MockConfig, AP, AP>))
         .with_state(state)
 }
 
 /// Convenience: the full router (all route groups) bound to `MockConfig`.
 pub fn build_full_app<AP>(
-    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP>,
+    state: crate::adaptors::axum::app_state::AppState<MockConfig, AP, AP>,
 ) -> axum::Router
 where
-    AP: AlertPort + Clone + Send + Sync + 'static,
+    AP: AlertPort + DatabasePort + Clone + Send + Sync + 'static,
 {
-    crate::adaptors::axum::routes::create_routes::<MockConfig, AP>(None, &None).with_state(state)
+    crate::adaptors::axum::routes::create_routes::<MockConfig, AP, AP>(None, &None)
+        .with_state(state)
 }
