@@ -71,7 +71,7 @@ The defaults for every key are defined in `config/default.toml`.
 
 ### Database Migrations
 
-Migrations are managed by SQLx and live in the `migrations/` directory. Each file contains both `-- +migrate up` and `-- +migrate down` sections.
+Migrations are managed by SQLx and live in the `migrations/` directory. Each file contains both `-- +migrate up` and `-- +migrate down` sections. When creating new migrations, use `sqlx migrate add --reversible` (or `-r`) to generate reversible migrations.
 
 #### Building the Migration Binary
 ```bash
