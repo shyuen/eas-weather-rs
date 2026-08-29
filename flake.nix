@@ -41,7 +41,7 @@
 
         # Server image
         serverImage = pkgs.dockerTools.buildLayeredImage {
-          name = "eas-weather-rs";
+          name = "eas-weather-rs-server";
           tag = "latest";
           contents = [ serverOnly ];
           extraCommands = ''
@@ -51,7 +51,7 @@
           '';
           config = {
             User = "1000:1000";
-            Cmd = [ "${serverOnly}/bin/eas-weather-rs" ];
+            Cmd = [ "${serverOnly}/bin/eas-weather-rs-server" ];
             ExposedPorts = {
               "8080/tcp" = { };
             };
@@ -60,7 +60,7 @@
 
         # Migration runner image
         migrateImage = pkgs.dockerTools.buildLayeredImage {
-          name = "eas-migrate";
+          name = "eas-weather-rs-migrate";
           tag = "latest";
           contents = [ migrateOnly ];
           extraCommands = ''
