@@ -67,9 +67,14 @@ where
     )
 }
 
-/// Logs each completed request, using `WARN` for client/server error statuses
-/// (so they surface at the configured `info` trace level) and `DEBUG` for
-/// successful responses.
+/// Logs each completed request as a transport-level (`event_kind = "http"`)
+/// event, using `WARN` for client/server error statuses (so they surface at the
+/// configured `info` trace level) and `DEBUG` for successful responses.
+///
+/// The domain/service layer emits its own `event_kind = "service"` events with
+/// the meaningful semantics (e.g. `error_code`). The two layers are correlated
+/// by the request span but distinguished by `event_kind`, so aggregators can
+/// cleanly separate transport facts from application outcome.
 #[derive(Clone, Copy)]
 struct StatusOnResponse;
 
@@ -83,6 +88,7 @@ impl<B> OnResponse<B> for StatusOnResponse {
             tracing::event!(
                 parent: span,
                 Level::WARN,
+                event_kind = "http",
                 status = %status,
                 "request completed with error status"
             );
@@ -90,6 +96,7 @@ impl<B> OnResponse<B> for StatusOnResponse {
             tracing::event!(
                 parent: span,
                 Level::DEBUG,
+                event_kind = "http",
                 status = %status,
                 "request completed"
             );
