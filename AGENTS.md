@@ -25,7 +25,7 @@ Priority (highest wins): CLI args → env vars (incl. `.env` file) → selected 
 
 Env prefixes: `EAS_WEATHER_RS__APP__`, `EAS_WEATHER_RS__LOGGING__`, `EAS_WEATHER_RS__SERVER__`, `EAS_WEATHER_RS__DATABASE__`. The base prefix `EAS_WEATHER_RS` is derived from the crate name (hyphens → underscores) and verified at compile time in `src/lib/adaptors/figment/model.rs`. Env vars split on `__` → nested keys (e.g. `EAS_WEATHER_RS__SERVER__PORT` → `server.port`). clap's `#[arg(env = "...")]` attributes are written as literals (clap can't take a const).
 
-**Adaptors never reference each other.** `main.rs` (composition root) parses CLI args once via `clap::parse_cli()` and injects them as a neutral `serde_json::Value` through `ConfigFigment::with_cli(...)` → `ConfigService::from_port(...)`. The `.env` file is loaded via `dotenvy::dotenv()` inside the figment adaptor (part of the env-var source).
+**Adaptors never reference each other.** `main.rs` (composition root) parses CLI args once via `clap::parse_cli_server()` and injects them as a neutral `serde_json::Value` through `ConfigFigment::with_cli(...)` → `ConfigService::from_port(...)`. The `.env` file is loaded via `dotenvy::dotenv()` inside the figment adaptor (part of the env-var source).
 
 **Two-phase load:** figment loads config twice — first to extract `config_file` path, second with all sources.
 
