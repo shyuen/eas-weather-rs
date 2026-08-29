@@ -54,6 +54,23 @@ The prefixes are:
 - `EAS_WEATHER_RS__WEBSERVER__` — web server (`EAS_WEATHER_RS__WEBSERVER__HOSTNAME`, `EAS_WEATHER_RS__WEBSERVER__PORT`, ...)
 - `EAS_WEATHER_RS__DATABASE__` — database (`EAS_WEATHER_RS__DATABASE__CONN_URL_FILE`, `EAS_WEATHER_RS__DATABASE__CONN_MAX_RETRIES`, ...)
 
+### Architectural Benefits
+
+This project follows a hexagonal (ports and adapters) architecture which provides several benefits:
+
+**Dependency Swapping**: External dependencies (database, web framework) can be changed without modifying domain logic. For example, switching from Axum to Poem or MySQL to PostgreSQL only requires changing adaptor implementations.
+
+**Testability**: Domain services depend only on ports (traits), making them easy to test with mock implementations.
+
+**Shared Logic Without Versioning**: Core domain logic (validation, workflows, modeling) is versioned together with the application. When adding new binaries (like a migration tool or future listener), they automatically get the latest domain logic without needing to manage separate library versions.
+
+**Safe Binary Addition**: New EAS-related tools can be added as separate binaries under `src/bin/` while reusing:
+- Identical configuration loading patterns
+- Identical logging setup
+- Identical service construction
+- Identical domain validation logic
+Only the outermost layer (CLI args, socket listener, HTTP server) and app-specific business logic differ.
+
 Example:
 ```bash
 export EAS_WEATHER_RS__WEBSERVER__PORT=8080
