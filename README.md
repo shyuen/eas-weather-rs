@@ -176,11 +176,11 @@ docker build -t eas-weather-rs-migrate .
 #### Using Nix (flake)
 ```bash
 # Build server image
-nix build .#docker
+nix build .#docker-server
 docker load < result
 
 # Build migration image
-nix build .#migrate
+nix build .#docker-migrate
 docker load < result
 ```
 
