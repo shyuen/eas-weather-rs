@@ -35,6 +35,12 @@ pub fn parse_cli() -> serde_json::Value {
 /// consumes (logging, database connection source, and config file). The
 /// server-only options (webserver, etc.) are deliberately excluded so
 /// `eas-migrate --help` doesn't advertise flags it will ignore.
+///
+/// Env-var namespace: the `EAS_WEATHER_RS__` prefix is deliberately shared with
+/// the server binary — it namespaces the application, not the binary. Both run
+/// in the same deployment, so one ConfigMap/Secret serves both containers;
+/// env is per-container in K8s, so the shared keys can still carry different
+/// values per container.
 #[derive(Debug, Parser, Serialize)]
 #[command(version)]
 pub(crate) struct CliMigrate {
@@ -73,12 +79,12 @@ struct DatabaseMigrate {
 
 #[derive(Debug, Parser, Serialize)]
 struct Logging {
-    /// Log format to be used by the server
+    /// Log format to be used by the application
     #[arg(short = 'l', long, env = "EAS_WEATHER_RS__LOGGING__FORMAT")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) format: Option<String>,
 
-    /// Log trace level to be used by the server
+    /// Log trace level to be used by the application
     #[arg(short = 't', long, env = "EAS_WEATHER_RS__LOGGING__TRACE_LEVEL")]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub(crate) trace_level: Option<String>,
