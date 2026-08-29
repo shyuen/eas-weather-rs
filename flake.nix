@@ -30,13 +30,13 @@
         # Filter to only the server binary
         serverOnly = pkgs.runCommand "server-only" {} ''
           mkdir -p $out/bin
-          cp ${myRustBuild}/bin/eas-weather-rs $out/bin/
+          cp ${myRustBuild}/bin/eas-weather-rs-server $out/bin/
         '';
 
         # Filter to only the migrate binary
         migrateOnly = pkgs.runCommand "migrate-only" {} ''
           mkdir -p $out/bin
-          cp ${myRustBuild}/bin/eas-migrate $out/bin/
+          cp ${myRustBuild}/bin/eas-weather-rs-migrate $out/bin/
         '';
 
         # Server image

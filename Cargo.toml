@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [[bin]]
-name = "eas-weather-rs"
+name = "eas-weather-rs-server"
 path = "src/bin/server/main.rs"
 
 [[bin]]
-name = "eas-migrate"
+name = "eas-weather-rs-migrate"
 path = "src/bin/migrate/main.rs"
 
 [lib]
