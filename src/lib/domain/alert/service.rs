@@ -35,7 +35,7 @@ where
 {
     /// Creates a new instance of AlertService.
     pub fn new(alert_port: &AP) -> Self {
-        info!("Initializing AlertService");
+        info!(event_kind = "service", "Initializing AlertService");
         Self {
             alert_port: alert_port.clone(),
         }
@@ -53,6 +53,7 @@ where
             Ok(resp) => {
                 span.record("result", "ok");
                 info!(
+                    event_kind = "service",
                     "get_daily_alerts returned {} of {} alerts",
                     resp.alerts.len(),
                     resp.total
@@ -60,7 +61,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!(error_code = err.code(), message = %err, "get_daily_alerts failed");
+                error!(event_kind = "service", error_code = err.code(), message = %err, "get_daily_alerts failed");
                 Err(err)
             }
         }
@@ -78,6 +79,7 @@ where
             Ok(resp) => {
                 span.record("result", "ok");
                 info!(
+                    event_kind = "service",
                     "get_latest_alerts returned {} of {} alerts",
                     resp.alerts.len(),
                     resp.total
@@ -85,7 +87,7 @@ where
                 Ok(resp)
             }
             Err(err) => {
-                error!(error_code = err.code(), message = %err, "get_latest_alerts failed");
+                error!(event_kind = "service", error_code = err.code(), message = %err, "get_latest_alerts failed");
                 Err(err)
             }
         }
@@ -101,7 +103,7 @@ where
         let alert = match build_alert(input) {
             Ok(alert) => alert,
             Err(err) => {
-                error!(error_code = "validation_error", message = %err, "create_alert rejected invalid input");
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "create_alert rejected invalid input");
                 return Err(CreateAlertError::ValidationError(err));
             }
         };
@@ -109,11 +111,14 @@ where
         match self.alert_port.create_alert_data(alert).await {
             Ok(resp) => {
                 span.record("result", "ok");
-                info!("create_alert persisted successfully");
+                info!(
+                    event_kind = "service",
+                    "create_alert persisted successfully"
+                );
                 Ok(resp)
             }
             Err(err) => {
-                error!(error_code = err.code(), message = %err, "create_alert failed");
+                error!(event_kind = "service", error_code = err.code(), message = %err, "create_alert failed");
                 Err(err)
             }
         }
@@ -131,7 +136,7 @@ where
         let alert = match build_alert_for_update(identifier, input) {
             Ok(alert) => alert,
             Err(err) => {
-                error!(error_code = "validation_error", message = %err, "update_alert rejected invalid input");
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "update_alert rejected invalid input");
                 return Err(UpdateAlertError::ValidationError(err));
             }
         };
@@ -144,11 +149,14 @@ where
         {
             Ok(resp) => {
                 span.record("result", "ok");
-                info!("update_alert persisted successfully");
+                info!(
+                    event_kind = "service",
+                    "update_alert persisted successfully"
+                );
                 Ok(resp)
             }
             Err(err) => {
-                error!(error_code = err.code(), message = %err, "update_alert failed");
+                error!(event_kind = "service", error_code = err.code(), message = %err, "update_alert failed");
                 Err(err)
             }
         }
@@ -178,7 +186,7 @@ where
                         PatchAlertError::DataConversionError(msg)
                     }
                 };
-                error!(error_code = patch_err.code(), message = %patch_err, "patch_alert failed to fetch existing alert");
+                error!(event_kind = "service", error_code = patch_err.code(), message = %patch_err, "patch_alert failed to fetch existing alert");
                 return Err(patch_err);
             }
         };
@@ -186,7 +194,7 @@ where
         let alert = match build_alert_for_patch(identifier, &existing, input) {
             Ok(alert) => alert,
             Err(err) => {
-                error!(error_code = "validation_error", message = %err, "patch_alert rejected invalid input");
+                error!(event_kind = "service", error_code = "validation_error", message = %err, "patch_alert rejected invalid input");
                 return Err(PatchAlertError::ValidationError(err));
             }
         };
@@ -199,7 +207,7 @@ where
         {
             Ok(resp) => {
                 span.record("result", "ok");
-                info!("patch_alert persisted successfully");
+                info!(event_kind = "service", "patch_alert persisted successfully");
                 Ok(PatchAlertResponse { alert: resp.alert })
             }
             Err(err) => {
@@ -211,7 +219,7 @@ where
                     }
                     UpdateAlertError::ValidationError(msg) => PatchAlertError::ValidationError(msg),
                 };
-                error!(error_code = patch_err.code(), message = %patch_err, "patch_alert failed");
+                error!(event_kind = "service", error_code = patch_err.code(), message = %patch_err, "patch_alert failed");
                 Err(patch_err)
             }
         }
@@ -228,11 +236,11 @@ where
         match self.alert_port.delete_alert_data(&identifier).await {
             Ok(resp) => {
                 span.record("result", "ok");
-                info!("delete_alert removed successfully");
+                info!(event_kind = "service", "delete_alert removed successfully");
                 Ok(resp)
             }
             Err(err) => {
-                error!(error_code = err.code(), message = %err, "delete_alert failed");
+                error!(event_kind = "service", error_code = err.code(), message = %err, "delete_alert failed");
                 Err(err)
             }
         }
@@ -581,12 +589,15 @@ mod tests {
         #[derive(Default)]
         struct FieldCapture {
             error_codes: Vec<String>,
+            event_kinds: Vec<String>,
         }
 
         impl Visit for FieldCapture {
             fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-                if field.name() == "error_code" {
-                    self.error_codes.push(value.to_string());
+                match field.name() {
+                    "error_code" => self.error_codes.push(value.to_string()),
+                    "event_kind" => self.event_kinds.push(value.to_string()),
+                    _ => {}
                 }
             }
             fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
@@ -596,7 +607,7 @@ mod tests {
             }
         }
 
-        struct CapturingSubscriber(Arc<Mutex<Vec<String>>>);
+        struct CapturingSubscriber(Arc<Mutex<(Vec<String>, Vec<String>)>>);
 
         impl tracing::Subscriber for CapturingSubscriber {
             fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
@@ -610,14 +621,16 @@ mod tests {
             fn event(&self, event: &tracing::Event<'_>) {
                 let mut capture = FieldCapture::default();
                 event.record(&mut capture);
-                self.0.lock().unwrap().extend(capture.error_codes);
+                let (codes, kinds) = &mut *self.0.lock().unwrap();
+                codes.extend(capture.error_codes);
+                kinds.extend(capture.event_kinds);
             }
             fn enter(&self, _span: &tracing::Id) {}
             fn exit(&self, _span: &tracing::Id) {}
         }
 
-        let codes = Arc::new(Mutex::new(Vec::new()));
-        let subscriber = CapturingSubscriber(codes.clone());
+        let captured = Arc::new(Mutex::new((Vec::new(), Vec::new())));
+        let subscriber = CapturingSubscriber(captured.clone());
 
         with_default(subscriber, || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -631,8 +644,13 @@ mod tests {
             });
         });
 
-        let codes = codes.lock().unwrap();
+        let (codes, kinds) = &*captured.lock().unwrap();
         assert!(codes.contains(&"database_error".to_string()));
+        // Every service-logged event is tagged with the `event_kind = "service"`
+        // key so aggregators can distinguish application (service) events from
+        // transport (http) events.
+        assert!(kinds.iter().all(|k| k == "service"));
+        assert!(!kinds.is_empty());
     }
 
     fn build_test_input() -> CreateAlertInput {
