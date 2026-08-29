@@ -12,6 +12,7 @@ use crate::domain::alert::model::PatchAlertInput;
 use crate::domain::alert::new_types::alert_identifier::AlertIdentifier;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 /// Request body for partially updating an existing alert. The identifier comes
 /// from the URL path. Omitted fields keep their existing values. Sending `null`
@@ -83,14 +84,15 @@ impl From<PatchAlertRequest> for PatchAlertInput {
     ),
     tag = "alerts"
 )]
-pub(crate) async fn patch_alert<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn patch_alert<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     Path(identifier): Path<String>,
     JsonBody(req): JsonBody<PatchAlertRequest>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let identifier = match AlertIdentifier::new(identifier) {
         Ok(id) => id,

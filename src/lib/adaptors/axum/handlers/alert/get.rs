@@ -8,6 +8,7 @@ use crate::adaptors::axum::handlers::alert::{AlertsListResponse, LatestAlertsPar
 use crate::adaptors::axum::handlers::error::ApiErrorResponse;
 use crate::domain::alert::port::AlertPort;
 use crate::domain::config::port::ConfigPort;
+use crate::domain::database::port::DatabasePort;
 
 /// Handler for GET /alerts
 ///
@@ -23,13 +24,14 @@ use crate::domain::config::port::ConfigPort;
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_alerts<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn get_alerts<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let conf = state.get_config_service().get_validated_app_conf();
     let ws_conf = conf.get_webserver_config();
@@ -69,13 +71,14 @@ where
     ),
     tag = "alerts"
 )]
-pub(crate) async fn get_daily_alerts<CP, AP>(
-    State(state): State<AppState<CP, AP>>,
+pub(crate) async fn get_daily_alerts<CP, AP, DP>(
+    State(state): State<AppState<CP, AP, DP>>,
     Query(params): Query<LatestAlertsParams>,
 ) -> impl IntoResponse
 where
     CP: ConfigPort,
     AP: AlertPort,
+    DP: DatabasePort,
 {
     let conf = state.get_config_service().get_validated_app_conf();
     let ws_conf = conf.get_webserver_config();
