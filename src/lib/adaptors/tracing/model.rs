@@ -1,4 +1,4 @@
-use tracing::Level;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::domain::logging::adaptor_config::{AdaptorConfigField, AdaptorConfigRepr};
@@ -16,14 +16,44 @@ pub struct LoggingTracing {
 }
 
 impl LoggingTracing {
-    fn map_trace_level(trace_level: &LoggingTraceLevel) -> Level {
+    fn trace_level_str(trace_level: &LoggingTraceLevel) -> &'static str {
         match trace_level.get() {
-            LoggingTraceLevelType::Error => Level::ERROR,
-            LoggingTraceLevelType::Warn => Level::WARN,
-            LoggingTraceLevelType::Info => Level::INFO,
-            LoggingTraceLevelType::Debug => Level::DEBUG,
-            LoggingTraceLevelType::Trace => Level::TRACE,
+            LoggingTraceLevelType::Error => "error",
+            LoggingTraceLevelType::Warn => "warn",
+            LoggingTraceLevelType::Info => "info",
+            LoggingTraceLevelType::Debug => "debug",
+            LoggingTraceLevelType::Trace => "trace",
         }
+    }
+
+    /// Build the per-module [`EnvFilter`].
+    ///
+    /// The configured `trace_level` is applied to the application crate itself
+    /// (`eas_weather_rs`), while noisy transitive crates (sqlx, hyper, mio,
+    /// tokio, etc.) are pinned to quieter levels. Without this, setting
+    /// `trace_level = "debug"` would also dump `debug` output from every
+    /// dependency into stdout. The static `RUST_LOG` override still wins when
+    /// set, for ad-hoc fine-grained debugging.
+    fn build_filter(trace_level: &LoggingTraceLevel) -> EnvFilter {
+        let level = Self::trace_level_str(trace_level);
+        let directives = format!(
+            "eas_weather_rs={level},\
+             sqlx=warn,\
+             hyper=warn,\
+             mio=warn,\
+             tokio=info,\
+             tower=info,\
+             tower_http=info,\
+             h2=warn,\
+             tonic=warn,\
+             rustls=warn,\
+             rustls_pki_types=warn,\
+             want=warn,\
+             reqwest=warn"
+        );
+        EnvFilter::builder()
+            .with_default_directive(directives.parse().expect("static filter is valid"))
+            .from_env_lossy()
     }
 }
 
@@ -44,15 +74,13 @@ impl LoggingPort for LoggingTracing {
     fn new(conf_log: &Logging) -> Self {
         let format = conf_log.format.clone();
         let trace_level = conf_log.trace_level.clone();
-
-        // Map LoggingTraceLevel to tracing::Level
-        let level = Self::map_trace_level(&trace_level);
+        let filter = Self::build_filter(&trace_level);
 
         match format.get() {
             LoggingFormatType::Json => {
                 tracing_subscriber::fmt()
                     .json()
-                    .with_max_level(level)
+                    .with_env_filter(filter)
                     .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
                     .with_target(true)
                     .init();
@@ -60,7 +88,7 @@ impl LoggingPort for LoggingTracing {
             LoggingFormatType::Text => {
                 tracing_subscriber::fmt()
                     .with_ansi(true)
-                    .with_max_level(level)
+                    .with_env_filter(filter)
                     .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
                     .with_target(true)
                     .init();
