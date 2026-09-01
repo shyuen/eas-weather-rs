@@ -4,6 +4,10 @@ stages:
   - build
 
 variables:
+  # Rust image for all CI jobs. Pinned above 1.85 so `cargo install
+  # cargo-tarpaulin` (whose deps need Rust >= 1.91) compiles. The Dockerfile
+  # build only compiles release binaries and stays at its own lower pin.
+  RUST_IMAGE: rust:1.91-bookworm
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -27,7 +31,7 @@ cache:
 
 check:
   stage: check
-  image: rust:1.85-bookworm
+  image: $RUST_IMAGE
   script:
     - rustup component add rustfmt clippy
     - cargo fetch
@@ -37,13 +41,13 @@ check:
 
 coverage:
   stage: coverage
-  image: rust:1.85-bookworm
+  image: $RUST_IMAGE
   # Coverage is informational: generate a report artifact without gating the
   # pipeline on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
   allow_failure: true
   script:
     - rustup component add llvm-tools-preview
-    - cargo install cargo-tarpaulin
+    - cargo install cargo-tarpaulin --locked
     - cargo tarpaulin --engine llvm --out Html --output-dir coverage/html
   artifacts:
     paths:
@@ -53,7 +57,7 @@ coverage:
 
 build:
   stage: build
-  image: rust:1.85-bookworm
+  image: $RUST_IMAGE
   script:
     - cargo fetch
     - cargo build --release --bin eas-weather-rs-server --bin eas-weather-rs-migrate
