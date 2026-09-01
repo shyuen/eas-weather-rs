@@ -1,0 +1,73 @@
+stages:
+  - check
+  - build
+
+variables:
+  # Rust image for all CI jobs. Pinned above 1.85 so `cargo install
+  # cargo-tarpaulin` (whose deps need Rust >= 1.91) compiles. The Dockerfile
+  # build only compiles release binaries and stays at its own lower pin.
+  RUST_IMAGE: rust:1.91-bookworm
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # The debug profile is used by clippy and test in the `check` stage. Skip
+  # emitting debug info (not needed for lint/tests) which dramatically speeds
+  # up the debug dependency compile; incremental builds thrash CI caches, so
+  # disable them too. The `build` stage keeps the full release profile so the
+  # deployable binaries stay optimized.
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_DEV_INCREMENTAL: false
+
+# Shared cache keyed on Cargo.lock so both jobs reuse the compiled dependency
+# tree instead of rebuilding it from scratch on every run.
+cache:
+  key:
+    files:
+      - Cargo.lock
+  paths:
+    - .cargo/
+    - target/
+
+check:
+  stage: check
+  image: $RUST_IMAGE
+  script:
+    - rustup component add rustfmt clippy
+    - cargo fetch
+    - cargo fmt --all -- --check
+    - cargo clippy --all-targets --no-deps -- -D warnings
+    - cargo test -- --test-threads=1
+
+coverage:
+  # Runs in parallel with the `check` job (same stage). Both share the warm
+  # dependency cache, so coverage adds little additional compile time here.
+  # It is non-blocking, so the `build` stage still starts once `check` passes
+  # regardless of the coverage result.
+  stage: check
+  image: $RUST_IMAGE
+  # Coverage is informational: generate a report artifact without gating the
+  # pipeline on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
+  allow_failure: true
+  script:
+    - rustup component add llvm-tools-preview
+    - cargo install cargo-tarpaulin --locked
+    - cargo tarpaulin --engine llvm --out Html --output-dir coverage/html
+  artifacts:
+    paths:
+      - coverage/html/
+    expire_in: 1 week
+    expose_as: coverage-report
+
+build:
+  stage: build
+  image: $RUST_IMAGE
+  script:
+    - cargo fetch
+    - cargo build --release --bin eas-weather-rs-server --bin eas-weather-rs-migrate
+  artifacts:
+    paths:
+      - target/release/eas-weather-rs-server
+      - target/release/eas-weather-rs-migrate
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
