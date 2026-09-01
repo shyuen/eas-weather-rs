@@ -1,0 +1,41 @@
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: eas_weather
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    image: eas-weather-rs-server
+    entrypoint: ["/app/eas-weather-rs-migrate"]
+    environment:
+      EAS_WEATHER_RS__DATABASE__CONN_URL_FILE: /run/secrets/mysql_conn_url
+    volumes:
+      - ./compose/mysql_conn_url:/run/secrets/mysql_conn_url:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  server:
+    build: .
+    image: eas-weather-rs-server
+    ports:
+      - "8080:8080"
+    environment:
+      EAS_WEATHER_RS__DATABASE__CONN_URL_FILE: /run/secrets/mysql_conn_url
+      EAS_WEATHER_RS__WEBSERVER__HOSTNAME: "0.0.0.0"
+      EAS_WEATHER_RS__WEBSERVER__PORT: "8080"
+    volumes:
+      - ./compose/mysql_conn_url:/run/secrets/mysql_conn_url:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully

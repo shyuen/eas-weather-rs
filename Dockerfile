@@ -1,10 +1,11 @@
 # Stage 1: Build
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.85-bookworm AS builder
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src/ src/
 COPY migrations/ migrations/
+COPY config/ config/
 
 RUN cargo build --release --bin eas-weather-rs-server --bin eas-weather-rs-migrate
 
