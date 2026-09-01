@@ -1,5 +1,6 @@
 stages:
   - check
+  - integration
   - build
 
 variables:
@@ -57,6 +58,26 @@ coverage:
       - coverage/html/
     expire_in: 1 week
     expose_as: coverage-report
+
+integration:
+  # Runs against a real MariaDB (via a GitLab service container), exercising
+  # the full HTTP + SQL stack like the GitHub Actions `integration` job. Runs
+  # after `check`, and gates the `build` stage.
+  stage: integration
+  image: $RUST_IMAGE
+  services:
+    - name: mariadb:11.4
+      alias: mariadb
+      variables:
+        MARIADB_ROOT_PASSWORD: root
+        MARIADB_DATABASE: eas_weather
+  variables:
+    # The job container reaches the service via its alias hostname, not
+    # localhost (mirroring how tests resolve against the compose DB).
+    EAS_WEATHER_RS_TEST_DB: mysql://root:root@mariadb:3306/eas_weather
+  script:
+    - cargo fetch
+    - cargo test --test db_integration -- --ignored --test-threads=1
 
 build:
   stage: build
