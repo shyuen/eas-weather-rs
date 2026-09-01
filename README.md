@@ -74,6 +74,8 @@ export EAS_WEATHER_RS__LOGGING__FORMAT="json"
 
 **Secrets are paths, never inline values:** database connection string, API key, and JWT key come from the files referenced by their respective `*_file` env vars / config keys (e.g. `EAS_WEATHER_RS__DATABASE__CONN_URL_FILE`), and are masked in logs.
 
+**Secret files are gitignored:** keep real secrets out of version control. Example/placeholder values are committed as `.example` files (e.g. `secrets/api_key.example` — copy it to `secrets/api_key` to enable API-key auth). For local development a sample key is provided at `test_key`; point `EAS_WEATHER_RS__WEBSERVER__API_KEY_FILE` at your chosen file.
+
 **.env file:** a `.env` file in the project root can set any of these variables. It uses the same keys without the leading `export`:
 ```
 EAS_WEATHER_RS__WEBSERVER__HOSTNAME="localhost"
