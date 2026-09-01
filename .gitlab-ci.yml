@@ -1,7 +1,5 @@
 stages:
-  - fmt
-  - clippy
-  - test
+  - check
   - build
 
 variables:
@@ -9,7 +7,8 @@ variables:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
-# Shared cache across the fmt/clippy/test/build jobs to avoid re-fetching deps.
+# Shared cache keyed on Cargo.lock so both jobs reuse the compiled dependency
+# tree instead of rebuilding it from scratch on every run.
 cache:
   key:
     files:
@@ -18,34 +17,26 @@ cache:
     - .cargo/
     - target/
 
-fmt:
-  stage: fmt
+check:
+  stage: check
   image: rust:1.85-bookworm
   script:
-    - rustup component add rustfmt
-    - cargo fmt --version
+    - rustup component add rustfmt clippy
+    - cargo fetch
     - cargo fmt --all -- --check
-
-clippy:
-  stage: clippy
-  image: rust:1.85-bookworm
-  script:
-    - rustup component add clippy
-    - cargo clippy --all-targets -- -D warnings
-
-test:
-  stage: test
-  image: rust:1.85-bookworm
-  script:
+    - cargo clippy --all-targets --no-deps -- -D warnings
     - cargo test -- --test-threads=1
 
 build:
   stage: build
   image: rust:1.85-bookworm
   script:
+    - cargo fetch
     - cargo build --release --bin eas-weather-rs-server --bin eas-weather-rs-migrate
   artifacts:
     paths:
       - target/release/eas-weather-rs-server
       - target/release/eas-weather-rs-migrate
     expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
