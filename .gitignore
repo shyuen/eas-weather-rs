@@ -9,6 +9,7 @@ mysql_conn_url_bk
 !/compose/mysql_conn_url
 .mysql_data
 tarpaulin-report.html
+coverage/
 test_key
 config/mysql_conn_url
 secrets/api_key
