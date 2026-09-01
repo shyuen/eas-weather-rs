@@ -11,3 +11,5 @@ mysql_conn_url_bk
 tarpaulin-report.html
 test_key
 config/mysql_conn_url
+secrets/api_key
+secrets/jwt_key

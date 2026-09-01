@@ -37,4 +37,4 @@ Secrets come from `*_file` paths, never inline. `DbConnectionString::Display` ma
 - Port traits use **static dispatch** (`impl Future<...> + Send`), never `#[async_trait]`
 - Planned exits: `std::process::exit(1)` everywhere, never panics
 - Adding a config field: update newtype → `Config*` raw struct (`domain/config/model.rs`) → `Cli` struct → `config/default.toml`. Not every `ConfigWebserver` field has a short CLI flag, but all are settable via `--long-flag` or env var
-- `test_api` file contains a sample API key (`MOHmohMoh`)
+- `test_key` file contains a sample API key used for local testing

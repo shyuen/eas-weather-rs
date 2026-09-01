@@ -5,3 +5,5 @@ target/
 .env
 .envrc
 *.md
+secrets/api_key
+secrets/jwt_key
