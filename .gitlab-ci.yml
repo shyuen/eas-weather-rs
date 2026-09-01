@@ -6,6 +6,13 @@ variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # The debug profile is used by clippy and test in the `check` stage. Skip
+  # emitting debug info (not needed for lint/tests) which dramatically speeds
+  # up the debug dependency compile; incremental builds thrash CI caches, so
+  # disable them too. The `build` stage keeps the full release profile so the
+  # deployable binaries stay optimized.
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_DEV_INCREMENTAL: false
 
 # Shared cache keyed on Cargo.lock so both jobs reuse the compiled dependency
 # tree instead of rebuilding it from scratch on every run.
