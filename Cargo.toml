@@ -2,6 +2,9 @@
 name = "eas-weather-rs"
 version = "0.1.0"
 edition = "2024"
+description = "Rust web microservice serving Emergency Alert System (EAS) data via a hexagonal HTTP/MySQL API"
+license = "MIT"
+repository = "https://github.com/shyuen/eas-weather-rs"
 
 [[bin]]
 name = "eas-weather-rs-server"

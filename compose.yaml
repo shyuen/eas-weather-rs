@@ -1,3 +1,5 @@
+# Local dev stack. `compose/mysql_conn_url` holds dev-only credentials
+# (mysql://root:root@db:3306/eas_weather) for this local MariaDB container.
 services:
   db:
     image: mariadb:11.4

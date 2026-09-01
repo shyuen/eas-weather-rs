@@ -1,5 +1,7 @@
 # eas-weather-rs
 
+[![CI](https://github.com/shyuen/eas-weather-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/shyuen/eas-weather-rs/actions/workflows/ci.yml)
+
 eas-weather-rs is a Rust-based microservice that provides emergency alert system (EAS) information via an HTTP API.
 
 Built with a hexagonal architecture, it features SQLx database migrations, OpenAPI (Swagger) integration for API documentation, and follows a domain-driven design with clear separation of concerns, utilizing the new type pattern for domain modeling.
