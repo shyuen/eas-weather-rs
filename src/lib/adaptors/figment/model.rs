@@ -44,6 +44,11 @@ const APP_SECTION_ENV_PREFIX: &str = env_prefix!("APP__");
 /// `_` in the prefix as skip characters, so `eas-weather-rs` matches
 /// `eas_weather_rs`. Free of any allocation, so it is evaluable at compile
 /// time.
+///
+/// Only called from a compile-time `const _` assertion below, which clippy's
+/// dead-code analysis does not count as a use (it fires on some toolchains).
+/// It is genuinely used — as a static assertion — so silence the lint.
+#[allow(dead_code)]
 const fn crate_name_matches(name: &str, prefix: &str) -> bool {
     let name = name.as_bytes();
     let prefix = prefix.as_bytes();
