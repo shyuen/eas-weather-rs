@@ -196,6 +196,26 @@ You can run the unit tests for the project using Cargo with the following comman
 cargo test
 ```
 
+### Integration Testing
+Integration tests in `tests/db_integration.rs` exercise the real HTTP→SQLx→MySQL/MariaDB stack (no mocks): health probes, full alert create/list/patch/put/delete round-trips, validation errors, and the daily `CURDATE()` filter. They are `#[ignore]`-gated so plain `cargo test` (and CI) stays offline.
+
+Run them against the bundled compose DB:
+```bash
+# 1. Start MariaDB (applies migrations via the compose `migrate` service if using `docker compose up`)
+docker compose up -d db
+
+# 2. Run the integration tests against that DB
+EAS_WEATHER_RS_TEST_DB='mysql://root:root@localhost:3306/eas_weather' \
+  cargo test --test db_integration -- --ignored
+```
+
+The connection URL resolves in this order:
+1. `EAS_WEATHER_RS_TEST_DB` env var (raw URL — recommended, avoids touching your local dev DB)
+2. the `config/mysql_conn_url` secret file (gitignored dev default)
+3. the packaged default (`DbConnectionString::default()`)
+
+The tests auto-apply `sqlx` migrations via `ensure_migrated`, so a fresh DB works without running the migrate binary first.
+
 ### Coverage Report
 Run the following command to generate an html report
 ```
