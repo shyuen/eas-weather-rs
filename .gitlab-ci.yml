@@ -1,6 +1,5 @@
 stages:
   - check
-  - coverage
   - build
 
 variables:
@@ -40,7 +39,11 @@ check:
     - cargo test -- --test-threads=1
 
 coverage:
-  stage: coverage
+  # Runs in parallel with the `check` job (same stage). Both share the warm
+  # dependency cache, so coverage adds little additional compile time here.
+  # It is non-blocking, so the `build` stage still starts once `check` passes
+  # regardless of the coverage result.
+  stage: check
   image: $RUST_IMAGE
   # Coverage is informational: generate a report artifact without gating the
   # pipeline on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
