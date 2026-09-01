@@ -217,6 +217,29 @@ async fn ensure_migrated(conn_url: &str) {
         .expect("failed to apply migrations");
 }
 
+/// Delete rows directly via SQL, independent of the tested HTTP DELETE handler.
+///
+/// This is a teardown safety net so rows created by a test never leak into the
+/// DB, even if the delete endpoint (the code under test) is broken. Called on
+/// identifiers created by the test, whether or not the HTTP cleanup succeeded.
+async fn cleanup_alerts(conn_url: &str, identifiers: &[impl AsRef<str>]) {
+    if identifiers.is_empty() {
+        return;
+    }
+
+    let mut conn = sqlx::MySqlConnection::connect(conn_url)
+        .await
+        .expect("failed to connect for cleanup: check EAS_WEATHER_RS_TEST_DB");
+
+    for identifier in identifiers {
+        sqlx::query("DELETE FROM Alerts WHERE `identifier` = ?")
+            .bind(identifier.as_ref())
+            .execute(&mut conn)
+            .await
+            .expect("failed to delete test alert row");
+    }
+}
+
 /// Build the full application (config, alert service, real DB adaptor, HTTP
 /// router) wired like the composition root, with the pool connected.
 async fn build_app(conn_url: &str) -> Router {
@@ -407,6 +430,10 @@ async fn alert_lifecycle_persists_and_round_trips() {
         !ids.contains(&identifier.as_str()),
         "deleted alert still in list"
     );
+
+    // Teardown safety net: guarantee the row is gone via SQL, independent of
+    // the HTTP DELETE endpoint under test.
+    cleanup_alerts(&conn_url, &[&identifier]).await;
 }
 
 #[tokio::test]
@@ -477,7 +504,8 @@ async fn daily_endpoint_returns_only_today_alerts() {
         "old alert should be excluded by daily filter"
     );
 
-    // Clean up the rows created by this test.
+    // Clean up the rows created by this test via the HTTP API, then guarantee
+    // removal via SQL (teardown safety net independent of the tested handler).
     for id in [&today_id, &old_id] {
         send_json(
             &app,
@@ -487,4 +515,5 @@ async fn daily_endpoint_returns_only_today_alerts() {
         )
         .await;
     }
+    cleanup_alerts(&conn_url, &[&today_id, &old_id]).await;
 }
