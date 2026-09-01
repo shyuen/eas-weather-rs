@@ -4,38 +4,9 @@ eas-weather-rs is a Rust-based microservice that provides emergency alert system
 
 Built with a hexagonal architecture, it features SQLx database migrations, OpenAPI (Swagger) integration for API documentation, and follows a domain-driven design with clear separation of concerns, utilizing the new type pattern for domain modeling.
 
-This project was created to help learn Rust and the hexagonal pattern, originally started without AI assistance as an opportunity to learn to use AI effectively for coding. 
+This project was created to help learn Rust and the hexagonal pattern, originally started without AI assistance as an opportunity to learn to use AI effectively for coding.
 
-## General Setup Information
-
-### Nix Development Environment
-*You may skip this section if you are not using Nix.*
-
-This project includes a `flake.nix` file for setting up the development environment on a NixOS machine.
-You can enter the development environment by running the following at the location of the `flake.nix` file.:
-```
-nix develop
-```
-### Direnv Integration
-You can bootstrap initiatlizing the developement environment by create an `.envrc` file with the following content:
-```bash
-use flake
-```
-This will require `direnv` to be installed and enabled in your shell.
-
-### Rust Workspace
-
-
-
-#### Unit Testing Rust Projects
-You can run the unit tests for the project using Cargo with the following command:
-```
-cargo test
-```
-
-## Project Specific Information
-
-### Architectural Benefits
+## Architecture
 
 This project follows a hexagonal (ports and adapters) architecture which provides several benefits:
 
@@ -53,6 +24,28 @@ This project follows a hexagonal (ports and adapters) architecture which provide
 Only the outermost layer (CLI args, socket listener, HTTP server) and app-specific business logic differ.
 
 **Versioning Coupling Guidance**: While the architecture supports independent versioning, keeping binaries version-coupled is recommended when they share the same domain lifecycle and validation rules (as with the server and migration tool). Consider separating versioning only when: binaries operate on different data lifecycles, have divergent reliability requirements, are owned by different teams, or require different technology stacks. The hexagonal boundaries make either path straightforward to implement later.
+
+## Running the Main Application
+
+You can run the main eas-weather-rs-server application using Cargo:
+```bash
+cargo run --bin eas-weather-rs-server
+```
+
+This starts the `eas-weather-rs-server` binary, which serves EAS alert data via HTTP. The application will load configuration according to the priority order described below.
+
+You can add CLI arguments to customize the runtime behavior. For example, to see all available options:
+```bash
+cargo run --bin eas-weather-rs-server --help
+```
+
+Common usage patterns include:
+- Using default configuration (loads from `config/default.toml`): `cargo run`
+- Specifying a custom config file: `cargo run -- --config-file ./config/custom.toml`
+- Overriding specific settings via environment variables: `EAS_WEATHER_RS__WEBSERVER__PORT=3000 cargo run`
+- Using a .env file: create a `.env` file in the project root and run `cargo run`
+
+## Configuration
 
 ### Priority Configuration Order
 The configuration is loaded in the following order, with later values overriding earlier ones:
@@ -89,35 +82,16 @@ EAS_WEATHER_RS__LOGGING__FORMAT="json"
 
 The defaults for every key are defined in `config/default.toml`.
 
-### Running the Main Application
-You can run the main eas-weather-rs-server application using Cargo:
-```bash
-cargo run --bin eas-weather-rs-server
-```
-
-This starts the `eas-weather-rs-server` binary, which serves EAS alert data via HTTP. The application will load configuration according to the priority order described above.
-
-You can add CLI arguments to customize the runtime behavior. For example, to see all available options:
-```bash
-cargo run --bin eas-weather-rs-server --help
-```
-
-Common usage patterns include:
-- Using default configuration (loads from `config/default.toml`): `cargo run`
-- Specifying a custom config file: `cargo run -- --config-file ./config/custom.toml`
-- Overriding specific settings via environment variables: `EAS_WEATHER_RS__WEBSERVER__PORT=3000 cargo run`
-- Using a .env file: create a `.env` file in the project root and run `cargo run`
-
-### Database Migrations
+## Database Migrations
 
 Migrations are managed by SQLx and live in the `migrations/` directory. Each migration consists of two separate files: `{timestamp}_name.up.sql` for the migration and `{timestamp}_name.down.sql` for the rollback. When creating new migrations, use `sqlx migrate add --reversible` (or `-r`) to generate both files.
 
-#### Building the Migration Binary
+### Building the Migration Binary
 ```bash
 cargo build --bin eas-weather-rs-migrate
 ```
 
-#### Running Migrations
+### Running Migrations
 The migration runner uses the same config precedence as the main server (CLI → env → file → defaults). It reads the database connection string from the configured source.
 
 ```bash
@@ -131,14 +105,14 @@ cargo run --bin eas-weather-rs-migrate -- --database-conn-url-file ./config/mysq
 EAS_WEATHER_RS__DATABASE__CONN_URL_FILE=./config/mysql_conn_url cargo run --bin eas-weather-rs-migrate
 ```
 
-#### Running Rollbacks
+### Running Rollbacks
 To revert the last N migrations, use the SQLx CLI:
 ```bash
 cargo install sqlx-cli
 sqlx migrate revert --step N
 ```
 
-#### Kubernetes Usage
+### Kubernetes Usage
 In a k8s deployment, run `eas-weather-rs-migrate` as an **init container** before the main app container starts:
 
 ```yaml
@@ -159,12 +133,16 @@ containers:
     # ...
 ```
 
-### Logging
-https://calmops.com/programming/rust/logging-and-distributed-tracing-in-rust-microservices/
+## Container Images
 
-### Container Images
+### Docker Compose (full local stack)
+The `compose.yaml` file boots MariaDB, runs migrations, and starts the server — one command, no external DB needed:
+```bash
+docker compose up
+```
+This builds the server image, waits for the DB to be healthy, runs the migration binary as a one-shot container, then starts the server on `:8080`. The connection string for the compose DB is mounted from `compose/mysql_conn_url`.
 
-#### Using Docker (Dockerfile)
+### Using Docker (Dockerfile)
 ```bash
 # Build server image
 docker build -t eas-weather-rs-server .
@@ -173,7 +151,7 @@ docker build -t eas-weather-rs-server .
 docker build -t eas-weather-rs-migrate .
 ```
 
-#### Using Nix (flake)
+### Using Nix (flake)
 ```bash
 # Build server image
 nix build .#docker-server
@@ -184,13 +162,36 @@ nix build .#docker-migrate
 docker load < result
 ```
 
-#### Running Containers
+### Running Containers
 ```bash
 # Server
 docker run -p 8080:8080 eas-weather-rs-server
 
 # Migrations (run as init container or manually)
 docker run --entrypoint /app/eas-weather-rs-migrate eas-weather-rs-server
+```
+
+## Development
+
+### Nix Development Environment
+*You may skip this section if you are not using Nix.*
+
+This project includes a `flake.nix` file for setting up the development environment on a NixOS machine.
+You can enter the development environment by running the following at the location of the `flake.nix` file.:
+```
+nix develop
+```
+### Direnv Integration
+You can bootstrap initiatlizing the developement environment by create an `.envrc` file with the following content:
+```bash
+use flake
+```
+This will require `direnv` to be installed and enabled in your shell.
+
+### Unit Testing
+You can run the unit tests for the project using Cargo with the following command:
+```
+cargo test
 ```
 
 ### Coverage Report
