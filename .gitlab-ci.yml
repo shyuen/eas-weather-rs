@@ -2,6 +2,7 @@ stages:
   - check
   - integration
   - build
+  - report
 
 variables:
   # Rust image for all CI jobs. Pinned above 1.85 so `cargo install
@@ -40,14 +41,14 @@ check:
     - cargo test -- --test-threads=1
 
 coverage:
-  # Runs in parallel with the `check` job (same stage). Both share the warm
-  # dependency cache, so coverage adds little additional compile time here.
-  # It is non-blocking, so the `build` stage still starts once `check` passes
-  # regardless of the coverage result.
-  stage: check
-  image: $RUST_IMAGE
+  # Runs in its own trailing stage so it never delays or blocks the required
+  # `check` -> `integration` -> `build` path (the `cargo install
+  # cargo-tarpaulin` step is the slowest job in the pipeline). Still shares
+  # the warm dependency cache, so it adds little additional compile time.
   # Coverage is informational: generate a report artifact without gating the
   # pipeline on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
+  stage: report
+  image: $RUST_IMAGE
   allow_failure: true
   script:
     - rustup component add llvm-tools-preview
@@ -58,6 +59,8 @@ coverage:
       - coverage/html/
     expire_in: 1 week
     expose_as: coverage-report
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 integration:
   # Runs against a real MariaDB (via a GitLab service container), exercising
