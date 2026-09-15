@@ -22,9 +22,10 @@ concurrency:
 # GitOps promotions: point the ArgoCD-watched `eas-weather-rs-k8s` overlay at
 # an image already published by the CI `publish` job. Nothing is rebuilt and no
 # git tag is created here — the tag the workflow is dispatched from IS the image
-# being deployed. Dev redeploys re-test an older build without touching
-# releases; staging creates a prerelease on first promotion; prod converts that
-# prerelease into the current full release.
+# being deployed. Releases only record codebase versions that passed through
+# staging: dev redeploys touch no release, staging mints a prerelease on first
+# promotion, and prod graduates that prerelease into a full release. Deploying
+# a tag with no prior staging release (e.g. a rollback) never mints one.
 permissions:
   contents: read
 
@@ -98,10 +99,12 @@ jobs:
             echo "Overlay already at ${{ steps.tag.outputs.image_tag }}; nothing to commit."
           fi
 
-      # Release lifecycle follows the image tag. No tag is created here; the tag
-      # is the one the workflow was dispatched from. First staging promotion
-      # creates a prerelease; prod converts that same prerelease into the
-      # current (full) release; a dev redeploy creates/edits nothing.
+      # Release lifecycle follows the pipeline, not the deployment. A release
+      # exists only for versions that flowed through staging: first staging
+      # promotion creates a prerelease, and prod graduates that prerelease into
+      # a full release. Rolling back or deploying straight to prod never mints
+      # a new release — such targets either already have one (history intact)
+      # or get deployed without one, since they never passed through staging.
       - name: Create or promote GitHub release
         id: release
         env:
@@ -119,12 +122,18 @@ jobs:
           fi
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            # Already promoted before (e.g. a staging prerelease). Prod turns
-            # it into the full release; staging leaves it untouched.
+            # Previously released (e.g. a staging prerelease, or an even older
+            # full release being re-deployed as a rollback). History stays put.
             if [[ "$ENV" == "prod" ]]; then
-              gh release edit "$TAG" --prerelease=false
-              REASON="prerelease->full"
-              echo "Promoted existing prerelease to a full release."
+              PRERELEASE=$(gh release view "$TAG" --json isPrerelease --jq .isPrerelease)
+              if [[ "$PRERELEASE" == "true" ]]; then
+                gh release edit "$TAG" --prerelease=false
+                REASON="prerelease->full"
+                echo "Graduated the staging prerelease into a full release."
+              else
+                REASON="already-released"
+                echo "Tag already has a full release; leaving history as-is."
+              fi
             else
               REASON="exists"
               echo "Release already exists for $TAG; leaving as-is."
@@ -136,10 +145,10 @@ jobs:
               --title "eas-weather-rs $TAG"
             REASON="created-prerelease"
           else
-            gh release create "$TAG" \
-              --generate-notes \
-              --title "eas-weather-rs $TAG"
-            REASON="created-full"
+            echo "reason=no-release-deployed-only" >> "$GITHUB_OUTPUT"
+            echo "No GitHub release created for $TAG: it never passed through staging."
+            echo "Patch on main and promote dev > staging > prod to ship a new version."
+            exit 0
           fi
 
           echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
