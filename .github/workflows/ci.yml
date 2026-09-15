@@ -12,12 +12,6 @@ on:
         type: choice
         options: [dev, staging, prod]
         default: dev
-      # Only used for staging/prod promotions: the existing image tag to
-      # promote (e.g. dev-abc1234). Ignored for dev.
-      image_tag:
-        description: Existing image tag to promote (staging/prod only)
-        required: false
-        default: ""
 
 # Mirrors `.gitlab-ci.yml` (check -> build) so the public GitHub mirror has the
 # same guarantees as the private GitLab pipeline, plus a live-DB integration
@@ -26,9 +20,11 @@ on:
 # Deployment is GitOps via ArgoCD watching `eas-weather-rs-k8s`:
 #   - `publish` (push to main / dev dispatch): builds the image, tags the
 #     codebase with `<env>-<sha7>`, and bumps the dev overlay image tag.
-#   - `promote` (staging/prod dispatch): no build. Re-points the overlay at an
-#     image already published by `publish`, then attaches a GitHub release to
-#     that existing tag (prerelease for staging, full release for prod).
+#   - `promote` (staging/prod dispatch from a *git tag*): no build. Re-points
+#     the overlay at the image matching the selected tag (the dispatch
+#     dropdown forces a real, existing Git tag with no manual typos), then
+#     attaches a GitHub release to that existing tag (prerelease for staging,
+#     full release for prod).
 permissions:
   contents: read
 concurrency:
@@ -150,7 +146,7 @@ jobs:
 
   publish:
     name: Publish dev image + update k8s overlay
-    if: github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.env == 'dev')
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.env == 'dev')
     needs: [check, integration, build]
     runs-on: ubuntu-latest
     permissions:
@@ -248,13 +244,20 @@ jobs:
     env:
       IMAGE: ghcr.io/shyuen/eas-weather-rs-server
       ENV: ${{ inputs.env }}
-      IMAGE_TAG: ${{ inputs.image_tag }}
     steps:
-      - name: Require image tag for promotion
-        if: inputs.image_tag == ''
+      # The dispatch dropdown only lets you run a workflow from an existing
+      # branch/tag, so the ref check below guarantees the image tag exists on
+      # the codebase. The image tag == the tag you pick in 'Use workflow from'.
+      - name: Require promotion from a Git tag
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
-          echo "::error::image_tag input is required when promoting to ${{ inputs.env }}"
+          echo "::error::Promotion must be dispatched from a Git tag, not a branch."
+          echo "Use the 'Use workflow from' dropdown and pick the image tag to promote."
           exit 1
+
+      - name: Compute image tag from Git tag
+        id: tag
+        run: echo "image_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -267,7 +270,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Verify image tag exists
-        run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ env.IMAGE_TAG }}"
+        run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}"
 
       - name: Check out deployment repo
         uses: actions/checkout@v4
@@ -285,7 +288,7 @@ jobs:
         env:
           KEY_PATH: .helmCharts[0].valuesInline.image.tag
         run: |
-          yq -i "${KEY_PATH} = \"${{ env.IMAGE_TAG }}\"" "overlays/${ENV}/kustomization.yaml"
+          yq -i "${KEY_PATH} = \"${{ steps.tag.outputs.image_tag }}\"" "overlays/${ENV}/kustomization.yaml"
           git diff -- "overlays/${ENV}/kustomization.yaml"
 
       - name: Commit and push overlay change
@@ -295,10 +298,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "overlays/${ENV}/kustomization.yaml"
           if ! git diff-index --quiet HEAD; then
-            git commit -m "Bump ${ENV} image tag to ${{ env.IMAGE_TAG }}"
+            git commit -m "Bump ${ENV} image tag to ${{ steps.tag.outputs.image_tag }}"
             git push origin main
           else
-            echo "Overlay already at ${{ env.IMAGE_TAG }}; nothing to commit."
+            echo "Overlay already at ${{ steps.tag.outputs.image_tag }}; nothing to commit."
           fi
 
       # Attach the release to the (existing) image tag. No new git tag is
@@ -309,16 +312,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "${{ inputs.env }}" == "staging" ]]; then
-            gh release create "${{ env.IMAGE_TAG }}" \
+            gh release create "${{ steps.tag.outputs.image_tag }}" \
               --prerelease \
               --generate-notes \
-              --title "eas-weather-rs ${{ env.IMAGE_TAG }}"
+              --title "eas-weather-rs ${{ steps.tag.outputs.image_tag }}"
           else
-            gh release create "${{ env.IMAGE_TAG }}" \
+            gh release create "${{ steps.tag.outputs.image_tag }}" \
               --generate-notes \
-              --title "eas-weather-rs ${{ env.IMAGE_TAG }}"
+              --title "eas-weather-rs ${{ steps.tag.outputs.image_tag }}"
           fi
-          echo "url=$(gh release view "${{ env.IMAGE_TAG }}" --json url --jq .url)" >> "$GITHUB_OUTPUT"
+          echo "url=$(gh release view "${{ steps.tag.outputs.image_tag }}" --json url --jq .url)" >> "$GITHUB_OUTPUT"
 
       - name: Write job summary
         env:
@@ -327,8 +330,8 @@ jobs:
           {
             echo "## eas-weather-rs promote: \`${{ env.ENV }}\`"
             echo ""
-            echo "- Image: \`${{ env.IMAGE }}:${{ env.IMAGE_TAG }}\` (existing, no rebuild)"
-            echo "- Overlay updated: \`overlays/${{ env.ENV }}/kustomization.yaml\` → \`${{ env.IMAGE_TAG }}\`"
+            echo "- Image: \`${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}\` (existing, no rebuild)"
+            echo "- Overlay updated: \`overlays/${{ env.ENV }}/kustomization.yaml\` → \`${{ steps.tag.outputs.image_tag }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${RELEASE_URL}" ]]; then
             echo "- GitHub release: ${RELEASE_URL}" >> "$GITHUB_STEP_SUMMARY"
