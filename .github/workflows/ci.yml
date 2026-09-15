@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: Environment to update in eas-weather-rs-k8s
+        description: >-
+          Environment to update in eas-weather-rs-k8s. The image tag is the
+          Git tag selected in 'Use workflow from' (run from a tag).
         type: choice
         options: [dev, staging, prod]
         default: dev
@@ -18,13 +20,13 @@ on:
 # test job. The Rust toolchain is pinned to match the Rust image there.
 #
 # Deployment is GitOps via ArgoCD watching `eas-weather-rs-k8s`:
-#   - `publish` (push to main / dev dispatch): builds the image, tags the
-#     codebase with `<env>-<sha7>`, and bumps the dev overlay image tag.
-#   - `promote` (staging/prod dispatch from a *git tag*): no build. Re-points
-#     the overlay at the image matching the selected tag (the dispatch
-#     dropdown forces a real, existing Git tag with no manual typos), then
-#     attaches a GitHub release to that existing tag (prerelease for staging,
-#     full release for prod).
+#   - `publish` (push to main / dev dispatch from main): builds the image,
+#     tags the codebase with `<env>-<sha7>`, and bumps the dev overlay tag.
+#   - `promote` (dispatch from a *git tag*): no build. Re-points an overlay at
+#     the image matching the selected tag (the dispatch dropdown forces a real,
+#     existing Git tag with no manual typos). Dev redeploys re-test an older
+#     build without touching releases; staging creates a prerelease on first
+#     promotion; prod converts that prerelease into the current full release.
 permissions:
   contents: read
 concurrency:
@@ -235,8 +237,11 @@ jobs:
   promote:
     name: Promote image to ${{ inputs.env }}
     # Promotions do not rebuild: they point an overlay at an image already
-    # published by the `publish` job, then attach a GitHub release to it.
-    if: github.event_name == 'workflow_dispatch' && (inputs.env == 'staging' || inputs.env == 'prod')
+    # published by the `publish` job. Releases follow the tag: a dev redeploy
+    # creates none, staging creates a prerelease, and prod converts that
+    # prerelease into the current full release. Runs whenever a workflow_dispatch
+    # is fired from a *git tag* (never on push/PR or a branch dispatch).
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -304,28 +309,57 @@ jobs:
             echo "Overlay already at ${{ steps.tag.outputs.image_tag }}; nothing to commit."
           fi
 
-      # Attach the release to the (existing) image tag. No new git tag is
-      # created by a promotion.
-      - name: Create GitHub release
+      # Release lifecycle follows the image tag. No tag is created here; the tag
+      # is the one the workflow was dispatched from. First staging promotion
+      # creates a prerelease; prod converts that same prerelease into the
+      # current (full) release; a dev redeploy creates/edits nothing.
+      - name: Create or promote GitHub release
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ inputs.env }}" == "staging" ]]; then
-            gh release create "${{ steps.tag.outputs.image_tag }}" \
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.image_tag }}"
+          ENV="${{ inputs.env }}"
+          REASON=""
+
+          if [[ "$ENV" == "dev" ]]; then
+            echo "reason=skipped-dev" >> "$GITHUB_OUTPUT"
+            echo "Dev redeploys do not create or edit a GitHub release."
+            exit 0
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Already promoted before (e.g. a staging prerelease). Prod turns
+            # it into the full release; staging leaves it untouched.
+            if [[ "$ENV" == "prod" ]]; then
+              gh release edit "$TAG" --prerelease=false
+              REASON="prerelease->full"
+              echo "Promoted existing prerelease to a full release."
+            else
+              REASON="exists"
+              echo "Release already exists for $TAG; leaving as-is."
+            fi
+          elif [[ "$ENV" == "staging" ]]; then
+            gh release create "$TAG" \
               --prerelease \
               --generate-notes \
-              --title "eas-weather-rs ${{ steps.tag.outputs.image_tag }}"
+              --title "eas-weather-rs $TAG"
+            REASON="created-prerelease"
           else
-            gh release create "${{ steps.tag.outputs.image_tag }}" \
+            gh release create "$TAG" \
               --generate-notes \
-              --title "eas-weather-rs ${{ steps.tag.outputs.image_tag }}"
+              --title "eas-weather-rs $TAG"
+            REASON="created-full"
           fi
-          echo "url=$(gh release view "${{ steps.tag.outputs.image_tag }}" --json url --jq .url)" >> "$GITHUB_OUTPUT"
+
+          echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+          echo "url=$(gh release view "$TAG" --json url --jq .url)" >> "$GITHUB_OUTPUT"
 
       - name: Write job summary
         env:
           RELEASE_URL: ${{ steps.release.outputs.url }}
+          RELEASE_REASON: ${{ steps.release.outputs.reason }}
         run: |
           {
             echo "## eas-weather-rs promote: \`${{ env.ENV }}\`"
@@ -334,5 +368,5 @@ jobs:
             echo "- Overlay updated: \`overlays/${{ env.ENV }}/kustomization.yaml\` → \`${{ steps.tag.outputs.image_tag }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
           if [[ -n "${RELEASE_URL}" ]]; then
-            echo "- GitHub release: ${RELEASE_URL}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- GitHub release: ${RELEASE_URL} (\`${RELEASE_REASON}\`)" >> "$GITHUB_STEP_SUMMARY"
           fi
