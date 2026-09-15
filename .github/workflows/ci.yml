@@ -3,12 +3,28 @@ name: CI
 on:
   push:
     branches: [main]
+    # Workflow/docs-only changes don't produce a release candidate.
+    paths-ignore:
+      - README.md
+      - .github/**
   pull_request:
     branches: [main]
 
 # Mirrors `.gitlab-ci.yml` (check -> build) so the public GitHub mirror has the
 # same guarantees as the private GitLab pipeline, plus a live-DB integration
 # test job. The Rust toolchain is pinned to match the Rust image there.
+#
+# Trunk-based release candidates: every merge to main is a candidate. `publish`
+# builds the image, tags the codebase with `dev-<sha7>`, and auto-deploys to
+# dev via GitOps (ArgoCD watching `eas-weather-rs-k8s`). Promoting an existing
+# tag to staging/prod (and redeploying re-test builds to dev) is done through
+# `deploy-tag-to-env.yml`.
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   RUST_TOOLCHAIN: 1.91.0
   CARGO_TERM_COLOR: always
@@ -25,6 +41,8 @@ jobs:
   check:
     name: Check (fmt, clippy, test)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
@@ -45,6 +63,9 @@ jobs:
     # Coverage is informational: generate a report artifact without gating the
     # workflow on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
     continue-on-error: true
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
@@ -65,6 +86,8 @@ jobs:
     name: Integration (live MariaDB)
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     # Same base image/version as the local `compose.yaml` DB so the full API
     # stack is exercised against a real database. Tests apply migrations
     # themselves (idempotent) and clean up their rows.
@@ -96,6 +119,9 @@ jobs:
     name: Build (release binaries)
     needs: [check, integration]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
@@ -111,3 +137,91 @@ jobs:
             target/release/eas-weather-rs-server
             target/release/eas-weather-rs-migrate
           if-no-files-found: warn
+
+  publish:
+    name: Publish dev image + update k8s overlay
+    if: github.event_name == 'push'
+    needs: [check, integration, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/shyuen/eas-weather-rs-server
+      ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        env:
+          SHA: ${{ github.sha }}
+        run: echo "image_tag=${ENV}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.ENV }}
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}
+
+      # Only reached if the image build/push succeeded above (steps fail fast);
+      # a failed image publish never tags the codebase or touches the overlay.
+      - name: Tag codebase with image tag
+        run: |
+          git tag -a "${{ steps.tag.outputs.image_tag }}" -m "Image tag ${{ steps.tag.outputs.image_tag }}"
+          git push origin "refs/tags/${{ steps.tag.outputs.image_tag }}"
+
+      - name: Check out deployment repo
+        uses: actions/checkout@v4
+        with:
+          repository: shyuen/eas-weather-rs-k8s
+          ref: main
+          token: ${{ secrets.EWRS_DEPLOY_REPO_PAT }}
+          path: k8s-repo
+
+      - name: Install yq
+        uses: mikefarah/yq@v4.44.3
+
+      - name: Update dev overlay image tag
+        working-directory: k8s-repo
+        env:
+          KEY_PATH: .helmCharts[0].valuesInline.image.tag
+        run: |
+          yq -i "${KEY_PATH} = \"${{ steps.tag.outputs.image_tag }}\"" "overlays/${ENV}/kustomization.yaml"
+          git diff -- "overlays/${ENV}/kustomization.yaml"
+
+      - name: Commit and push overlay change
+        working-directory: k8s-repo
+        run: |
+          git config user.name "eas-weather-rs CD"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "overlays/${ENV}/kustomization.yaml"
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Bump ${ENV} image tag to ${{ steps.tag.outputs.image_tag }}"
+            git push origin main
+          else
+            echo "Overlay already at ${{ steps.tag.outputs.image_tag }}; nothing to commit."
+          fi
+
+      - name: Write job summary
+        run: |
+          {
+            echo "## eas-weather-rs publish: \`${{ env.ENV }}\`"
+            echo ""
+            echo "- Image: \`${{ env.IMAGE }}\` tags \`${{ env.ENV }}\`, \`${{ steps.tag.outputs.image_tag }}\`"
+            echo "- Codebase tag: \`${{ steps.tag.outputs.image_tag }}\`"
+            echo "- Overlay updated: \`overlays/${{ env.ENV }}/kustomization.yaml\` → \`${{ steps.tag.outputs.image_tag }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
