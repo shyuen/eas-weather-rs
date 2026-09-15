@@ -15,8 +15,8 @@ on:
 # test job. The Rust toolchain is pinned to match the Rust image there.
 #
 # Trunk-based release candidates: every merge to main is a candidate. `publish`
-# builds the image, tags the codebase `<version>-<run>-<attempt>-<sha7>`, and
-# auto-deploys to
+# builds the image, tags the codebase
+# `<version>-<workflow>.<run>.<attempt>-<sha7>`, and auto-deploys to
 # dev via GitOps (ArgoCD watching `eas-weather-rs-k8s`). Promoting an existing
 # tag to staging/prod (and redeploying re-test builds to dev) is done through
 # `deploy-tag-to-env.yml`.
@@ -157,15 +157,19 @@ jobs:
         id: tag
         env:
           SHA: ${{ github.sha }}
+          WF: ${{ github.workflow_ref }}
         # A build's tag is environment-agnostic (the same image is promoted to
-        # staging/prod), so it carries the Cargo version + a composite build id:
-        # <version>-<run>.<attempt>-<sha7>. run_attempt is included because
-        # re-runs of the same run may happen any time later and rebuild with
-        # drifted base images, so each execution gets a fresh name (unless the
-        # repo is recreated).
+        # staging/prod). Naming: <version>-<workflow>.<run>.<attempt>-<sha7>,
+        # e.g. 0.1.0-ab12.47.2-a1b2c3d. The 4-char workflow hash is a short
+        # digest of the workflow file path, so a workflow-file rename (which
+        # resets the run counter) can never reuse the same pipeline id. run_
+        # attempt is included because re-runs may happen later and rebuild with
+        # drifted base images. All chars are in the union charset of git refs
+        # and docker tags (lowercase alnum . _ -).
         run: |
           VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
-          echo "image_tag=${VERSION}-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+          WF_HASH=$(printf '%s' "${WF%@*}" | sha256sum | cut -c1-4)
+          echo "image_tag=${VERSION}-${WF_HASH}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
