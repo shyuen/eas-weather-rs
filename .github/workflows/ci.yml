@@ -16,7 +16,8 @@ on:
 #
 # Trunk-based release candidates: every merge to main is a candidate. `publish`
 # builds the image, tags the codebase
-# `<version>-<workflow>.<run>.<attempt>-<sha7>`, and auto-deploys to
+# `<sha7>-<workflow>.<run>.<attempt>` (e.g. a1b2c3d-ab12.47.2), and
+# auto-deploys to
 # dev via GitOps (ArgoCD watching `eas-weather-rs-k8s`). Promoting an existing
 # tag to staging/prod (and redeploying re-test builds to dev) is done through
 # `deploy-tag-to-env.yml`.
@@ -159,17 +160,22 @@ jobs:
           SHA: ${{ github.sha }}
           WF: ${{ github.workflow_ref }}
         # A build's tag is environment-agnostic (the same image is promoted to
-        # staging/prod). Naming: <version>-<workflow>.<run>.<attempt>-<sha7>,
-        # e.g. 0.1.0-ab12.47.2-a1b2c3d. The 4-char workflow hash is a short
-        # digest of the workflow file path, so a workflow-file rename (which
-        # resets the run counter) can never reuse the same pipeline id. run_
-        # attempt is included because re-runs may happen later and rebuild with
+        # staging/prod). Naming: <sha7>-<workflow>.<run>.<attempt>, e.g.
+        # a1b2c3d-ab12.47.2 — the commit is the ground-truth identity (never
+        # stale the way a manually-bumped Cargo version can be), and the
+        # pipeline id guarantees per-execution uniqueness: the 4-char workflow
+        # hash guards against workflow-file renames (which reset the run
+        # counter), and run_attempt covers re-runs that may rebuild later with
         # drifted base images. All chars are in the union charset of git refs
-        # and docker tags (lowercase alnum . _ -).
+        # and docker tags (lowercase alnum . _ -). The Cargo version is kept as
+        # an OCI image label, not in the tag.
         run: |
-          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
           WF_HASH=$(printf '%s' "${WF%@*}" | sha256sum | cut -c1-4)
-          echo "image_tag=${VERSION}-${WF_HASH}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+          echo "image_tag=${SHA:0:7}-${WF_HASH}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Read Cargo version
+        id: version
+        run: echo "value=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -189,6 +195,11 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ env.ENV }}
             ${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
 
       # Only reached if the image build/push succeeded above (steps fail fast);
       # a failed image publish never tags the codebase or touches the overlay.
