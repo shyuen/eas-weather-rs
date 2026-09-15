@@ -15,7 +15,8 @@ on:
 # test job. The Rust toolchain is pinned to match the Rust image there.
 #
 # Trunk-based release candidates: every merge to main is a candidate. `publish`
-# builds the image, tags the codebase with `dev-<sha7>`, and auto-deploys to
+# builds the image, tags the codebase with `dev-<run>-<attempt>-<sha7>`, and
+# auto-deploys to
 # dev via GitOps (ArgoCD watching `eas-weather-rs-k8s`). Promoting an existing
 # tag to staging/prod (and redeploying re-test builds to dev) is done through
 # `deploy-tag-to-env.yml`.
@@ -156,7 +157,11 @@ jobs:
         id: tag
         env:
           SHA: ${{ github.sha }}
-        run: echo "image_tag=${ENV}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+        # Uniqueness per execution: run_number increments on every new run, and
+        # run_attempt increments on re-runs of the same run (which may happen
+        # any time later and rebuild with drifted base images), so a re-run of
+        # an old run still gets a fresh name (unless the repo is recreated).
+        run: echo "image_tag=${ENV}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -179,10 +184,16 @@ jobs:
 
       # Only reached if the image build/push succeeded above (steps fail fast);
       # a failed image publish never tags the codebase or touches the overlay.
+      # Skip-if-exists is defense in depth (e.g. a re-run where the previous
+      # attempt already pushed the git tag before failing later).
       - name: Tag codebase with image tag
         run: |
-          git tag -a "${{ steps.tag.outputs.image_tag }}" -m "Image tag ${{ steps.tag.outputs.image_tag }}"
-          git push origin "refs/tags/${{ steps.tag.outputs.image_tag }}"
+          if git rev-parse -q --verify "refs/tags/${{ steps.tag.outputs.image_tag }}" >/dev/null; then
+            echo "Tag ${{ steps.tag.outputs.image_tag }} already exists; nothing to push."
+          else
+            git tag -a "${{ steps.tag.outputs.image_tag }}" -m "Image tag ${{ steps.tag.outputs.image_tag }}"
+            git push origin "refs/tags/${{ steps.tag.outputs.image_tag }}"
+          fi
 
       - name: Check out deployment repo
         uses: actions/checkout@v4

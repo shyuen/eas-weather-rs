@@ -42,7 +42,8 @@ jobs:
     steps:
       # The dispatch dropdown lets you run from a branch or tag. A tag is
       # required: the image tag == the Git tag you pick in 'Use workflow from',
-      # and the CI `publish` job only ever created such tags (dev-<sha7>).
+      # and the CI `publish` job only ever created such tags
+      # (dev-<run>-<attempt>-<sha7>).
       - name: Require promotion from a Git tag
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
