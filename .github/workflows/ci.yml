@@ -158,14 +158,14 @@ jobs:
         env:
           SHA: ${{ github.sha }}
         # A build's tag is environment-agnostic (the same image is promoted to
-        # staging/prod), so it carries the Cargo version + unique run/attempt:
-        # <version>-<run_number>-<run_attempt>-<sha7>. run_attempt is included
-        # because re-runs of the same run may happen any time later and rebuild
-        # with drifted base images, so each execution gets a fresh name (unless
-        # the repo is recreated).
+        # staging/prod), so it carries the Cargo version + a composite build id:
+        # <version>-<run>.<attempt>-<sha7>. run_attempt is included because
+        # re-runs of the same run may happen any time later and rebuild with
+        # drifted base images, so each execution gets a fresh name (unless the
+        # repo is recreated).
         run: |
           VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
-          echo "image_tag=${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+          echo "image_tag=${VERSION}-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
