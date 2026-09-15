@@ -15,7 +15,7 @@ on:
 # test job. The Rust toolchain is pinned to match the Rust image there.
 #
 # Trunk-based release candidates: every merge to main is a candidate. `publish`
-# builds the image, tags the codebase with `dev-<run>-<attempt>-<sha7>`, and
+# builds the image, tags the codebase `<version>-<run>-<attempt>-<sha7>`, and
 # auto-deploys to
 # dev via GitOps (ArgoCD watching `eas-weather-rs-k8s`). Promoting an existing
 # tag to staging/prod (and redeploying re-test builds to dev) is done through
@@ -157,11 +157,15 @@ jobs:
         id: tag
         env:
           SHA: ${{ github.sha }}
-        # Uniqueness per execution: run_number increments on every new run, and
-        # run_attempt increments on re-runs of the same run (which may happen
-        # any time later and rebuild with drifted base images), so a re-run of
-        # an old run still gets a fresh name (unless the repo is recreated).
-        run: echo "image_tag=${ENV}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+        # A build's tag is environment-agnostic (the same image is promoted to
+        # staging/prod), so it carries the Cargo version + unique run/attempt:
+        # <version>-<run_number>-<run_attempt>-<sha7>. run_attempt is included
+        # because re-runs of the same run may happen any time later and rebuild
+        # with drifted base images, so each execution gets a fresh name (unless
+        # the repo is recreated).
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+          echo "image_tag=${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
