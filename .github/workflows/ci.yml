@@ -38,6 +38,8 @@ jobs:
   check:
     name: Check (fmt, clippy, test)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
@@ -58,6 +60,9 @@ jobs:
     # Coverage is informational: generate a report artifact without gating the
     # workflow on a percentage. tarpaulin's LLVM engine needs the LLVM tools.
     continue-on-error: true
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
@@ -78,6 +83,8 @@ jobs:
     name: Integration (live MariaDB)
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     # Same base image/version as the local `compose.yaml` DB so the full API
     # stack is exercised against a real database. Tests apply migrations
     # themselves (idempotent) and clean up their rows.
@@ -109,6 +116,9 @@ jobs:
     name: Build (release binaries)
     needs: [check, integration]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.0
