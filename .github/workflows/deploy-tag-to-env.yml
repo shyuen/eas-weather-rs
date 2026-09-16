@@ -4,13 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: >-
-          Environment to update in eas-weather-rs-k8s. Deploys the image whose
-          tag matches the Git tag you select in 'Use workflow from' (run this
-          workflow from a tag).
+        description: Environment to update in eas-weather-rs-k8s.
         type: choice
         options: [dev, staging, prod]
         default: dev
+      version:
+        description: >-
+          Image tag (== codebase Git tag minted by the CI publish job) to
+          promote, e.g. b0b91f8-d183.26.1. Dispatch from any branch so the
+          workflow itself resolves from the running ref; version pins what is
+          deployed.
+        type: string
+        required: true
 
 # Promotions are serialized per environment so two concurrent deployments of
 # different tags to the same env can't race on the overlay file. A later
@@ -21,11 +26,18 @@ concurrency:
 
 # GitOps promotions: point the ArgoCD-watched `eas-weather-rs-k8s` overlay at
 # an image already published by the CI `publish` job. Nothing is rebuilt and no
-# git tag is created here — the tag the workflow is dispatched from IS the image
-# being deployed. Releases only record codebase versions that passed through
+# git tag is created here — `version` names the tag the publish job minted AND
+# the GHCR image tag. Releases only record codebase versions that passed through
 # staging: dev redeploys touch no release, staging mints a prerelease on first
 # promotion, and prod graduates that prerelease into a full release. Deploying
 # a tag with no prior staging release (e.g. a rollback) never mints one.
+#
+# Token scopes: job permissions mirror `publish` (contents + packages) for the
+# tag/overlay work. The release step additionally needs `workflows: write`,
+# which GitHub's workflow-scope enforcement demands whenever the released
+# history touches .github/workflows — a scope the GITHUB_TOKEN can never hold
+# (there are no `releases`/`workflows` keys in its permissions block), so that
+# one step gets a dedicated import PAT (EWRS_RELEASE_PAT).
 permissions:
   contents: read
 
@@ -36,25 +48,33 @@ jobs:
     permissions:
       contents: write
       packages: read
-      releases: write
     env:
       IMAGE: ghcr.io/shyuen/eas-weather-rs-server
       ENV: ${{ inputs.env }}
     steps:
-      # The dispatch dropdown lets you run from a branch or tag. A tag is
-      # required: the image tag == the Git tag you pick in 'Use workflow from',
-      # and the CI `publish` job only ever created such tags
-      # (<sha7>-<workflow>.<run>.<attempt>).
-      - name: Require promotion from a Git tag
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: |
-          echo "::error::Promotion must be dispatched from a Git tag, not a branch."
-          echo "Use the 'Use workflow from' dropdown and pick the image tag to promote."
-          exit 1
+      # Full history + tags are required so `gh release create --generate-notes`
+      # can resolve the promoted tag and compute notes from git, and so the
+      # version input can be validated against actual Git tags.
+      - name: Check out codebase
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Compute image tag from Git tag
+      - name: Validate version
         id: tag
-        run: echo "image_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[0-9a-f]{7}-[0-9a-f]{4}\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must look like <sha7>-<workflow>.<run>.<attempt> (e.g. b0b91f8-d183.26.1)."
+            exit 1
+          fi
+          if ! git tag --list "$VERSION" | grep -q "^$VERSION$"; then
+            echo "::error::No Git tag '$VERSION' in this repository. Promote a tag minted by the publish job."
+            exit 1
+          fi
+          echo "image_tag=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -107,10 +127,20 @@ jobs:
       # a full release. Rolling back or deploying straight to prod never mints
       # a new release — such targets either already have one (history intact)
       # or get deployed without one, since they never passed through staging.
+      - name: Guard release PAT
+        env:
+          GH_TOKEN: ${{ secrets.EWRS_RELEASE_PAT }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::EWRS_RELEASE_PAT is not set; the release step cannot run."
+            echo "Create a fine-grained PAT on eas-weather-rs (Contents and Workflows: write) and store it under this name."
+            exit 1
+          fi
+
       - name: Create or promote GitHub release
         id: release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.EWRS_RELEASE_PAT }}
         run: |
           set -euo pipefail
           TAG="${{ steps.tag.outputs.image_tag }}"
