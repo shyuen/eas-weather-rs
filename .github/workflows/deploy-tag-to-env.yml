@@ -36,6 +36,7 @@ jobs:
     permissions:
       contents: write
       packages: read
+      releases: write
     env:
       IMAGE: ghcr.io/shyuen/eas-weather-rs-server
       ENV: ${{ inputs.env }}
