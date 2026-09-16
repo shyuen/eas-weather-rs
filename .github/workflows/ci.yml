@@ -9,12 +9,20 @@ on:
       - .github/**
   pull_request:
     branches: [main]
-  # Manual build & dev deploy of any branch (a fixture preview, or a way to get
-  # a fresh run of the *current* workflow YAML: re-running a retained run
-  # replays the old file, and workflow-only pushes are paths-ignored). Dispatch
-  # uses the default branch's workflow file but checks out the selected branch,
-  # then publishes it to dev exactly like a main push.
+  # Manual build of any branch (a fixture preview, or a way to get a fresh run
+  # of the *current* workflow YAML: re-running a retained run replays the old
+  # file, and workflow-only pushes are paths-ignored). Must be run from a
+  # branch, not a tag — the `check` job enforces this. With `deploy_dev`
+  # checked, the run also publishes to dev like a main push.
   workflow_dispatch:
+    inputs:
+      deploy_dev:
+        description: |
+          Also publish to dev (push image, tag codebase, update dev overlay).
+          Uncheck for a CI-only branch build.
+        required: false
+        default: false
+        type: boolean
 
 # Mirrors `.gitlab-ci.yml` (check -> build) so the public GitHub mirror has the
 # same guarantees as the private GitLab pipeline, plus a live-DB integration
@@ -59,6 +67,17 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
+      - name: Require dispatch from a branch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            echo "Manual run from branch: ${{ github.ref_name }}"
+          else
+            echo "::error::Manual runs must be from a branch, not a tag (got '${{ github.ref }}')."
+            echo "## Manual build error" >> "${GITHUB_STEP_SUMMARY}"
+            echo "In *Run workflow*, pick a **branch** under *Use workflow from* — tags are only consumed by \`deploy-tag-to-env.yml\`." >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
       - name: Read pinned toolchain
         id: toolchain
         run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" >> "${GITHUB_OUTPUT}"
@@ -163,10 +182,11 @@ jobs:
 
   publish:
     name: Publish dev image + update k8s overlay
-    # main pushes and manual dispatches both publish to dev; pull_request runs
-    # CI only. A branch dispatch's tag is technically promotable to staging/
-    # prod via deploy-tag-to-env.yml — treat it as a dev preview build.
-    if: github.event_name != 'pull_request'
+    # main pushes always publish to dev; manual dispatches only when
+    # deploy_dev is checked (CI-only branch builds otherwise). pull_request
+    # runs CI only. A branch dispatch's tag is technically promotable to
+    # staging/prod via deploy-tag-to-env.yml — treat it as a dev preview build.
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_dev == 'true')
     needs: [check, integration, build]
     runs-on: ubuntu-latest
     permissions:
