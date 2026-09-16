@@ -181,8 +181,10 @@ docker run --entrypoint /app/eas-weather-rs-migrate eas-weather-rs-server
 *Optional — you can develop with plain `cargo`/`rustup` on any platform without ever installing Nix.*
 
 The `flake.nix` + `flake.lock` pin a full, reproducible toolchain — the Rust
-compiler, clippy/rustfmt, and an exact `nixpkgs` revision — and drive the (also
-Nix-reproducible) container image builds.
+compiler (`rust-toolchain.toml`, shared with CI and the Dockerfile), clippy/
+rustfmt, and an exact `nixpkgs` revision. The flake can also build the container
+images locally (`nix build .#docker-server` / `.#docker-migrate`); CI publishes
+images through the separate Dockerfile path using the same pinned toolchain.
 
 #### Installing Nix
 | Platform | How |

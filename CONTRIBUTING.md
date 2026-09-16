@@ -69,8 +69,8 @@ Rust is pinned in a few places; keep them consistent so "works on my machine" st
 - `rust-toolchain.toml` → `channel = "1.91.0"` — consumed by **both** the Nix flake
   (`fromRustupToolchainFile`) and plain `rustup` developers, so the two environments agree
 - `.github/workflows/ci.yml` → `RUST_TOOLCHAIN: 1.91.0`
-- `Dockerfile` → `rust:1.85-bookworm` (currently the odd one out; reconcile when the
-  image build moves to the flake)
+- `Dockerfile` → `rust:bookworm` base + `rust-toolchain.toml` (rustup installs the pinned
+  toolchain at build time)
 
 When bumping the toolchain, update them together and let CI prove the result. The
 container images are built by CI from the pinned toolchain, so gating merge on green CI is
