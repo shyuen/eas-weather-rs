@@ -1,7 +1,12 @@
 # Stage 1: Build
-FROM rust:1.85-bookworm AS builder
+FROM rust:bookworm AS builder
+# Compiler version comes from rust-toolchain.toml (single source of truth,
+# shared with the Nix flake and rustup); rustup below installs it.
 
 WORKDIR /app
+COPY rust-toolchain.toml ./
+RUN cargo --version
+
 COPY Cargo.toml Cargo.lock ./
 COPY src/ src/
 COPY migrations/ migrations/

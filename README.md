@@ -178,19 +178,51 @@ docker run --entrypoint /app/eas-weather-rs-migrate eas-weather-rs-server
 ## Development
 
 ### Nix Development Environment
-*You may skip this section if you are not using Nix.*
+*Optional — you can develop with plain `cargo`/`rustup` on any platform without ever installing Nix.*
 
-This project includes a `flake.nix` file for setting up the development environment on a NixOS machine.
-You can enter the development environment by running the following at the location of the `flake.nix` file.:
-```
+The `flake.nix` + `flake.lock` pin a full, reproducible toolchain — the Rust
+compiler, clippy/rustfmt, and an exact `nixpkgs` revision — and drive the (also
+Nix-reproducible) container image builds.
+
+#### Installing Nix
+| Platform | How |
+|----------|-----|
+| **Linux** (any distro) | `curl -sSf -L https://install.determinate.systems/nix \| sh -s -- install` |
+| **macOS** (Intel or Apple Silicon) | Same installer |
+| **Windows** | Nix is not native on Windows — use **WSL2** (install an Ubuntu distribution), then run the same installer inside WSL |
+
+The DeterminateSystems installer is the friendliest option but Nix can be installed
+any supported way; the flake works the same either way.
+
+#### Entering the dev environment
+```bash
 nix develop
 ```
-### Direnv Integration
-You can bootstrap initiatlizing the developement environment by create an `.envrc` file with the following content:
+This drops you into a shell with the pinned Rust toolchain plus `pkg-config`, `openssl`,
+`cargo-nextest`, `cargo-tarpaulin`, `sqlx-cli`, and a local MariaDB — a single, hermetic
+environment that matches what the reproducible builds assume.
+
+#### Direnv (auto-activation, optional)
+The repo ships an `.envrc` containing `use flake`. If you have `direnv` installed and its
+hook enabled in your shell, the environment activates automatically whenever you `cd` into
+the repo — no manual `nix develop`.
 ```bash
-use flake
+# macOS
+brew install direnv
+
+# Debian/Ubuntu, then enable the hook (example: bash)
+sudo apt install direnv
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
 ```
-This will require `direnv` to be installed and enabled in your shell.
+On WSL2, install and use `direnv` inside the WSL distro (where Nix lives).
+
+#### What if a `nix build` behaves differently from my local `cargo` build?
+The flake builds from the exact inputs pinned in `flake.lock` inside a hermetic sandbox, so
+it tends to surface *missing implicit dependencies* that happen to exist on your machine.
+If `cargo build` passes but `nix build` fails (or vice versa), it is usually a real
+portability gap — treat CI/the pinned toolchain as the source of truth for what ships. This
+is the same class of issue as "built fine on my Windows Docker but failed on Linux CI": the
+fix is aligning toolchain versions everywhere and letting CI build the deployable artifact.
 
 ### Unit Testing
 You can run the unit tests for the project using Cargo with the following command:

@@ -12,7 +12,7 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
-        rustVersion = pkgs.rust-bin.stable.latest.default;
+        rustVersion = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         rustPlatform = pkgs.makeRustPlatform {
           cargo = rustVersion;
@@ -70,7 +70,7 @@
           '';
           config = {
             User = "1000:1000";
-            Cmd = [ "${migrateOnly}/bin/eas-migrate" ];
+            Cmd = [ "${migrateOnly}/bin/eas-weather-rs-migrate" ];
           };
         };
 
@@ -87,8 +87,7 @@
 
         # Development shell
         devShell = pkgs.mkShell {
-          buildInputs =
-            [ (rustVersion.override { extensions = [ "rust-src" "clippy" "rustfmt" ]; }) ];
+          buildInputs = [ rustVersion ];
           packages = with pkgs; [
             pkg-config
             openssl
