@@ -222,6 +222,8 @@ jobs:
       # attempt already pushed the git tag before failing later).
       - name: Tag codebase with image tag
         run: |
+          git config user.name "eas-weather-rs CD"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           if git rev-parse -q --verify "refs/tags/${{ steps.tag.outputs.image_tag }}" >/dev/null; then
             echo "Tag ${{ steps.tag.outputs.image_tag }} already exists; nothing to push."
           else
