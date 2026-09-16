@@ -52,7 +52,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Read pinned toolchain
         id: toolchain
         run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" >> "${GITHUB_OUTPUT}"
@@ -79,7 +79,7 @@ jobs:
       contents: read
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.check.outputs.toolchain }}
@@ -89,7 +89,7 @@ jobs:
           key: coverage
       - run: cargo install cargo-tarpaulin --locked
       - run: cargo tarpaulin --engine llvm --out Html --output-dir coverage/html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/html/
@@ -120,7 +120,7 @@ jobs:
     env:
       EAS_WEATHER_RS_TEST_DB: mysql://root:root@localhost:3306/eas_weather
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.check.outputs.toolchain }}
@@ -138,7 +138,7 @@ jobs:
       contents: read
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ needs.check.outputs.toolchain }}
@@ -147,7 +147,7 @@ jobs:
           key: build
       - run: cargo fetch
       - run: cargo build --release --bin eas-weather-rs-server --bin eas-weather-rs-migrate
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-binaries
           path: |
@@ -167,7 +167,7 @@ jobs:
       IMAGE: ghcr.io/shyuen/eas-weather-rs-server
       ENV: dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compute image tag
         id: tag
@@ -230,7 +230,7 @@ jobs:
           fi
 
       - name: Check out deployment repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: shyuen/eas-weather-rs-k8s
           ref: main
