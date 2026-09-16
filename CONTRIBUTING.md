@@ -68,7 +68,8 @@ Rust is pinned in a few places; keep them consistent so "works on my machine" st
 
 - `rust-toolchain.toml` → `channel = "1.91.0"` — consumed by **both** the Nix flake
   (`fromRustupToolchainFile`) and plain `rustup` developers, so the two environments agree
-- `.github/workflows/ci.yml` → `RUST_TOOLCHAIN: 1.91.0`
+- `.github/workflows/ci.yml` → derives the version from `rust-toolchain.toml` (read once in
+  the `check` job, shared via job outputs) — no duplicated string
 - `Dockerfile` → `rust:1.91.0-bookworm` base (digest-pinned) + `rust-toolchain.toml`
   (rustup installs the pinned toolchain at build time); runtime stage is a
   digest-pinned `debian:bookworm-slim`

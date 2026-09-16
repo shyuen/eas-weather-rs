@@ -12,7 +12,9 @@ on:
 
 # Mirrors `.gitlab-ci.yml` (check -> build) so the public GitHub mirror has the
 # same guarantees as the private GitLab pipeline, plus a live-DB integration
-# test job. The Rust toolchain is pinned to match the Rust image there.
+# test job. The Rust toolchain comes from rust-toolchain.toml (read once in the
+# `check` job, consumed everywhere), the same single source the Nix flake and
+# Dockerfile use.
 #
 # Trunk-based release candidates: every merge to main is a candidate. `publish`
 # builds the image, tags the codebase
@@ -28,7 +30,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: 1.91.0
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   # The debug profile is used by clippy and test jobs. Skip emitting debug
@@ -43,12 +44,21 @@ jobs:
   check:
     name: Check (fmt, clippy, test)
     runs-on: ubuntu-latest
+    # Single source of truth for the CI toolchain: rust-toolchain.toml is
+    # shared by the Nix flake and the Dockerfile too. check parses it once and
+    # every other job consumes it via needs.check.outputs.toolchain.
+    outputs:
+      toolchain: ${{ steps.toolchain.outputs.version }}
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - name: Read pinned toolchain
+        id: toolchain
+        run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" >> "${GITHUB_OUTPUT}"
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.version }}
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -70,8 +80,9 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ needs.check.outputs.toolchain }}
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
         with:
@@ -110,7 +121,9 @@ jobs:
       EAS_WEATHER_RS_TEST_DB: mysql://root:root@localhost:3306/eas_weather
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.check.outputs.toolchain }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: integration
@@ -126,7 +139,9 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ needs.check.outputs.toolchain }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: build
