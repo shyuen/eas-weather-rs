@@ -69,7 +69,7 @@ jobs:
         run: docker buildx imagetools inspect "${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}"
 
       - name: Check out deployment repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: shyuen/eas-weather-rs-k8s
           ref: main
