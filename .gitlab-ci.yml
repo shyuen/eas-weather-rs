@@ -1,3 +1,19 @@
+# Always run when this file itself changes (so CI edits are validated), skip
+# pushes/MRs that touch only GitHub workflow/docs files (GitLab has no
+# counterpart for them), and run for everything else. Note: a commit mixing a
+# .github change with code changes satisfies the skip glob and would also be
+# skipped on GitLab — GitHub Actions still covers that commit, and GitLab
+# pipelines can be run manually if ever needed.
+workflow:
+  rules:
+    - changes:
+        - .gitlab-ci.yml
+    - changes:
+        - .github/**/*
+        - README.md
+      when: never
+    - when: always
+
 stages:
   - check
   - integration
