@@ -45,6 +45,11 @@ jobs:
   promote:
     name: Promote image to ${{ inputs.env }}
     runs-on: ubuntu-latest
+    # Binding the promotion to its target environment gates staging/prod behind
+    # the environment's protection rules (Settings > Environments > required
+    # reviewers). The dev environment carries no rules, so dev stays automatic.
+    # Every step runs only after the gate clears, and re-runs re-apply it.
+    environment: ${{ inputs.env }}
     permissions:
       contents: write
       packages: read
