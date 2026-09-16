@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: Environment to update in eas-weather-rs-k8s.
+        description: >-
+          Environment to update in eas-weather-rs-k8s. 'production' also names
+          the GitHub environment whose protection rules gate the promotion. The
+          input value dev/staging/production is the environment; the k8s overlay
+          folder for production is `overlays/prod/`.
         type: choice
-        options: [dev, staging, prod]
+        options: [dev, staging, production]
         default: dev
       version:
         description: >-
@@ -55,7 +59,10 @@ jobs:
       packages: read
     env:
       IMAGE: ghcr.io/shyuen/eas-weather-rs-server
-      ENV: ${{ inputs.env }}
+      # ENV is the release/overlay key (dev/staging/prod); the GitHub
+      # environment name for prod is 'production'.
+      ENV: ${{ inputs.env == 'production' && 'prod' || inputs.env }}
+      ENVIRONMENT_NAME: ${{ inputs.env }}
     steps:
       # Full history + tags are required so `gh release create --generate-notes`
       # can resolve the promoted tag and compute notes from git, and so the
@@ -197,8 +204,9 @@ jobs:
           RELEASE_REASON: ${{ steps.release.outputs.reason }}
         run: |
           {
-            echo "## eas-weather-rs promote: \`${{ env.ENV }}\`"
+            echo "## eas-weather-rs promote: \`${{ env.ENVIRONMENT_NAME }}\`"
             echo ""
+            echo "- Environment: \`${{ env.ENVIRONMENT_NAME }}\`"
             echo "- Image: \`${{ env.IMAGE }}:${{ steps.tag.outputs.image_tag }}\` (existing, no rebuild)"
             echo "- Overlay updated: \`overlays/${{ env.ENV }}/kustomization.yaml\` → \`${{ steps.tag.outputs.image_tag }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
